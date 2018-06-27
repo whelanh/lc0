@@ -130,7 +130,15 @@ if get_option('build_backends')
   accelerate_lib = dependency('Accelerate', required: false)
 
   mkl_libdirs = get_option('mkl_libdirs')
-  mkl_lib = cc.find_library('mkl_rt', dirs: mkl_libdirs, required: false)
+  mkl_lib = cc.find_library('mkl_intel_lp64_dll', dirs: mkl_libdirs, required: false)
+  if mkl_lib.found()
+    mkl_lib_2 = cc.find_library('mkl_intel_thread_dll', dirs: mkl_libdirs, required: false)
+    mkl_lib_3 = cc.find_library('mkl_core_dll', dirs: mkl_libdirs, required: false)
+  else
+    mkl_lib = cc.find_library('mkl_rt', dirs: mkl_libdirs, required: false)
+    mkl_lib_2 = []
+    mkl_lib_3 = []
+  endif
 
   openblas_libdirs = get_option('openblas_libdirs')
   openblas_lib = cc.find_library('openblas.dll', dirs: openblas_libdirs, required: false)
@@ -142,7 +150,7 @@ if get_option('build_backends')
     if get_option('mkl') and mkl_lib.found()
       add_project_arguments('-DUSE_MKL', language : 'cpp')
       includes += include_directories(get_option('mkl_include'))
-      deps += [ mkl_lib ]
+      deps += [ mkl_lib, mkl_lib_2, mkl_lib_3 ]
       has_blas = true
 
     elif get_option('accelerate') and accelerate_lib.found()
