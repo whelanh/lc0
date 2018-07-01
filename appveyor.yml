@@ -37,8 +37,10 @@ after_build:
 - cmd: 7z a lc0-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
 - cmd: 7z a lc0-%NAME%.zip C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\x64\*.dll
 - cmd: IF %OPENCL%==true 7z a lc0-%NAME%.zip C:\cache\opencl-nug.0.777.12\build\native\bin\OpenCL.dll
+- cmd: cd
+- cmd: dir
 artifacts:
   - path: build/lc0.exe
-    name: lc0
-  - path: 'lc0-{NAME}.zip'
-    name: 'lc0-{NAME}'
+    name: lc0-$(NAME)
+  - path: lc0-$(NAME).zip
+    name: lc0-$(NAME)-zip
