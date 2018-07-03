@@ -42,3 +42,8 @@ artifacts:
     name: lc0-$(NAME)
   - path: lc0-$(NAME).zip
     name: lc0-$(NAME)-zip
+deploy:
+  - provider: GitHub
+    artifact: lc0-$(NAME).zip 
+    on:
+      appveyor_repo_tag: true
