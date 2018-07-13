@@ -40,6 +40,7 @@ includes = []
 has_backends = false
 
 deps += dependency('protobuf', fallback: ['protobuf', 'protobuf_dep'], required: true)
+# There is no fallback mechanism for find_program so we do it expliciltly.
 protoc = find_program('protoc', required: false)
 if not protoc.found()
   message('protoc will be built from the subproject')
