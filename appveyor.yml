@@ -5,21 +5,21 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: cuda
-    OPENCL: false
-    BLAS: false
-    CUDA: true
-    GTEST: false
+#  - NAME: cuda
+#    OPENCL: false
+#    BLAS: false
+#    CUDA: true
+#    GTEST: false
   - NAME: opencl
     OPENCL: true
     BLAS: true
     CUDA: false
     GTEST: false
-  - NAME: blas
-    OPENCL: false
-    BLAS: true
-    CUDA: false
-    GTEST: true
+#  - NAME: blas
+#    OPENCL: false
+#    BLAS: true
+#    CUDA: false
+#    GTEST: true
 install:
 - cmd: IF %CUDA%==false nuget install OpenBLAS -Version 0.2.14.1 -OutputDirectory C:\cache
 - cmd: IF %CUDA%==false nuget install opencl-nug -Version 0.777.12 -OutputDirectory C:\cache
@@ -33,6 +33,7 @@ install:
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
+- cmd: vcpkg install protobuf protobuf:x64-windows
 cache:
   - C:\cache
   - C:\Python36\scripts
