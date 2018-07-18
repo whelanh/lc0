@@ -33,19 +33,19 @@ install:
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
-- cmd: vcpkg install protobuf:x64-windows-static
+- cmd: vcpkg install protobuf:x64-windows-static-rel
 - cmd: cd C:\tools\vcpkg
 - cmd: vcpkg integrate install
 - cmd: cd C:\projects\lc0
 - cmd: dir /s C:\tools\vcpkg\installed
 - cmd: set PATH=C:\tools\vcpkg\installed\x64-windows-static\tools;%PATH%
 cache:
-#  - C:\cache
+  - C:\tools\vcpkg\installed\
+  - C:\cache
   - C:\Python36\scripts
   - C:\Python36\Lib\site-packages
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2'
-#  - C:\projects\lc0\subprojects\packagecache
-  - C:\tools\vcpkg\installed\
+  - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
 - cmd: meson.py build --backend vs2015 --buildtype release --libdir c:/tools/vcpkg/installed/x64-windows-static/lib --includedir c:/tools/vcpkg/installed/x64-windows-static/include -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=%BLAS% -Dcudnn=%CUDA% -Dcudnn_include="%PKG_FOLDER%\cuda\include" -Dcudnn_libdirs="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\lib\x64","%PKG_FOLDER%\cuda\lib\x64" -Dopenblas_include="%PKG_FOLDER%\OpenBLAS.0.2.14.1\lib\native\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS.0.2.14.1\lib\native\lib\x64" -Dopencl_include="%PKG_FOLDER%\opencl-nug.0.777.12\build\native\include" -Dopencl_libdirs="%PKG_FOLDER%\opencl-nug.0.777.12\build\native\lib\x64" -Ddefault_library=static
