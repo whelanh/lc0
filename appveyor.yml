@@ -33,7 +33,7 @@ install:
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
-- cmd: vcpkg install protobuf:x64-windows-static
+- cmd: vcpkg install protobuf:x64-windows
 - cmd: cd C:\tools\vcpkg
 - cmd: vcpkg integrate install
 - cmd: cd C:\projects\lc0
