@@ -39,11 +39,15 @@ files = []
 includes = []
 has_backends = false
 
-deps += dependency('protobuf', fallback : ['protobuf', 'protobuf_dep'], required: true)
+# Both protobuf and protoc must be the same version, so couple them together.
+protobuf_dep = cc.find_library('libprotobuf', dirs:get_option('protobuf_libdir'), required: false)
 protoc = find_program('protoc', required : false)
-if not protoc.found()
-  message('protoc will be built from the subproject')
+if not protobuf_dep.found() or not protoc.found()
+  deps += subproject('protobuf').get_variable('protobuf_dep')
   protoc = subproject('protobuf').get_variable('protoc')
+else
+  deps += protobuf_dep
+  includes += include_directories(get_option('protobuf_include'))
 endif
 
 gen = generator(protoc, output: ['@BASENAME@.pb.cc', '@BASENAME@.pb.h'],
