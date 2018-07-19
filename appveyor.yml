@@ -10,11 +10,11 @@ environment:
     BLAS: false
     CUDA: true
     GTEST: false
-#  - NAME: opencl
-#    OPENCL: true
-#    BLAS: true
-#    CUDA: false
-#    GTEST: false
+  - NAME: opencl
+    OPENCL: true
+    BLAS: true
+    CUDA: false
+    GTEST: false
   - NAME: blas
     OPENCL: false
     BLAS: true
@@ -41,11 +41,11 @@ install:
 - cmd: set PATH=c:\cache\protobuf\bin;%PATH%
 - cmd: cd C:\projects\lc0
 cache:
-  - C:\cache -> appveyor.yml
-  - C:\Python36\scripts -> appveyor.yml
-  - C:\Python36\Lib\site-packages -> appveyor.yml
-  - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2 -> appveyor.yml'
-  - C:\projects\lc0\subprojects\packagecache -> appveyor.yml
+  - C:\cache
+  - C:\Python36\scripts
+  - C:\Python36\Lib\site-packages
+  - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2'
+  - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
 - cmd: meson.py build --backend vs2015 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=%BLAS% -Dcudnn=%CUDA% -Dcudnn_include="%PKG_FOLDER%\cuda\include" -Dcudnn_libdirs="%CUDA_PATH%\lib\x64","%PKG_FOLDER%\cuda\lib\x64" -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dopenblas_include="%PKG_FOLDER%\OpenBLAS.0.2.14.1\lib\native\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS.0.2.14.1\lib\native\lib\x64" -Dopencl_include="%PKG_FOLDER%\opencl-nug.0.777.12\build\native\include" -Dopencl_libdirs="%PKG_FOLDER%\opencl-nug.0.777.12\build\native\lib\x64" -Ddefault_library=static
