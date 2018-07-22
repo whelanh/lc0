@@ -32,7 +32,7 @@ namespace lczero {
 
 class BlasComputation : public NetworkComputation {
  public:
-  BlasComputation(const Weights& weights, const size_t max_batch_size);
+  BlasComputation(const Weights& weights, const size_t max_batch_size, const size_t cache_size);
 
   virtual ~BlasComputation() {}
 
@@ -62,6 +62,8 @@ class BlasComputation : public NetworkComputation {
 
   const Weights& weights_;
   size_t max_batch_size_;
+  size_t cache_size_;
+
   std::vector<InputPlanes> planes_;
   std::vector<std::vector<float>> policies_;
   std::vector<float> q_values_;
@@ -73,7 +75,7 @@ class BlasNetwork : public Network {
   virtual ~BlasNetwork(){};
 
   std::unique_ptr<NetworkComputation> NewComputation() override {
-    return std::make_unique<BlasComputation>(weights_, max_batch_size_);
+    return std::make_unique<BlasComputation>(weights_, max_batch_size_, cache_size_);
   }
 
  private:
@@ -82,12 +84,15 @@ class BlasNetwork : public Network {
 
   Weights weights_;
   size_t max_batch_size_;
+  size_t cache_size_;
 };
 
 BlasComputation::BlasComputation(const Weights& weights,
-                                 const size_t max_batch_size)
+                                 const size_t max_batch_size,
+                                 const size_t cache_size)
     : weights_(weights),
       max_batch_size_(max_batch_size),
+      cache_size_(cache_size),
       policies_(0),
       q_values_(0) {}
 
@@ -131,7 +136,7 @@ void BlasComputation::ComputeBlocking() {
                                  kSquares);
 
   WinogradConvolution3 convolve3(largest_batch_size, max_channels,
-                                 output_channels);
+                                 output_channels, cache_size_);
 
   std::vector<float> policy_buffer(largest_batch_size *
                                    num_policy_input_planes * kSquares);
@@ -251,6 +256,15 @@ BlasNetwork::BlasNetwork(const Weights& weights, const OptionsDict& options)
     max_batch_size_ = kHardMaxBatchSize;
     fprintf(stderr, "BLAS warning, maximum batch size set to %ld.",
             max_batch_size_);
+  }
+
+  cache_size_ =
+      static_cast<size_t>(options.GetOrDefault<int>("cache_size", 128));
+
+  if (cache_size_ > 512) {
+    cache_size_ = 512;
+    fprintf(stderr, "BLAS warning, maximum cache size set to %ld.",
+            cache_size_);
   }
 
   const auto inputChannels = kInputPlanes;

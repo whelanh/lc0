@@ -90,9 +90,12 @@ std::vector<float> WinogradConvolution3::TransformF(const std::vector<float>& f,
 
 WinogradConvolution3::WinogradConvolution3(const size_t max_batch_size,
                                            const size_t max_input_layers,
-                                           const size_t max_output_layers)
+                                           const size_t max_output_layers,
+                                           const size_t cache_size)
     : V_(max_batch_size * kWinogradTile * max_input_layers * kTiles),
-      M_(max_batch_size * kWinogradTile * max_output_layers * kTiles) {}
+      M_(max_batch_size * kWinogradTile * max_output_layers * kTiles) {
+  kCacheSize = cache_size;
+}
 
 void WinogradConvolution3::Forward(const size_t batch_size,
                                    const size_t input_channels,
@@ -107,10 +110,10 @@ void WinogradConvolution3::Forward(const size_t batch_size,
 void WinogradConvolution3::TransformIn(const size_t batch_size,
                                        const float* input,
                                        const size_t channels) {
-  static const size_t kCacheSize = 128;
+//  static const size_t kCacheSize = 128;
   float x[kWinogradAlpha][kWinogradAlpha];
   float T1[kWinogradAlpha][kWinogradAlpha];
-  float R[16][kCacheSize];
+  float R[16][512];
   for (size_t batch_index = 0; batch_index < batch_size; batch_index++) {
     size_t channels_rem = channels;
     const float* input_batch =

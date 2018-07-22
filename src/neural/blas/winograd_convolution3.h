@@ -41,7 +41,8 @@ class WinogradConvolution3 {
   // layers.
   WinogradConvolution3(const size_t max_batch_size,
                        const size_t max_input_layers,
-                       const size_t max_output_layers);
+                       const size_t max_output_layers,
+                       const size_t cache_size);
 
   // Create the zero-padded U matrix.
   static std::vector<float> ZeropadU(const std::vector<float>& U,
@@ -82,5 +83,7 @@ class WinogradConvolution3 {
 
   std::vector<float> V_;
   std::vector<float> M_;
+
+  size_t kCacheSize;
 };
 }
