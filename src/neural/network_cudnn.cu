@@ -535,7 +535,7 @@ ConvLayer<DataType>::ConvLayer(BaseLayer<DataType> *ip, int C, int H, int W,
         cudnnSetConvolutionMathType(conv_desc_, CUDNN_TENSOR_OP_MATH));
 
   // TODO: dynamic selection of algorithm!
-  if ((C > 32) && (!fp16)) {
+  if ((C > 32) /*&& (!fp16)*/) {
     conv_algo_ = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED;
   } else {
     conv_algo_ = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
@@ -612,16 +612,49 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
         conv_desc_, conv_algo_, scratch, scratch_size, &beta, out_tensor_desc_,
         output));
   } else if (input2) {
+    if (!fp16) {
     // fused bias + sum + relu!
     ReportCUDNNErrors(cudnnConvolutionBiasActivationForward(
         cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
         conv_desc_, conv_algo_, scratch, scratch_size, &alpha, out_tensor_desc_,
         input2, bias_desc_, biases, activation_, out_tensor_desc_, output));
+    }
+    else {
+      ReportCUDNNErrors(cudnnConvolutionForward(
+          cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
+          conv_desc_, convAlgo, scratch, scratch_size, &beta,
+          out_tensor_desc_, output));
+      ReportCUDNNErrors(cudnnAddTensor(
+          cudnn, &alpha, out_tensor_desc_, input2, &alpha,
+          out_tensor_desc_, output));
+      ReportCUDNNErrors(cudnnAddTensor(
+          cudnn, &alpha, bias_desc_, biases, &alpha, out_tensor_desc_,
+          output));
+      if (use_relu_) {
+        ReportCUDNNErrors(cudnnActivationForward(cudnn, activation_, &alpha,
+            out_tensor_desc_, output, &beta, out_tensor_desc_, output));
+      }
+    }
   } else {
+    if (!fp16) {
     ReportCUDNNErrors(cudnnConvolutionBiasActivationForward(
         cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
         conv_desc_, conv_algo_, scratch, scratch_size, &beta, out_tensor_desc_,
         output, bias_desc_, biases, activation_, out_tensor_desc_, output));
+    }
+    else {
+      ReportCUDNNErrors(cudnnConvolutionForward(
+          cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
+          conv_desc_, conv_algo_, scratch, scratch_size, &beta,
+          out_tensor_desc_, output));
+      ReportCUDNNErrors(cudnnAddTensor(
+          cudnn, &alpha, bias_desc_, biases, &alpha, out_tensor_desc_,
+          output));
+      if (use_relu_) {
+        ReportCUDNNErrors(cudnnActivationForward(cudnn, activation_, &alpha,
+            out_tensor_desc_, output, &beta, out_tensor_desc_, output));
+      }
+    }
   }
 }
 
