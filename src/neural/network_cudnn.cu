@@ -622,7 +622,7 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
     else {
       ReportCUDNNErrors(cudnnConvolutionForward(
           cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
-          conv_desc_, convAlgo, scratch, scratch_size, &beta,
+          conv_desc_, conv_algo_, scratch, scratch_size, &beta,
           out_tensor_desc_, output));
       ReportCUDNNErrors(cudnnAddTensor(
           cudnn, &alpha, out_tensor_desc_, input2, &alpha,
@@ -1074,10 +1074,10 @@ class CudnnNetwork : public Network {
     if (fp16) {
       ReportCUDNNErrors(
           cudnnSetConvolutionMathType(convDesc, CUDNN_TENSOR_OP_MATH));
-      conv_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
-    } else {
+//      conv_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+    } //else {
       conv_algo = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED;
-    }
+//    }
 
     // Query expected scratch space from cudnn.
     ReportCUDNNErrors(cudnnGetConvolutionForwardWorkspaceSize(
