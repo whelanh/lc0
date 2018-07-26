@@ -612,7 +612,7 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
         conv_desc_, conv_algo_, scratch, scratch_size, &beta, out_tensor_desc_,
         output));
   } else if (input2) {
-    if (!fp16) {
+    if (0 && !fp16) {
     // fused bias + sum + relu!
     ReportCUDNNErrors(cudnnConvolutionBiasActivationForward(
         cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
@@ -636,7 +636,7 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
       }
     }
   } else {
-    if (!fp16) {
+    if (0 && !fp16) {
     ReportCUDNNErrors(cudnnConvolutionBiasActivationForward(
         cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
         conv_desc_, conv_algo_, scratch, scratch_size, &beta, out_tensor_desc_,
