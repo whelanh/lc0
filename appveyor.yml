@@ -54,6 +54,12 @@ after_build:
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==false 7z a lc0-windows-%NAME%.zip C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\x64\*.dll
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==false IF %OPENCL%==true 7z a lc0-windows-%NAME%.zip C:\cache\opencl-nug.0.777.12\build\native\bin\OpenCL.dll
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true 7z a lc0-%NAME%.zip "%CUDA_PATH%\bin\cudart64_92.dll" "%CUDA_PATH%\bin\cublas64_92.dll"
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true 7z a lc0-%NAME%.zip "%PKG_FOLDER%\cuda\bin\cudnn64_7.dll"
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type COPYING |more /P |7z a lc0-%NAME%.zip -siCOPYING
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type %CUDA_PATH%\EULA.txt |7z a lc0-%NAME%.zip -siCUDA.txt
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type %PKG_FOLDER%\cuda\NVIDIA_SLA_cuDNN_Support.txt |7z a lc0-%NAME%.zip -siCUDNN.txt
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type dist\README-cuda.txt |more /P |7z a lc0-%NAME%.zip -siREADME.txt  
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
