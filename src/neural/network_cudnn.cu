@@ -567,7 +567,7 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
 
   float alpha = 1.0f, beta = 0.0f;
 
-  if (!fp16) {
+  if (0 && !fp16) {
     if (!(use_relu_ || use_bias_)) {
       ReportCUDNNErrors(cudnnConvolutionForward(
           cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
