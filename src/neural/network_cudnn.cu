@@ -588,9 +588,10 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
   } else {
     ReportCUDNNErrors(cudnnConvolutionForward(
         cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
-        conv_desc_, conv_algo_, scratch, scratch_size, &beta,
-        out_tensor_desc_, output));
-    if (input2) {
+        conv_desc_, conv_algo_, scratch, scratch_size,
+        (input2 == output) ? &alpha : &beta, out_tensor_desc_, output));
+    if (input2 && input2 != output) {
+      // probably never taken
       ReportCUDNNErrors(cudnnAddTensor(
           cudnn, &alpha, out_tensor_desc_, input2, &alpha,
           out_tensor_desc_, output));
