@@ -585,13 +585,38 @@ void ConvLayer<DataType>::Eval(int N, DataType *output, const DataType *input,
           conv_desc_, conv_algo_, scratch, scratch_size, &beta, out_tensor_desc_,
           output, bias_desc_, biases, activation_, out_tensor_desc_, output));
     } 
+  } else if (!(use_relu_ || use_bias_)) {
+    ReportCUDNNErrors(cudnnConvolutionForward(
+        cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
+        conv_desc_, conv_algo_, scratch, scratch_size,
+        &beta, out_tensor_desc_, output));
+  } else if (use_relu_ && use_bias_ && input2 == nullptr) {
+    ReportCUDNNErrors(cudnnConvolutionForward(
+        cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
+        conv_desc_, conv_algo_, scratch, scratch_size,
+        &beta, out_tensor_desc_, output));
+    ReportCUDNNErrors(cudnnAddTensor(
+        cudnn, &alpha, bias_desc_, biases, &alpha, out_tensor_desc_,
+        output));
+    ReportCUDNNErrors(cudnnActivationForward(cudnn, activation_, &alpha,
+        out_tensor_desc_, output, &beta, out_tensor_desc_, output));
+  } else if (use_relu_ && use_bias_ && input2 == output) {
+    ReportCUDNNErrors(cudnnConvolutionForward(
+        cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
+        conv_desc_, conv_algo_, scratch, scratch_size,
+        &alpha, out_tensor_desc_, output));
+    ReportCUDNNErrors(cudnnAddTensor(
+        cudnn, &alpha, bias_desc_, biases, &alpha, out_tensor_desc_,
+        output));
+    ReportCUDNNErrors(cudnnActivationForward(cudnn, activation_, &alpha,
+        out_tensor_desc_, output, &beta, out_tensor_desc_, output));
   } else {
+    // probably never taken
     ReportCUDNNErrors(cudnnConvolutionForward(
         cudnn, &alpha, in_tensor_desc_, input, filter_desc_, weights,
         conv_desc_, conv_algo_, scratch, scratch_size,
         (input2 == output) ? &alpha : &beta, out_tensor_desc_, output));
     if (input2 && input2 != output) {
-      // probably never taken
       ReportCUDNNErrors(cudnnAddTensor(
           cudnn, &alpha, out_tensor_desc_, input2, &alpha,
           out_tensor_desc_, output));
