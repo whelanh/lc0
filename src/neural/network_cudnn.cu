@@ -101,7 +101,7 @@ void CudaError(cudaError_t status, const char *file, const int &line) {
 
 // Hard-coded for now, no point in going above this anyway (can possibly save
 // memory by reducing this).
-static constexpr int kMaxBatchSize = 1024;
+static constexpr int kMaxBatchSize = 512;
 static constexpr int kNumOutputPolicy = 1858;
 
 // The Layer objects only hold memory for weights, biases, etc
