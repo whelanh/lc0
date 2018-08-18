@@ -31,9 +31,8 @@ cache:
 before_build:
 - cmd: git submodule update --init --recursive
 - cmd: meson.py build --backend vs2015 --buildtype release -Dgtest=false -Dopencl=false -Dblas=false -Dcudnn=true -Dcudnn_include="%PKG_FOLDER%\cuda\include" -Dcudnn_libdirs="%CUDA_PATH%\lib\x64","%PKG_FOLDER%\cuda\lib\x64" -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Ddefault_library=static
-build:
-  parallel: true
-  project: build/lc0.sln
+build_script:
+- cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
 - cmd: 7z a lc0-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
 - cmd: 7z a lc0-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_91.dll" "%CUDA_PATH%\bin\cublas64_91.dll"

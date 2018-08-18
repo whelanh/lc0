@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -78,12 +79,10 @@ class Edge {
   // is false) or as opponent (if as_opponent is true).
   Move GetMove(bool as_opponent = false) const;
 
-  // Returns value of Move probability returned from the neural net
-  // (but can be changed by adding Dirichlet noise).
-  float GetP() const { return p_; }
-
-  // Sets move probability.
-  void SetP(float val) { p_ = val; }
+  // Returns or sets value of Move policy prior returned from the neural net
+  // (but can be changed by adding Dirichlet noise). Must be in [0,1].
+  float GetP() const;
+  void SetP(float val);
 
   // Debug information about the edge.
   std::string DebugString() const;
@@ -96,9 +95,9 @@ class Edge {
   // Root node contains move a1a1.
   Move move_;
 
-  // Probability that this move will be made. From policy head of the neural
-  // network.
-  float p_ = 0.0;
+  // Probability that this move will be made, from the policy head of the neural
+  // network; compressed to a 16 bit format (5 bits exp, 11 bits significand).
+  uint16_t p_ = 0;
 
   friend class EdgeList;
 };
@@ -156,8 +155,6 @@ class Node {
 
   // Returns whether the node is known to be draw/lose/win.
   bool IsTerminal() const { return is_terminal_; }
-  uint16_t GetFullDepth() const { return full_depth_; }
-  uint16_t GetMaxDepth() const { return max_depth_; }
   uint16_t GetNumEdges() const { return edges_.size(); }
 
   // Makes the node terminal and sets it's score.
@@ -225,10 +222,6 @@ class Node {
   // Sum of policy priors which have had at least one playout.
   float visited_policy_ = 0.0f;
 
-  // Maximum depth any subnodes of this node were looked at.
-  uint16_t max_depth_ = 0;
-  // Complete depth all subnodes of this node were fully searched.
-  uint16_t full_depth_ = 0;
   // Does this node end game (with a winning of either sides or draw).
   bool is_terminal_ = false;
 
