@@ -47,3 +47,8 @@ artifacts:
     name: lc0-$(NAME)
   - path: lc0-windows-$(NAME).zip
     name: lc0-windows-$(NAME)-zip
+deploy:
+  - provider: GitHub
+    artifact: lc0-windows-$(NAME).zip
+    auth_token:
+      secure: gaVZ2vFMBN/OhJzoWLKyfi6v4RpfuHn/M1F9+Id1SucKTEpO8fudn+Xcd2kfOBRz
