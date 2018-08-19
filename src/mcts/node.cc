@@ -19,7 +19,7 @@
 
   If you modify this Program, or any covered work, by linking or
   combining it with NVIDIA Corporation's libraries from the NVIDIA CUDA
-  Toolkit and the the NVIDIA CUDA Deep Neural Network library (or a
+  Toolkit and the NVIDIA CUDA Deep Neural Network library (or a
   modified version of those libraries), containing parts covered by the
   terms of the respective license agreement, the licensors of this
   Program grant you additional permission to convey the resulting work.
@@ -217,7 +217,13 @@ std::string Node::DebugString() const {
 
 void Node::MakeTerminal(GameResult result) {
   is_terminal_ = true;
-  q_ = (result == GameResult::DRAW) ? 0.0f : 1.0f;
+  if (result == GameResult::DRAW) {
+    q_ = 0.0f;
+  } else if (result == GameResult::WHITE_WON) {
+    q_ = 1.0f;
+  } else if (result == GameResult::BLACK_WON) {
+    q_ = -1.0f;
+  }
 }
 
 bool Node::TryStartScoreUpdate() {
@@ -311,7 +317,7 @@ V3TrainingData Node::GetV3TrainingData(GameResult game_result,
   // Other params.
   result.side_to_move = position.IsBlackToMove() ? 1 : 0;
   result.move_count = 0;
-  result.rule50_count = position.GetNoCapturePly();
+  result.rule50_count = position.GetNoCaptureNoPawnPly();
 
   // Game result.
   if (game_result == GameResult::WHITE_WON) {
@@ -389,12 +395,14 @@ void NodeTree::ResetToPosition(const std::string& starting_fen,
     if (old_head == current_head_) seen_old_head = true;
   }
 
-  // If we didn't see old head, it means that new position is shorter.
-  // As we killed the search tree already, trim it to redo the search.
-  if (!seen_old_head) {
-    assert(!current_head_->sibling_);
-    TrimTreeAtHead();
-  }
+  // MakeMove guarantees that no siblings exist; but, if we didn't see the old
+  // head, it means we might have a position that was an ancestor to a
+  // previously searched position, which means that the current_head_ might
+  // retain old n_ and q_ (etc) data, even though its old children were
+  // previously trimmed; we need to reset current_head_ in that case.
+  // Also, if the current_head_ is terminal, reset that as well to allow forced
+  // analysis of WDL hits, or possibly 3 fold or 50 move "draws", etc.
+  if (!seen_old_head || current_head_->IsTerminal()) TrimTreeAtHead();
 }
 
 void NodeTree::DeallocateTree() {

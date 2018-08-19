@@ -19,7 +19,7 @@
 
   If you modify this Program, or any covered work, by linking or
   combining it with NVIDIA Corporation's libraries from the NVIDIA CUDA
-  Toolkit and the the NVIDIA CUDA Deep Neural Network library (or a
+  Toolkit and the NVIDIA CUDA Deep Neural Network library (or a
   modified version of those libraries), containing parts covered by the
   terms of the respective license agreement, the licensors of this
   Program grant you additional permission to convey the resulting work.
@@ -31,6 +31,7 @@
 #include "mcts/search.h"
 #include "neural/cache.h"
 #include "neural/network.h"
+#include "syzygy/syzygy.h"
 #include "utils/mutex.h"
 #include "utils/optionsparser.h"
 #include "utils/optional.h"
@@ -81,7 +82,8 @@ class EngineController {
                                     const GoParams& params);
 
  private:
-  void UpdateNetwork();
+  void UpdateTBAndNetwork();
+
   void SetupPosition(const std::string& fen,
                      const std::vector<std::string>& moves);
 
@@ -90,18 +92,19 @@ class EngineController {
   BestMoveInfo::Callback best_move_callback_;
   ThinkingInfo::Callback info_callback_;
 
-  NNCache cache_;
-  std::unique_ptr<Network> network_;
-
   // Locked means that there is some work to wait before responding readyok.
   RpSharedMutex busy_mutex_;
   using SharedLock = std::shared_lock<RpSharedMutex>;
 
   std::unique_ptr<Search> search_;
   std::unique_ptr<NodeTree> tree_;
+  std::unique_ptr<SyzygyTablebase> syzygy_tb_;
+  std::unique_ptr<Network> network_;
+  NNCache cache_;
 
-  // Store current network settings to track when they change so that they
-  // are reloaded.
+  // Store current TB and network settings to track when they change so that
+  // they are reloaded.
+  std::string tb_paths_;
   std::string network_path_;
   std::string backend_;
   std::string backend_options_;

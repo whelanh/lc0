@@ -19,7 +19,7 @@
 
   If you modify this Program, or any covered work, by linking or
   combining it with NVIDIA Corporation's libraries from the NVIDIA CUDA
-  Toolkit and the the NVIDIA CUDA Deep Neural Network library (or a
+  Toolkit and the NVIDIA CUDA Deep Neural Network library (or a
   modified version of those libraries), containing parts covered by the
   terms of the respective license agreement, the licensors of this
   Program grant you additional permission to convey the resulting work.
@@ -211,7 +211,9 @@ class Node {
   // Index of this node is parent's edge list.
   uint16_t index_;
   // Average value (from value head of neural network) of all visited nodes in
-  // subtree. For terminal nodes, eval is stored.
+  // subtree. For terminal nodes, eval is stored. This is from the perspective
+  // of the player who "just" moved to reach this position, rather than from the
+  // perspective of the player-to-move for the position.
   float q_ = 0.0f;
   // How many completed visits this node had.
   uint32_t n_ = 0;
