@@ -13,7 +13,7 @@ install:
 - cmd: IF DEFINED CUDA_INSTALL cuda_9.1.85_win10_network -s nvcc_9.1 cublas_dev_9.1 cublas_9.1 cudart_9.1
 - cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.1/Prod/patches/1/cuda_9.1.85.1_windows
 - cmd: IF DEFINED CUDA_INSTALL cuda_9.1.85.1_windows -s
-- cmd: IF DEFINED CUDA_INSTALL appveyor https://developer.nvidia.com/compute/cuda/9.1/Prod/patches/2/cuda_9.1.85.2_windows
+- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.1/Prod/patches/2/cuda_9.1.85.2_windows
 - cmd: IF DEFINED CUDA_INSTALL cuda_9.1.85.2_windows -s
 - cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.1/Prod/patches/3/cuda_9.1.85.3_windows
 - cmd: IF DEFINED CUDA_INSTALL cuda_9.1.85.3_windows -s
