@@ -11,14 +11,14 @@ install:
 - cmd: IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
 - cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/network_installers/cuda_9.0.176_win10_network-exe
 - cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176_win10_network-exe -s compiler_9.0 cublas_dev_9.0 cublas_9.0 cudart_9.0
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/1/cuda_9.0.176.1_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.1_windows-exe -s compiler_9.0 cublas_dev_9.0 cublas_9.0 cudart_9.0
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/2/cuda_9.0.176.2_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.2_windows-exe -s compiler_9.0 cublas_dev_9.0 cublas_9.0 cudart_9.0
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/3/cuda_9.0.176.3_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.3_windows-exe -s compiler_9.0 cublas_dev_9.0 cublas_9.0 cudart_9.0
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/4/cuda_9.0.176.4_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.4_windows-exe -s compiler_9.0 cublas_dev_9.0 cublas_9.0 cudart_9.0
+#- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/1/cuda_9.0.176.1_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.1_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/2/cuda_9.0.176.2_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.2_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/3/cuda_9.0.176.3_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.3_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/4/cuda_9.0.176.4_windows-exe
+#- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.4_windows-exe
 - cmd: set PATH=%CUDA_PATH%\bin;%PATH%
 - cmd: IF NOT EXIST C:\cache\cuda appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.2.1/cudnn-9.0-windows10-x64-v7.2.1.38.zip
 - cmd: IF NOT EXIST C:\cache\cuda 7z x cudnn-9.0-windows10-x64-v7.2.1.38.zip -oC:\cache
