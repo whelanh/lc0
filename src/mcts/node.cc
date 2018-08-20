@@ -153,6 +153,8 @@ void Edge::SetP(float p) {
 }
 
 float Edge::GetP() const {
+  static_assert(std::numeric_limits<float>::is_iec559,
+                "The code requires IEEE-754 float bit representation");
   // Reshift into place and set the assumed-set exponent bits.
   uint32_t tmp = (static_cast<uint32_t>(p_) << 12) | (3 << 28);
   float ret;
