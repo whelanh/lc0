@@ -407,5 +407,9 @@ if get_option('gtest') and gtest.found()
     executable('syzygy_test', 'src/syzygy/syzygy_test.cc',
     files, include_directories: includes, dependencies: test_deps
   ), timeout: 90)
+  
+  test('NodeTest',
+    executable('node_test', 'src/mcts/node_test.cc', dependencies: gtest
+  ), timeout: 10)
 
 endif
