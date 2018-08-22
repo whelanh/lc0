@@ -32,37 +32,26 @@
 
 namespace lczero {
 
-class CommandLine {
+class OptionsParser;
+
+class ConfigFile {
  public:
-  CommandLine() = delete;
+  ConfigFile() = delete;
 
-  // This function must be called before any other.
-  static void Init(int argc, const char** argv);
+  // This function must be called after PopulateOptions.
+  static bool Init(OptionsParser* options);
 
-  // Name of the executable filename that was run.
-  static const std::string& BinaryName() { return binary_; }
-
-  // Directory where the binary is run. Without trailing slash.
-  static std::string BinaryDirectory();
-
-  // If the first command line parameter is @command, remove it and return
-  // true. Otherwise return false.
-  static bool ConsumeCommand(const std::string& command);
-
-  // Command line arguments.
+  // Returns the command line arguments from the config file.
   static const std::vector<std::string>& Arguments() { return arguments_; }
 
-  static void RegisterMode(const std::string& mode,
-                           const std::string& description);
-
-  static const std::vector<std::pair<std::string, std::string>>& GetModes() {
-    return modes_;
-  }
+  // Add the config file parameter to the options dictionary.
+  static void PopulateOptions(OptionsParser* options);
 
  private:
-  static std::string binary_;
+  // Parses the config file into the arguments_ vector.
+  static bool ParseFile(const std::string filename, OptionsParser* options);
+
   static std::vector<std::string> arguments_;
-  static std::vector<std::pair<std::string, std::string>> modes_;
 };
 
 }  // namespace lczero
