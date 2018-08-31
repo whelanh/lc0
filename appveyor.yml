@@ -5,16 +5,6 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: cuda
-    OPENCL: false
-    BLAS: false
-    CUDA: true
-    GTEST: false
-  - NAME: opencl
-    OPENCL: true
-    BLAS: true
-    CUDA: false
-    GTEST: false
   - NAME: blas
     OPENCL: false
     BLAS: true
@@ -44,7 +34,7 @@ install:
 - cmd: set PATH=c:\cache\protobuf\bin;%PATH%
 - cmd: cd C:\projects\lc0
 cache:
-  - C:\cache -> appveyor.yml
+  - C:\cache
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2'
   - C:\projects\lc0\subprojects\packagecache
 before_build:
@@ -81,3 +71,8 @@ test_script:
 - cmd: IF %GTEST%==true copy C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\x64\*.dll
 - cmd: IF %GTEST%==true meson.py test --print-errorlogs
 - cmd: cd ..
+on_finish:
+- ps: (new-object net.webclient).UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\build\chessboard.xml))
+- ps: (new-object net.webclient).UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\build\hashcat.xml))
+- ps: (new-object net.webclient).UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\build\position.xml))
+- ps: (new-object net.webclient).UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\build\syzygy.xml))
