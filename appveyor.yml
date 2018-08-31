@@ -72,4 +72,7 @@ test_script:
 - cmd: IF %GTEST%==true meson.py test --print-errorlogs
 - cmd: cd ..
 on_finish:
-- ps: (new-object net.webclient).UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\build\*.xml))
+- cmd: cd build
+- cmd: curl -F file=@syzygy.xml https://ci.appveyor.com/api/testresults/junit/%APPVEYOR_JOB_ID%
+- cmd: cd ..
+
