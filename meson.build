@@ -388,6 +388,21 @@ test_deps = deps
 if get_option('gtest') and gtest.found()
   test_deps += gtest
 
+  test('ChessBoard',
+    executable('chessboard_test', 'src/chess/board_test.cc',
+    files, include_directories: includes, dependencies: test_deps
+  ), args: '--gtest_output=xml:chessboard.xml', timeout: 90)
+
+  test('HashCat',
+    executable('hashcat_test', 'src/utils/hashcat_test.cc',
+    files, include_directories: includes, dependencies: test_deps
+  ), args: '--gtest_output=xml:hashcat.xml', timeout: 90)
+
+  test('PositionTest',
+    executable('position_test', 'src/chess/position_test.cc',
+    files, include_directories: includes, dependencies: test_deps
+  ), args: '--gtest_output=xml:position.xml', timeout: 90)
+
   test('SyzygyTest',
     executable('syzygy_test', 'src/syzygy/syzygy_test.cc',
     files, include_directories: includes, dependencies: test_deps
