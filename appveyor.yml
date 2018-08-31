@@ -73,6 +73,6 @@ test_script:
 - cmd: cd ..
 on_finish:
 - cmd: cd build
-- cmd: for %a in (*.xml) do curl -F file=@%a https://ci.appveyor.com/api/testresults/junit/%APPVEYOR_JOB_ID%
+- cmd: for %%a in (*.xml) do curl -F file=@%%a https://ci.appveyor.com/api/testresults/junit/%APPVEYOR_JOB_ID%
 - cmd: cd ..
 
