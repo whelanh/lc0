@@ -10,7 +10,7 @@ environment:
 #    GTEST: false
   - NAME: blas
     OPENCL: false
-    GTEST: false
+    GTEST: true
 install:
 - cmd: nuget install OpenBLAS -Version 0.2.14.1 -OutputDirectory C:\cache
 - cmd: IF %OPENCL%==true nuget install opencl-nug -Version 0.777.12 -OutputDirectory C:\cache
