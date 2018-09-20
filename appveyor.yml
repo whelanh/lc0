@@ -5,23 +5,15 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: cuda90
+  - NAME: cuda100
 install:
-- cmd: set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0"
+- cmd: set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0"
 - cmd: IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/network_installers/cuda_9.0.176_win10_network-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176_win10_network-exe -s compiler_9.0 cublas_dev_9.0 cublas_9.0 cudart_9.0
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/1/cuda_9.0.176.1_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.1_windows-exe -s
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/2/cuda_9.0.176.2_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.2_windows-exe -s
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/3/cuda_9.0.176.3_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.3_windows-exe -s
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.0/Prod/patches/4/cuda_9.0.176.4_windows-exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.0.176.4_windows-exe -s
+- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/10.0/Prod/network_installers/cuda_10.0.130_win10_network
+- cmd: IF DEFINED CUDA_INSTALL cuda_10.0.130_win10_network -s nvcc_10.0 cublas_dev_10.0 cublas_10.0 cudart_10.0
 - cmd: set PATH=%CUDA_PATH%\bin;%PATH%
-- cmd: IF NOT EXIST C:\cache\cuda appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.2.1/cudnn-9.0-windows10-x64-v7.2.1.38.zip
-- cmd: IF NOT EXIST C:\cache\cuda 7z x cudnn-9.0-windows10-x64-v7.2.1.38.zip -oC:\cache
+- cmd: IF NOT EXIST C:\cache\cuda appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.3.0/cudnn-10.0-windows10-x64-v7.3.0.29.zip
+- cmd: IF NOT EXIST C:\cache\cuda 7z x cudnn-10.0-windows10-x64-v7.3.0.29.zip -oC:\cache
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
@@ -44,7 +36,7 @@ build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
 - cmd: 7z a lc0-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
-- cmd: 7z a lc0-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_90.dll" "%CUDA_PATH%\bin\cublas64_90.dll"
+- cmd: 7z a lc0-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_100.dll" "%CUDA_PATH%\bin\cublas64_100.dll"
 - cmd: 7z a lc0-windows-%NAME%.zip "%PKG_FOLDER%\cuda\bin\cudnn64_7.dll"
 - cmd: type COPYING |more /P > dist\COPYING
 - cmd: copy "%CUDA_PATH%\EULA.txt" dist\CUDA.txt
