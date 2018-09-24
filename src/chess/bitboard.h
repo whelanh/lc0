@@ -95,15 +95,10 @@ class BitBoard {
 
   std::uint64_t as_int() const { return board_; }
   void clear() { board_ = 0; }
+
+  // Counts the number of set bits in the BitBoard.
   int count() const {
-#if defined(NO_POPCNT)
-#ifdef _WIN64
-    std::uint64_t x = board_;
-    x -= (x >> 1) & 0x5555555555555555;
-    x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
-    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
-    return (x * 0x0101010101010101) >> 56;
-#else
+#if defined(NO_POPCNT) && !defined(_WIN64) && !defined(__x86_64__)
     std::uint32_t x = board_ >> 32;
     std::uint32_t y = board_ & 0xFFFFFFFF;
     x -= (x >> 1) & 0x55555555;
@@ -112,20 +107,26 @@ class BitBoard {
     y = (y & 0x33333333) + ((y >> 2) & 0x33333333);
     x = (x + (x >> 4) + y + (y >> 4)) & 0x0F0F0F0F;
     return (x * 0x01010101) >> 24;
-#endif
-#elif defined(_MSC_VER)
-#ifdef _WIN64
+#elif defined(NO_POPCNT)
+    std::uint64_t x = board_;
+    x -= (x >> 1) & 0x5555555555555555;
+    x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
+    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
+    return (x * 0x0101010101010101) >> 56;
+#elif defined(_MSC_VER) && defined(_WIN64)
     return _mm_popcnt_u64(board_);
-#else
+#elif defined(_MSC_VER)
     return __popcnt(board_) + __popcnt(board_ >> 32);
-#endif
 #else
     return __builtin_popcountll(board_);
 #endif
   }
+
+  // Like count() but using algorithm faster on a very sparse BitBoard.
+  // May be slower for more than 4 set bits, but still correct.
+  // Useful when counting bits in a Q, R, N or B BitBoard.
   int count_few() const {
-#if defined(NO_POPCNT)
-#ifdef _WIN64
+#if defined(NO_POPCNT) && !defined(_WIN64) && !defined(__x86_64__)
     std::uint32_t x = board_ >> 32;
     std::uint32_t y = board_ & 0xFFFFFFFF;
     int count;
@@ -136,14 +137,13 @@ class BitBoard {
       y &= y - 1;
     }
     return count;
-#else
+#if defined(NO_POPCNT)
     std::uint64_t x = board_;
     int count;
     for (count = 0; x != 0; ++count) {
       x &= x - 1;
     }
     return count;
-#endif
 #else
     return count();
 #endif
