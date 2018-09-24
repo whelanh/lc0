@@ -5,9 +5,9 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-#  - NAME: opencl
-#    OPENCL: true
-#    GTEST: false
+  - NAME: opencl
+    OPENCL: true
+    GTEST: false
   - NAME: blas
     OPENCL: false
     GTEST: true
