@@ -131,13 +131,14 @@ class BitBoard {
     std::uint32_t y = board_ & 0xFFFFFFFF;
     int count;
     for (count = 0; x != 0; ++count) {
+      // Clear the rightmost set bit.
       x &= x - 1;
     }
     for ( ; y != 0; ++count) {
       y &= y - 1;
     }
     return count;
-#if defined(NO_POPCNT)
+#elif defined(NO_POPCNT)
     std::uint64_t x = board_;
     int count;
     for (count = 0; x != 0; ++count) {
