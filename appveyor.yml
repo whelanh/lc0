@@ -7,7 +7,6 @@ environment:
   matrix:
   - NAME: mkl
 install:
-
 - cmd: IF NOT EXIST C:\cache\mklml_win_2018.0.3.20180406 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.15/mklml_win_2018.0.3.20180406.zip
 - cmd: IF NOT EXIST C:\cache\mklml_win_2018.0.3.20180406 7z x mklml_win_2018.0.3.20180406.zip -oC:\cache
 - cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
@@ -29,7 +28,7 @@ cache:
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
-- cmd: meson.py build --backend vs2015 --buildtype release -Dgtest=false -Dopencl=false -Dblas=true -Dcudnn=false -Dispc_native_only=false -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dmkl_include="%PKG_FOLDER%\mklml_win_2018.0.3.20180406\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2018.0.3.20180406\lib" -Ddefault_library=static
+- cmd: meson build --backend vs2015 --buildtype release -Dgtest=false -Dopencl=false -Dblas=true -Dcudnn=false -Dispc_native_only=false -Dpopcnt=false -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dmkl_include="%PKG_FOLDER%\mklml_win_2018.0.3.20180406\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2018.0.3.20180406\lib" -Ddefault_library=static
 build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
