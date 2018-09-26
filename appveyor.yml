@@ -35,16 +35,16 @@ before_build:
 build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
-- cmd: 7z a lc0-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
-- cmd: 7z a lc0-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_100.dll" "%CUDA_PATH%\bin\cublas64_100.dll"
-- cmd: 7z a lc0-windows-%NAME%.zip "%PKG_FOLDER%\cuda\bin\cudnn64_7.dll"
+- cmd: 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
+- cmd: 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_100.dll" "%CUDA_PATH%\bin\cublas64_100.dll"
+- cmd: 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip "%PKG_FOLDER%\cuda\bin\cudnn64_7.dll"
 - cmd: type COPYING |more /P > dist\COPYING
 - cmd: copy "%CUDA_PATH%\EULA.txt" dist\CUDA.txt
 - cmd: copy "%PKG_FOLDER%\cuda\NVIDIA_SLA_cuDNN_Support.txt" dist\CUDNN.txt
 - cmd: type dist\README-cuda.txt |more /P > dist\README.txt
-- cmd: 7z a lc0-windows-%NAME%.zip .\dist\README.txt .\dist\COPYING .\dist\CUDA.txt .\dist\CUDNN.txt
+- cmd: 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\README.txt .\dist\COPYING .\dist\CUDA.txt .\dist\CUDNN.txt
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
-  - path: lc0-windows-$(NAME).zip
-    name: lc0-windows-$(NAME)-zip
+  - path: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME).zip
+    name: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME)-zip
