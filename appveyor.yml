@@ -23,6 +23,8 @@ environment:
 install:
 - cmd: IF %CUDA%==false nuget install OpenBLAS -Version 0.2.14.1 -OutputDirectory C:\cache
 - cmd: IF %CUDA%==false nuget install opencl-nug -Version 0.777.12 -OutputDirectory C:\cache
+- cmd: IF %BLAS%==true IF NOT EXIST C:\cache\mklml_win_2019.0.20180710 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.16/mklml_win_2019.0.20180710.zip
+- cmd: IF %BLAS%==true IF NOT EXIST C:\cache\mklml_win_2019.0.20180710 7z x mklml_win_2019.0.20180710.zip -oC:\cache
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.9.2-windows 7z x ispc-v1.9.2-windows.zip -oC:\cache
 - cmd: IF %BLAS%==true set PATH=C:\cache\ispc-v1.9.2-windows;%PATH%
@@ -58,8 +60,13 @@ before_build:
 build_script:
 - cmd: IF %APPVEYOR_REPO_TAG%==false msbuild "C:\projects\lc0\build\lc0.sln" /m /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 - cmd: IF %APPVEYOR_REPO_TAG%==true msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+- cmd: copy build\lc0.exe lc0.exe
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true meson configure build -Dopenblas=false -Dmkl=true -Dgtest=false -Dmkl_include="%PKG_FOLDER%\mklml_win_2019.0.20180710\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2019.0.20180710\lib"
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true msbuild "C:\projects\lc0\build\lc0.sln" /t:REGEN /m /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true copy build\lc0.exe lc0-mklml.exe
 after_build:
-- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
+- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\*.exe
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==false 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\x64\*.dll
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==false IF %OPENCL%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\opencl-nug.0.777.12\build\native\bin\OpenCL.dll
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_92.dll" "%CUDA_PATH%\bin\cublas64_92.dll"
@@ -67,11 +74,15 @@ after_build:
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type COPYING |more /P > dist\COPYING
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true copy "%CUDA_PATH%\EULA.txt" dist\CUDA.txt
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true copy "%PKG_FOLDER%\cuda\NVIDIA_SLA_cuDNN_Support.txt" dist\CUDNN.txt
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\COPYING .\dist\CUDA.txt .\dist\CUDNN.txt
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type dist\README-cuda.txt |more /P > dist\README.txt
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\README.txt .\dist\COPYING .\dist\CUDA.txt .\dist\CUDNN.txt
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true type dist\README-blas.txt |more /P > dist\README.txt
+- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\README.txt
 artifacts:
-  - path: build/lc0.exe
+  - path: lc0.exe
     name: lc0-$(NAME)
+  - path: lc0-mklml.exe
+    name: lc0-mklml-$(NAME)
   - path: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME).zip
     name: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME)-zip
 deploy:
