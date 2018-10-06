@@ -21,8 +21,8 @@ environment:
     CUDA: false
     GTEST: true
 install:
-- cmd: IF %CUDA%==false nuget install OpenBLAS -Version 0.2.14.1 -OutputDirectory C:\cache
-- cmd: IF %CUDA%==false nuget install opencl-nug -Version 0.777.12 -OutputDirectory C:\cache
+- cmd: IF %BLAS%==true nuget install OpenBLAS -Version 0.2.14.1 -OutputDirectory C:\cache
+- cmd: IF %OPENCL%==true nuget install opencl-nug -Version 0.777.12 -OutputDirectory C:\cache
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\mklml_win_2019.0.20180710 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.16/mklml_win_2019.0.20180710.zip
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\mklml_win_2019.0.20180710 7z x mklml_win_2019.0.20180710.zip -oC:\cache
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
@@ -79,7 +79,7 @@ after_build:
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\COPYING .\dist\CUDA.txt .\dist\CUDNN.txt
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %CUDA%==true type dist\README-cuda.txt |more /P > dist\README.txt
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true type dist\README-blas.txt |more /P > dist\README.txt
-- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\README.txt
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF EXIST .\dist\README.txt 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\README.txt
 artifacts:
   - path: lc0.exe
     name: lc0-$(NAME)
