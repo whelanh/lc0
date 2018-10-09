@@ -5,7 +5,7 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: cuda100
+  - NAME: tensorrt
 install:
 - cmd: set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0"
 - cmd: IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
