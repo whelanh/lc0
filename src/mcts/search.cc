@@ -60,7 +60,7 @@ const char* Search::kPolicySoftmaxTempStr = "Policy softmax temperature";
 const char* Search::kAllowedNodeCollisionsStr =
     "Allowed node collisions, per batch";
 const char* Search::kOutOfOrderEvalStr = "Out-of-order cache backpropagation";
-const char* Search::kMultiPvStr = "MultiPv";
+const char* Search::kMultiPvStr = "MultiPV";
 
 namespace {
 const int kSmartPruningToleranceNodes = 300;
@@ -402,7 +402,9 @@ bool Search::PopulateRootMoveLimit(MoveList* root_moves) const {
       (board.ours() + board.theirs()).count() > syzygy_tb_->max_cardinality()) {
     return false;
   }
-  return syzygy_tb_->root_probe(played_history_.Last(), root_moves) ||
+  return syzygy_tb_->root_probe(played_history_.Last(),
+                                played_history_.DidRepeatSinceLastZeroingMove(),
+                                root_moves) ||
          syzygy_tb_->root_probe_wdl(played_history_.Last(), root_moves);
 }
 
@@ -706,7 +708,11 @@ void SearchWorker::GatherMinibatch() {
       if (node->IsTerminal() || picked_node.is_cache_hit) {
         // Perform out of order eval for the last entry in minibatch_.
         FetchSingleNodeResult(&picked_node, computation_->GetBatchSize() - 1);
-        DoBackupUpdateSingleNode(picked_node);
+        {
+          // Nodes mutex for doing node updates.
+          SharedMutex::Lock lock(search_->nodes_mutex_);
+          DoBackupUpdateSingleNode(picked_node);
+        }
 
         // Remove last entry in minibatch_, as it has just been
         // processed.
