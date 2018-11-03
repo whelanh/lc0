@@ -35,6 +35,7 @@
 #include "chess/board.h"
 #include "chess/callbacks.h"
 #include "chess/position.h"
+#include "neural/encoder.h"
 #include "neural/writer.h"
 #include "utils/mutex.h"
 
@@ -230,7 +231,8 @@ class Node {
   void IncrementNInFlight(int multivisit) { n_in_flight_ += multivisit; }
 
   V3TrainingData GetV3TrainingData(GameResult result,
-                                   const PositionHistory& history) const;
+                                   const PositionHistory& history,
+                                   FillEmptyHistory fill_empty_history) const;
 
   // Returns range for iterating over edges.
   ConstIterator Edges() const;
