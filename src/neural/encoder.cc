@@ -36,7 +36,8 @@ const int kMoveHistory = 8;
 const int kPlanesPerBoard = 13;
 const int kAuxPlaneBase = kPlanesPerBoard * kMoveHistory;
 
-static const ChessBoard kStartBoardPos(ChessBoard::kStartingFen);
+static const ChessBoard kStartBoardPos(
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
 }  // namespace
 
