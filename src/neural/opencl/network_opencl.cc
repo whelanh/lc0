@@ -16,12 +16,12 @@
  along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "neural/network.h"
 #include "neural/blas/batchnorm.h"
 #include "neural/blas/blas.h"
 #include "neural/blas/fully_connected_layer.h"
 #include "neural/blas/winograd_convolution3.h"
 #include "neural/factory.h"
-#include "neural/network.h"
 #include "neural/opencl/OpenCL.h"
 #include "neural/opencl/OpenCLParams.h"
 
@@ -29,11 +29,11 @@
 #include <cassert>
 #include <cmath>
 #include <condition_variable>
-#include <iostream>
 #include <thread>
 
 #include "utils/bititer.h"
 #include "utils/exception.h"
+#include "utils/logging.h"
 
 namespace lczero {
 
@@ -57,11 +57,14 @@ struct OpenCLWeights {
 
 class OpenCLComputation : public NetworkComputation {
  public:
-  OpenCLComputation(const OpenCL_Network& opencl_net,
-                    const OpenCLWeights& weights)
-      : opencl_net_(opencl_net), weights_(weights), policies_(), q_values_() {}
+  OpenCLComputation(const OpenCL_Network& opencl_net, const OpenCLWeights& weights)
+      : opencl_net_(opencl_net), weights_(weights), policies_(), q_values_() {
+    buffers_ = opencl_net.acquire_buffers();
+  }
 
-  virtual ~OpenCLComputation() {}
+  virtual ~OpenCLComputation() {
+    opencl_net_.release_buffers(std::move(buffers_));
+  }
 
   // Adds a sample to the batch.
   void AddInput(InputPlanes&& input) override { planes_.emplace_back(input); }
@@ -91,7 +94,7 @@ class OpenCLComputation : public NetworkComputation {
         EncodePlanes(planes_[i + j], &input_data[j * kSquares * kInputPlanes]);
       }
 
-      opencl_net_.forward(input_data, output_pol, output_val, batch_size);
+      buffers_->forward(input_data, output_pol, output_val, batch_size);
 
       for (size_t j = 0; j < batch_size; j++) {
         std::vector<float> policy(weights_.num_output_policies);
@@ -139,6 +142,8 @@ class OpenCLComputation : public NetworkComputation {
 
   std::vector<std::vector<float>> policies_;
   std::vector<float> q_values_;
+
+  std::unique_ptr<OpenCLBuffers> buffers_;
 };
 
 void OpenCLComputation::EncodePlanes(const InputPlanes& sample, float* buffer) {
@@ -157,7 +162,6 @@ class OpenCLNetwork : public Network {
   OpenCLNetwork(const Weights& weights, const OptionsDict& options)
       : weights_(weights), params_(), opencl_(), opencl_net_(opencl_) {
     params_.gpuId = options.GetOrDefault<int>("gpu", -1);
-    params_.verbose = options.GetOrDefault<bool>("verbose", true);
     params_.force_tune = options.GetOrDefault<bool>("force_tune", false);
     params_.tune_only = options.GetOrDefault<bool>("tune_only", false);
     params_.tune_exhaustive =
@@ -169,8 +173,7 @@ class OpenCLNetwork : public Network {
     if (max_batch_size_ > kHardMaxBatchSize) {
       max_batch_size_ = kHardMaxBatchSize;
     }
-    std::cerr << "OpenCL, maximum batch size set to " << max_batch_size_ << "."
-              << std::endl;
+    CERR << "OpenCL, maximum batch size set to " << max_batch_size_ << ".";
 
     // By default, the max batch size used for tuning is the max batch size
     // used for computations.

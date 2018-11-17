@@ -37,8 +37,8 @@
 namespace lczero {
 
 struct GoParams {
-  std::int64_t wtime = -1;
-  std::int64_t btime = -1;
+  optional<std::int64_t> wtime;
+  optional<std::int64_t> btime;
   std::int64_t winc = -1;
   std::int64_t binc = -1;
   int movestogo = -1;
@@ -83,14 +83,10 @@ class UciLoop {
   virtual void CmdPonderHit() { throw Exception("Not supported"); }
   virtual void CmdStart() { throw Exception("Not supported"); }
 
-  void SetLogFilename(const std::string& filename);
-
  private:
   bool DispatchCommand(
       const std::string& command,
       const std::unordered_map<std::string, std::string>& params);
-
-  std::ofstream debug_log_;
 };
 
 }  // namespace lczero
