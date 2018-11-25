@@ -55,7 +55,9 @@ class LayerAdapter {
       --data_;
       return *this;
     }
-    ptrdiff_t operator-(const Iterator& other) { return data_ - other.data_; }
+    ptrdiff_t operator-(const Iterator& other) const {
+      return data_ - other.data_;
+    }
 
     // TODO(crem) implement other iterator functions when they are needed.
 
