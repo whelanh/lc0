@@ -41,11 +41,11 @@ class LayerAdapter {
 
     float operator*() const;
     float operator[](size_t idx) const;
-    bool operator==(const LayerAdapter::Iterator& other) const {
-      return data_ == other.data_;;
+    bool operator==(const Iterator& other) const {
+      return data_ == other.data_;
     }
-    bool operator!=(const LayerAdapter::Iterator& other) const {
-      return data_ != other.data_;;
+    bool operator!=(const Iterator& other) const {
+      return data_ != other.data_;
     }
     Iterator& operator++() {
       ++data_;
