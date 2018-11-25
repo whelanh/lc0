@@ -25,18 +25,25 @@
   Program grant you additional permission to convey the resulting work.
 */
 
-#pragma once
+#include <cuda_runtime.h>
+#include <cuda_fp16.h>
+#include <cublas_v2.h>
+#include <cudnn.h>
 
-#include "chess/position.h"
-#include "neural/network.h"
+#include "utils/exception.h"
 
 namespace lczero {
+namespace cudnn_backend {
 
-enum class FillEmptyHistory {NO, FEN_ONLY, ALWAYS};
+void CudnnError(cudnnStatus_t status, const char* file, const int& line);
+void CublasError(cublasStatus_t status, const char* file, const int& line);
+void CudaError(cudaError_t status, const char* file, const int& line);
 
-// Encodes the last position in history for the neural network request.
-InputPlanes EncodePositionForNN(const PositionHistory& history,
-                                int history_planes,
-                                FillEmptyHistory fill_empty_history);
+#define ReportCUDNNErrors(status) CudnnError(status, __FILE__, __LINE__)
+#define ReportCUBLASErrors(status) CublasError(status, __FILE__, __LINE__)
+#define ReportCUDAErrors(status) CudaError(status, __FILE__, __LINE__)
 
+inline int DivUp(int a, int b) { return (a + b - 1) / b; }
+
+}  // namespace cudnn_backend
 }  // namespace lczero

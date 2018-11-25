@@ -25,18 +25,17 @@
   Program grant you additional permission to convey the resulting work.
 */
 
-#pragma once
+#include "cuda_common.h"
 
-#include "chess/position.h"
-#include "neural/network.h"
 
 namespace lczero {
+namespace cudnn_backend {
 
-enum class FillEmptyHistory {NO, FEN_ONLY, ALWAYS};
+/////////////////////////////////////////////////////////////////////////////
+//          fp16-specific kernels used by certain layers                   //
+/////////////////////////////////////////////////////////////////////////////
 
-// Encodes the last position in history for the neural network request.
-InputPlanes EncodePositionForNN(const PositionHistory& history,
-                                int history_planes,
-                                FillEmptyHistory fill_empty_history);
+// Nothing here yet!
 
-}  // namespace lczero
+}   // namespace cudnn_backend
+}   // namespace lczero

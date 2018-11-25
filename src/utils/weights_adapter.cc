@@ -25,18 +25,28 @@
   Program grant you additional permission to convey the resulting work.
 */
 
-#pragma once
-
-#include "chess/position.h"
-#include "neural/network.h"
+#include "src/utils/weights_adapter.h"
 
 namespace lczero {
+float LayerAdapter::Iterator::ExtractValue(const uint16_t* ptr,
+                                           const LayerAdapter* adapter) {
+  return *ptr / static_cast<float>(0xffff) * adapter->range_ + adapter->min_;
+}
 
-enum class FillEmptyHistory {NO, FEN_ONLY, ALWAYS};
+LayerAdapter::LayerAdapter(const pblczero::Weights_Layer& layer)
+    : data_(reinterpret_cast<const uint16_t*>(layer.params().data())),
+      size_(layer.params().size() / sizeof(uint16_t)),
+      min_(layer.min_val()),
+      range_(layer.max_val() - min_) {}
 
-// Encodes the last position in history for the neural network request.
-InputPlanes EncodePositionForNN(const PositionHistory& history,
-                                int history_planes,
-                                FillEmptyHistory fill_empty_history);
+std::vector<float> LayerAdapter::as_vector() const {
+  return std::vector<float>(begin(), end());
+}
+float LayerAdapter::Iterator::operator*() const {
+  return ExtractValue(data_, adapter_);
+}
+float LayerAdapter::Iterator::operator[](size_t idx) const {
+  return ExtractValue(data_ + idx, adapter_);
+}
 
 }  // namespace lczero
