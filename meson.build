@@ -341,7 +341,7 @@ if get_option('build_backends')
   if get_option('cudnn') and cu_blas.found() and cu_dnn.found() and cu_dart.found() and nvcc.found()
     deps += [cu_blas, cu_dnn, cu_dart]
     foreach d : get_option('cudnn_include')
-      if run_command('checkdir.py', d).returncode() == 0
+      if cc.has_header(join_paths(d, 'cudnn.h')) or cc.has_header(join_paths(d, 'cuda.h'))
         includes += include_directories(d)
       endif
     endforeach
