@@ -129,6 +129,9 @@ const OptionId SearchParams::kHistoryFillId{
     "one. During the first moves of the game such historical positions don't "
     "exist, but they can be synthesized. This parameter defines when to "
     "synthesize them (always, never, or only at non-standard fen position)."};
+const OptionId SearchParams::kDirtyHackId{
+    "dirty-hack", "DirtyHack",
+    "An unpreakable dirty hack. The less said about it the better."};
 
 void SearchParams::Populate(OptionsParser* options) {
   // Here the "safe defaults" are listed.
@@ -155,6 +158,8 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<ChoiceOption>(kScoreTypeId, score_type) = "centipawn";
   std::vector<std::string> history_fill_opt {"no", "fen_only", "always"};
   options->Add<ChoiceOption>(kHistoryFillId, history_fill_opt) = "fen_only";
+  options->Add<FloatOption>(kDirtyHackId, -1.0f, 1.0f) = 0.0f;
+  options->HideOption(kDirtyHackId);
 }
 
 SearchParams::SearchParams(const OptionsDict& options)

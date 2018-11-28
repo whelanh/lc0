@@ -94,6 +94,7 @@ class SearchParams {
   static const OptionId kMultiPvId;
   static const OptionId kScoreTypeId;
   static const OptionId kHistoryFillId;
+  static const OptionId kDirtyHackId;
 
  private:
   const OptionsDict& options_;
