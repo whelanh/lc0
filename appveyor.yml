@@ -34,6 +34,7 @@ install:
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
+- cmd: dir "%PKG_FOLDER%\OpenBLAS\dist64\bin"
 - cmd: IF NOT EXIST c:\cache\protobuf\ git clone -b v3.5.1 --single-branch --depth 1 https://github.com/google/protobuf.git
 - cmd: IF NOT EXIST c:\cache\protobuf\ mkdir protobuf\build_msvc
 - cmd: IF NOT EXIST c:\cache\protobuf\ cd protobuf\build_msvc
