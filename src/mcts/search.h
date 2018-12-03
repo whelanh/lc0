@@ -123,7 +123,8 @@ class Search {
   void WatchdogThread();
 
   // Populates the given list with allowed root moves.
-  // Returns true if the population came from tablebase.
+  // Returns best_rank != 0 if the population came from tablebase.
+  // 1 for draw, > 1 for win and < 1 for loss
   bool PopulateRootMoveLimit(MoveList* root_moves) const;
 
   // Returns verbose information about given node, as vector of strings.
@@ -238,11 +239,9 @@ class SearchWorker {
 
  private:
   struct NodeToProcess {
-    bool IsExtendable() const { return !is_collision && !node->IsTerminal(); }
+    bool IsExtendable() const { return !is_collision && !node->IsCertain(); }
     bool IsCollision() const { return is_collision; }
-    bool CanEvalOutOfOrder() const {
-      return is_cache_hit || node->IsTerminal();
-    }
+    bool CanEvalOutOfOrder() const { return is_cache_hit || node->IsCertain(); }
 
     // The node to extend.
     Node* node;

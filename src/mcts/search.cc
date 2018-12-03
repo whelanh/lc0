@@ -28,6 +28,7 @@
 #include "mcts/search.h"
 
 #include <algorithm>
+#include <bitset>
 #include <chrono>
 #include <cmath>
 #include <iomanip>
@@ -229,8 +230,8 @@ std::vector<std::string> Search::GetVerboseStats(Node* node,
 
     oss << "(V: ";
     optional<float> v;
-    if (edge.IsTerminal()) {
-      v = edge.node()->GetQ();
+    if (edge.IsCertain()) {
+      v = (float)edge.edge()->GetEQ();
     } else {
       NNCacheLock nneval = GetCachedNNEval(edge.node());
       if (nneval) v = -nneval->q;
@@ -242,7 +243,8 @@ std::vector<std::string> Search::GetVerboseStats(Node* node,
     }
     oss << ") ";
 
-    if (edge.IsTerminal()) oss << "(T) ";
+    oss << " C:" << std::bitset<8>(edge.edge()->GetCertaintyStatus());
+
     infos.emplace_back(oss.str());
   }
   return infos;
@@ -734,7 +736,7 @@ void SearchWorker::GatherMinibatch() {
       ExtendNode(node);
 
       // Only send non-terminal nodes to a neural network.
-      if (!node->IsTerminal()) {
+      if (!node->IsCertain()) {
         picked_node.nn_queried = true;
         picked_node.is_cache_hit = AddNodeToComputation(node, true);
       }
@@ -816,13 +818,13 @@ SearchWorker::NodeToProcess SearchWorker::PickNodeToExtend(
       return NodeToProcess::Collision(node, depth, collision_limit);
     }
     // Either terminal or unexamined leaf node -- the end of this playout.
-    if (!node->HasChildren()) {
-      if (node->IsTerminal()) {
-        IncrementNInFlight(node, search_->root_node_, collision_limit - 1);
-        return NodeToProcess::TerminalHit(node, depth, collision_limit);
-      } else {
-        return NodeToProcess::Extension(node, depth);
-      }
+    if (node->IsCertain()) {
+      int multivisit =
+          (params_.GetCertaintyPropagation()) ? 1 : collision_limit;
+      IncrementNInFlight(node, search_->root_node_, multivisit - 1);
+      return NodeToProcess::TerminalHit(node, depth, multivisit);
+    } else if (!node->HasChildren()) {
+      return NodeToProcess::Extension(node, depth);
     }
 
     // If we fall through, then n_in_flight_ has been incremented but this
@@ -936,11 +938,11 @@ void SearchWorker::ExtendNode(Node* node) {
       if (state != FAIL) {
         // If the colors seem backwards, check the checkmate check above.
         if (wdl == WDL_WIN) {
-          node->MakeTerminal(GameResult::BLACK_WON);
+          node->MakeCertain(GameResult::BLACK_WON);
         } else if (wdl == WDL_LOSS) {
-          node->MakeTerminal(GameResult::WHITE_WON);
+          node->MakeCertain(GameResult::WHITE_WON);
         } else {  // Cursed wins and blessed losses count as draws.
-          node->MakeTerminal(GameResult::DRAW);
+          node->MakeCertain(GameResult::DRAW);
         }
         search_->tb_hits_.fetch_add(1, std::memory_order_acq_rel);
         return;
@@ -1021,8 +1023,8 @@ int SearchWorker::PrefetchIntoCache(Node* node, int budget) {
   assert(node);
   // n = 0 and n_in_flight_ > 0, that means the node is being extended.
   if (node->GetN() == 0) return 0;
-  // The node is terminal; don't prefetch it.
-  if (node->IsTerminal()) return 0;
+  // The node is certain; don't prefetch it.
+  if (node->IsCertain()) return 0;
 
   // Populate all subnodes and their scores.
   typedef std::pair<float, EdgeAndNode> ScoredEdge;
@@ -1102,8 +1104,8 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
                                          int idx_in_computation) {
   Node* node = node_to_process->node;
   if (!node_to_process->nn_queried) {
-    // Terminal nodes don't involve the neural NetworkComputation, nor do
-    // they require any further processing after value retrieval.
+    // Terminal or certain nodes don't involve the neural NetworkComputation,
+    // nor do they require any further processing after value retrieval.
     node_to_process->v = node->GetQ();
     return;
   }
@@ -1158,16 +1160,58 @@ void SearchWorker::DoBackupUpdateSingleNode(
 
   // Backup V value up to a root. After 1 visit, V = Q.
   float v = node_to_process.v;
+  bool origin_bounded = node->IsBounded();
   for (Node* n = node; n != search_->root_node_->GetParent();
        n = n->GetParent()) {
+    // Certainty Propagation:
+    // If update could affect bounds (origin_bounded),
+    // check all childs, and update bounds/certainty.
+    float prev_q = -100.0f;
+    if (params_.GetCertaintyPropagation() && n != node && (origin_bounded) &&
+        !n->IsCertain()) {
+      int lower_bound = -1;
+      int upper_bound = -1;
+      for (auto iter : n->Edges()) {
+        if (iter.IsLBounded() && iter.GetEQ() > lower_bound)
+          lower_bound = iter.GetEQ();
+        if (iter.IsUBounded() && iter.GetEQ() > upper_bound)
+          upper_bound = iter.GetEQ();
+        // Only checking !UBounded so that lower bounded
+        // edges, also get the correct upper_bound.
+        if (!iter.IsUBounded()) upper_bound = 1;
+        if (lower_bound == upper_bound && lower_bound == 1) {
+          break;
+        }
+      }
+      // Exact scores are certain and propagate certainty.
+      // Inexact scores propagate their bounds.
+      if (lower_bound == upper_bound) {
+        if (n != search_->root_node_) {
+          prev_q = n->GetQ();
+          n->MakeCertain(-lower_bound);
+          v = (float)-lower_bound;
+        }
+      } else {
+        if (lower_bound > -1) n->UBound(-lower_bound);
+        if (upper_bound < 1) n->LBound(-upper_bound);
+      }
+    }
+
     n->FinalizeScoreUpdate(v, node_to_process.multivisit);
+
+    // Certainty Prop - adjust Qs along the path as if all visits already had
+    // propagated the certain result.
+    if (params_.GetCertaintyPropagation() && (prev_q != -100.0f) &&
+        (prev_q != v) && n->IsCertain())
+      v = v + (v - prev_q) * (n->GetN() - 1);
+
     // Q will be flipped for opponent.
     v = -v;
 
-    // Update the stats.
-    // Best move.
+    // Update best move if new N > best N or
+    // if the node is a certain child of root.
     if (n->GetParent() == search_->root_node_ &&
-        search_->current_best_edge_.GetN() <= n->GetN()) {
+        (search_->current_best_edge_.GetN() <= n->GetN() || n->IsCertain())) {
       search_->current_best_edge_ =
           search_->GetBestChildNoTemperature(search_->root_node_);
     }

@@ -129,6 +129,8 @@ const OptionId SearchParams::kHistoryFillId{
     "one. During the first moves of the game such historical positions don't "
     "exist, but they can be synthesized. This parameter defines when to "
     "synthesize them (always, never, or only at non-standard fen position)."};
+const OptionId SearchParams::kCertaintyPropagationId{
+    "certainty-propagation", "CertaintyPropagation"};
 
 void SearchParams::Populate(OptionsParser* options) {
   // Here the "safe defaults" are listed.
@@ -155,6 +157,7 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<ChoiceOption>(kScoreTypeId, score_type) = "centipawn";
   std::vector<std::string> history_fill_opt {"no", "fen_only", "always"};
   options->Add<ChoiceOption>(kHistoryFillId, history_fill_opt) = "fen_only";
+  options->Add<BoolOption>(kCertaintyPropagationId) = true;
 }
 
 SearchParams::SearchParams(const OptionsDict& options)
@@ -168,6 +171,7 @@ SearchParams::SearchParams(const OptionsDict& options)
       kMaxCollisionEvents(options.Get<int>(kMaxCollisionEventsId.GetId())),
       kMaxCollisionVisits(options.Get<int>(kMaxCollisionVisitsId.GetId())),
       kOutOfOrderEval(options.Get<bool>(kOutOfOrderEvalId.GetId())),
+      kCertaintyPropagation(options.Get<bool>(kCertaintyPropagationId.GetId())),
       kHistoryFill(
           EncodeHistoryFill(options.Get<std::string>(kHistoryFillId.GetId()))) {
 }

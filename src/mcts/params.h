@@ -74,6 +74,7 @@ class SearchParams {
     return options_.Get<std::string>(kScoreTypeId.GetId());
   }
   FillEmptyHistory GetHistoryFill() const { return kHistoryFill; }
+  bool GetCertaintyPropagation() const { return kCertaintyPropagation; }
 
   // Search parameter IDs.
   static const OptionId kMiniBatchSizeId;
@@ -94,6 +95,7 @@ class SearchParams {
   static const OptionId kMultiPvId;
   static const OptionId kScoreTypeId;
   static const OptionId kHistoryFillId;
+  static const OptionId kCertaintyPropagationId;
 
  private:
   const OptionsDict& options_;
@@ -112,6 +114,7 @@ class SearchParams {
   const int kMaxCollisionEvents;
   const int kMaxCollisionVisits;
   const bool kOutOfOrderEval;
+  const bool kCertaintyPropagation;
   const FillEmptyHistory kHistoryFill;
 };
 
