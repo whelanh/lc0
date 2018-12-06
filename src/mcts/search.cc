@@ -1211,7 +1211,7 @@ void SearchWorker::DoBackupUpdateSingleNode(
     // Update best move if new N > best N or
     // if the node is a certain child of root.
     if (n->GetParent() == search_->root_node_ &&
-        (search_->current_best_edge_.GetN() <= n->GetN() || n->IsCertain())) {
+        (search_->current_best_edge_.GetN() <= n->GetN())) {
       search_->current_best_edge_ =
           search_->GetBestChildNoTemperature(search_->root_node_);
     }
