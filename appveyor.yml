@@ -43,14 +43,14 @@ before_build:
 build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /p:Platform=win32 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
-- cmd: 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-win32-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
-- cmd: 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-win32-%NAME%.zip C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\win32\*.dll
-- cmd: IF %OPENCL%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-win32-%NAME%.zip C:\cache\opencl-nug.0.777.12\build\native\bin\OpenCL.dll
+- cmd: 7z a lc0-win32-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
+- cmd: 7z a lc0-win32-%NAME%.zip C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\win32\*.dll
+- cmd: IF %OPENCL%==true 7z a lc0-win32-%NAME%.zip C:\cache\opencl-nug.0.777.12\build\native\bin\OpenCL.dll
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
-  - path: lc0-%APPVEYOR_REPO_TAG_NAME%-win32-$(NAME).zip
-    name: lc0-%APPVEYOR_REPO_TAG_NAME%-win32-$(NAME)-zip
+  - path: lc0-win32-$(NAME).zip
+    name: lc0-win32-$(NAME)-zip
 test_script:
 - cmd: cd build
 - cmd: IF %GTEST%==true copy C:\cache\OpenBLAS.0.2.14.1\lib\native\bin\win32\*.dll
