@@ -15,7 +15,7 @@
 # along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
 
 project('lc0', 'cpp',
-        default_options : ['cpp_std=c++14', 'b_ndebug=if-release'],
+        default_options : ['cpp_std=c++14', 'b_ndebug=if-release', 'b_lto=true'],
         meson_version: '>=0.45')
 
 cc = meson.get_compiler('cpp')
@@ -62,6 +62,18 @@ endif
 
 gen = generator(protoc, output: ['@BASENAME@.pb.cc', '@BASENAME@.pb.h'],
   arguments : ['--proto_path=@CURRENT_SOURCE_DIR@/libs/lczero-common', '--cpp_out=@BUILD_DIR@', '@INPUT@'])
+
+if run_command('checkdir.py', 'libs/lczero-common/proto').returncode() != 0
+  if run_command('git', 'status').returncode() == 0
+    message('updating git submodule libs/lczero-common')
+    run_command('git', 'submodule', 'update', '--init', '--recursive')
+  else
+    message('cloning lczero-common.git into libs/lczero-common')
+    run_command('git', 'clone', '--depth=1',
+                'https://github.com/LeelaChessZero/lczero-common.git',
+                'libs/lczero-common/')
+  endif
+endif
 
 files += gen.process('libs/lczero-common/proto/net.proto',
   preserve_path_from : meson.current_source_dir() + '/libs/lczero-common/')
@@ -323,7 +335,8 @@ if get_option('build_backends')
   cu_blas = cc.find_library('cublas', dirs: cudnn_libdirs, required: false)
   cu_dnn = cc.find_library('cudnn', dirs: cudnn_libdirs, required: false)
   cu_dart = cc.find_library('cudart', dirs: cudnn_libdirs, required: false)
-  nvcc = find_program('/usr/local/cuda/bin/nvcc', 'nvcc', required: false)
+  nvcc = find_program('/usr/local/cuda/bin/nvcc', '/opt/cuda/bin/nvcc',
+                      'nvcc', required: false)
 
   #.cc files
   cuda_files = [
