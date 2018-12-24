@@ -7,30 +7,40 @@ environment:
   matrix:
   - NAME: mkl
 install:
-- cmd: IF NOT EXIST C:\cache\mklml_win_2018.0.3.20180406 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.15/mklml_win_2018.0.3.20180406.zip
-- cmd: IF NOT EXIST C:\cache\mklml_win_2018.0.3.20180406 7z x mklml_win_2018.0.3.20180406.zip -oC:\cache
+- cmd: set CUDA=false
+- cmd: set OPENCL=false
+- cmd: set BLAS=false
+- cmd: set GTEST=false
+- cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.1.20180928 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.15/mklml_win_2019.0.1.20180928.zip
+- cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.1.20180928 7z x mklml_win_2019.0.1.20180928.zip -oC:\cache
 - cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
 - cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows 7z x ispc-v1.9.2-windows.zip -oC:\cache
 - cmd: set PATH=C:\cache\ispc-v1.9.2-windows;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson
-- cmd: call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
+- cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
 - cmd: IF NOT EXIST c:\cache\protobuf\ git clone -b v3.5.1 --single-branch --depth 1 https://github.com/google/protobuf.git
 - cmd: IF NOT EXIST c:\cache\protobuf\ mkdir protobuf\build_msvc
 - cmd: IF NOT EXIST c:\cache\protobuf\ cd protobuf\build_msvc
-- cmd: IF NOT EXIST c:\cache\protobuf\ cmake -G "Visual Studio 14 2015 Win64" -Dprotobuf_BUILD_SHARED_LIBS=NO -Dprotobuf_MSVC_STATIC_RUNTIME=NO -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=c:/cache/protobuf ../cmake
+- cmd: IF NOT EXIST c:\cache\protobuf\ cmake -G "Visual Studio 15 2017 Win64" -Dprotobuf_BUILD_SHARED_LIBS=NO -Dprotobuf_MSVC_STATIC_RUNTIME=NO -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=c:/cache/protobuf ../cmake
 - cmd: IF NOT EXIST c:\cache\protobuf\ msbuild INSTALL.vcxproj /p:Configuration=Release /p:Platform=x64 /m
 - cmd: set PATH=c:\cache\protobuf\bin;%PATH%
+- cmd: IF NOT EXIST c:\cache\testnet appveyor DownloadFile http://lczero.org/get_network?sha=7170f639ba1cdc407283b8e52377283e36845b954788c6ada8897937637ef032 -Filename c:\cache\testnet
 - cmd: cd C:\projects\lc0
 cache:
   - C:\cache
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
-- cmd: meson build --backend vs2015 --buildtype release -Dgtest=false -Dopencl=false -Dblas=true -Dcudnn=false -Dispc_native_only=false -Dpopcnt=false -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dmkl_include="%PKG_FOLDER%\mklml_win_2018.0.3.20180406\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2018.0.3.20180406\lib" -Ddefault_library=static
+- cmd: meson build --backend vs2015 --buildtype release -Dgtest=false -Dopencl=false -Dblas=true -Dcudnn=false -Dispc_native_only=false -Dpopcnt=false -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dmkl_include="%PKG_FOLDER%\mklml_win_2019.0.1.20180928\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2019.0.1.20180928\lib" -Ddefault_library=static
 build_script:
-- cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+- cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGInstrument /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+- cmd: cd build
+- cmd: copy C:\cache\mklml_win_2019.0.1.20180928\lib\*.dll
+- cmd: lc0 benchmark --weights=c:\cache\testnet --backend=random --movetime=10000
+- cmd: cd ..
+- cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGOptimize /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
 - cmd: 7z a lc0-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
 artifacts:
