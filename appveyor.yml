@@ -33,7 +33,7 @@ cache:
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
-- cmd: meson build --backend vs2015 --buildtype release -Dgtest=false -Dopencl=false -Dblas=true -Dcudnn=false -Dispc_native_only=false -Dpopcnt=false -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dmkl_include="%PKG_FOLDER%\mklml_win_2019.0.1.20180928\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2019.0.1.20180928\lib" -Ddefault_library=static
+- cmd: meson build --backend vs2017 --buildtype release -Dgtest=false -Dopencl=false -Dblas=true -Dcudnn=false -Dispc_native_only=false -Dpopcnt=false -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" -Dmkl_include="%PKG_FOLDER%\mklml_win_2019.0.1.20180928\include" -Dmkl_libdirs="%PKG_FOLDER%\mklml_win_2019.0.1.20180928\lib" -Ddefault_library=static
 build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGInstrument /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 - cmd: cd build
