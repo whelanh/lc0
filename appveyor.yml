@@ -11,7 +11,7 @@ install:
 - cmd: set OPENCL=false
 - cmd: set BLAS=false
 - cmd: set GTEST=false
-- cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.1.20180928 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.15/mklml_win_2019.0.1.20180928.zip
+- cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.1.20180928 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.17.2/mklml_win_2019.0.1.20180928.zip
 - cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.1.20180928 7z x mklml_win_2019.0.1.20180928.zip -oC:\cache
 - cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
 - cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows 7z x ispc-v1.9.2-windows.zip -oC:\cache
