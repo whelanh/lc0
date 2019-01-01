@@ -39,6 +39,7 @@
 #include "mcts/node.h"
 #include "neural/cache.h"
 #include "neural/encoder.h"
+#include "utils/fastmath.h"
 #include "utils/random.h"
 
 namespace lczero {
@@ -101,8 +102,6 @@ void ApplyDirichletNoise(Node* node, float eps, double alpha) {
 }  // namespace
 
 void Search::SendUciInfo() REQUIRES(nodes_mutex_) {
-  if (!current_best_edge_) return;
-
   auto edges = GetBestChildrenNoTemperature(root_node_, params_.GetMultiPv());
   auto score_type = params_.GetScoreType();
 
@@ -142,7 +141,9 @@ void Search::SendUciInfo() REQUIRES(nodes_mutex_) {
   }
 
   if (!uci_infos.empty()) last_outputted_uci_info_ = uci_infos.front();
-  if (!edges.empty()) last_outputted_info_edge_ = current_best_edge_.edge();
+  if (current_best_edge_ && !edges.empty()) {
+    last_outputted_info_edge_ = current_best_edge_.edge();
+  }
 
   info_callback_(uci_infos);
 }
@@ -198,7 +199,7 @@ inline float ComputeCpuct(const SearchParams& params, uint32_t N) {
   const float init = params.GetCpuct();
   const float k = params.GetCpuctFactor();
   const float base = params.GetCpuctBase();
-  return init + (k ? k * std::log((N + base) / base) : 0.0f);
+  return init + (k ? k * FastLog((N + base) / base) : 0.0f);
 }
 }  // namespace
 
@@ -655,8 +656,10 @@ void Search::Stop() {
 
 void Search::Abort() {
   Mutex::Lock lock(counters_mutex_);
-  bestmove_is_sent_ = true;
-  FireStopInternal();
+  if (!stop_.load(std::memory_order_acquire)) {
+    bestmove_is_sent_ = true;
+    FireStopInternal();
+  }
   LOGFILE << "Aborting search, if it is still active.";
 }
 
@@ -835,7 +838,9 @@ SearchWorker::NodeToProcess SearchWorker::PickNodeToExtend(
     // n_in_flight_ is incremented. If the method returns false, then there is
     // a search collision, and this node is already being expanded.
     if (!node->TryStartScoreUpdate()) {
-      IncrementNInFlight(node, search_->root_node_, collision_limit - 1);
+      if (!is_root_node) {
+        IncrementNInFlight(node->GetParent(), search_->root_node_, collision_limit - 1);
+      }
       return NodeToProcess::Collision(node, depth, collision_limit);
     }
     // Either terminal or unexamined leaf node -- the end of this playout.
@@ -987,7 +992,8 @@ bool SearchWorker::AddNodeToComputation(Node* node, bool add_if_cached) {
 
   if (node && node->HasChildren()) {
     // Legal moves are known, use them.
-    for (auto edge : node->Edges()) {
+    moves.reserve(node->GetNumEdges());
+    for (const auto& edge : node->Edges()) {
       moves.emplace_back(edge.GetMove().as_nn_index());
     }
   } else {
@@ -1135,7 +1141,10 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     float p =
         computation_->GetPVal(idx_in_computation, edge.GetMove().as_nn_index());
     if (params_.GetPolicySoftmaxTemp() != 1.0f) {
-      p = pow(p, 1 / params_.GetPolicySoftmaxTemp());
+      // Flush denormals to zero.
+      p = p < 1.17549435E-38
+              ? 0.0
+              : FastPow2(FastLog2(p) / params_.GetPolicySoftmaxTemp());
     }
     edge.edge()->SetP(p);
     // Edge::SetP does some rounding, so only add to the total after rounding.
