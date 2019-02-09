@@ -166,8 +166,7 @@ const OptionId SearchParams::kHistoryFillId{
     "synthesize them (always, never, or only at non-standard fen position)."};
 const OptionId SearchParams::kCertaintyPropagationId{
     "certainty-propagation", "CertaintyPropagation", 
-    "Propagates certain scores more efficiently in the search tree, "
-    "proves and displays mates."};
+    "Propagates certain scores more efficiently in the search tree."};
 const OptionId SearchParams::kTwoFoldDrawScoringId{
     "two-fold-draw-scoring", "TwoFoldDrawScoring",
     "Scores two-folds as draws (0.00) in search to use visits more "

@@ -142,22 +142,6 @@ void Search::SendUciInfo() REQUIRES(nodes_mutex_) {
       uci_info.pv.push_back(iter.GetMove(flip));
       if (!iter.node()) break;  // Last edge was dangling, cannot continue.
     }
-
-    // Mate display if certain win (or loss) with distance to mate set to
-    // length of pv (average  mate).
-    // If win is based on propagated TB bit, length of mate is
-    // adjusted by +1000; For root filtered TB moves +500.
-    if (params_.GetCertaintyPropagation()) {
-      if (edge.IsCertain() && edge.GetEQ() != 0)
-        uci_info.mate = edge.GetEQ() * ((uci_info.pv.size() + 1) / 2  +
-                                        (edge.IsPropagatedTBHit() ? 1000 : 0));
-      else if (root_syzygy_rank_) {
-        int sign = (root_syzygy_rank_ - 1 > 0) - (root_syzygy_rank_ - 1 < 0);
-        if (sign) {
-          uci_info.mate = sign * (-500 + abs(root_syzygy_rank_));
-        } else uci_info.score = 0;
-      }
-    }
   }
 
   if (!uci_infos.empty()) last_outputted_uci_info_ = uci_infos.front();
@@ -463,28 +447,22 @@ std::int64_t Search::GetTotalPlayouts() const {
   return total_playouts_;
 }
 
-int Search::PopulateRootMoveLimit(MoveList* root_moves) const {
+bool Search::PopulateRootMoveLimit(MoveList* root_moves) const {
   // Search moves overrides tablebase.
   if (!limits_.searchmoves.empty()) {
     *root_moves = limits_.searchmoves;
-    return 0;
+    return false;
   }
-
-  // Syzygy root_probe returns best_rank for proper eval if
-  // moves are syzygy root filtered.
   auto board = played_history_.Last().GetBoard();
   if (!syzygy_tb_ || !board.castlings().no_legal_castle() ||
       (board.ours() | board.theirs()).count() > syzygy_tb_->max_cardinality()) {
-    return 0;
+    return false;
   }
-
-  int best_rank = syzygy_tb_->root_probe(
-      played_history_.Last(), params_.GetSyzygyFastPlay() || 
-      played_history_.DidRepeatSinceLastZeroingMove(),
-      root_moves);
-  if (!best_rank)
-    best_rank = syzygy_tb_->root_probe_wdl(played_history_.Last(), root_moves);
-  return best_rank;
+  return syzygy_tb_->root_probe(played_history_.Last(),
+                                params_.GetSyzygyFastPlay() ||
+                                played_history_.DidRepeatSinceLastZeroingMove(),
+                                root_moves) ||
+         syzygy_tb_->root_probe_wdl(played_history_.Last(), root_moves);
 }
 
 // Computes the best move, maybe with temperature (according to the settings).
@@ -773,10 +751,8 @@ void SearchWorker::InitializeIteration(
 
   if (!root_move_filter_populated_) {
     root_move_filter_populated_ = true;
-    int best_rank = search_->PopulateRootMoveLimit(&root_move_filter_);
-    if (best_rank) {
+    if (search_->PopulateRootMoveLimit(&root_move_filter_)) {
       search_->tb_hits_.fetch_add(1, std::memory_order_acq_rel);
-      search_->root_syzygy_rank_ = best_rank;
     }
   }
 }
@@ -1068,8 +1044,7 @@ void SearchWorker::EvalPosition(Node* node, MoveList& legal_moves,
     }
 
     // Neither by-position or by-rule termination, but maybe it's a TB position.
-    if (!search_->root_syzygy_rank_ && search_->syzygy_tb_ &&
-        board.castlings().no_legal_castle() &&
+    if (search_->syzygy_tb_ && board.castlings().no_legal_castle() &&
         history_.Last().GetNoCaptureNoPawnPly() == 0 &&
         (board.ours() | board.theirs()).count() <=
             search_->syzygy_tb_->max_cardinality()) {

@@ -87,17 +87,16 @@ class SyzygyTablebase {
   // has_repeated should be whether there are any repeats since last 50 move
   // counter reset.
   // Thread safe.
-  // Returns 0 if the position is not in the tablebase, and best rank
-  // if found (1 = draw, > 1 for wins, < 1 for losses)
+  // Returns false if the position is not in the tablebase.
   // Safe moves are added to the safe_moves output paramater.
-  int root_probe(const Position& pos, bool has_repeated,
+  bool root_probe(const Position& pos, bool has_repeated,
                   std::vector<Move>* safe_moves);
   // Probes WDL tables to determine which moves might be on the optimal play
   // path. If 50 move ply counter is non-zero some (or maybe even all) of the
   // returned safe moves in a 'winning' position, may actually be draws.
   // Returns false if the position is not in the tablebase.
   // Safe moves are added to the safe_moves output paramater.
-  int root_probe_wdl(const Position& pos, std::vector<Move>* safe_moves);
+  bool root_probe_wdl(const Position& pos, std::vector<Move>* safe_moves);
 
  private:
   template <bool CheckZeroingMoves = false>

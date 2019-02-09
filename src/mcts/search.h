@@ -124,7 +124,7 @@ class Search {
   // Populates the given list with allowed root moves.
   // Returns best_rank != 0 if the population came from tablebase.
   // 1 for draw, > 1 for win and < 1 for loss
-  int PopulateRootMoveLimit(MoveList* root_moves) const;
+  bool PopulateRootMoveLimit(MoveList* root_moves) const;
 
   // Returns verbose information about given node, as vector of strings.
   std::vector<std::string> GetVerboseStats(Node* node,
@@ -179,7 +179,6 @@ class Search {
   // Cummulative depth of all paths taken in PickNodetoExtend.
   uint64_t cum_depth_ GUARDED_BY(nodes_mutex_) = 0;
   std::atomic<int> tb_hits_{0};
-  std::atomic<int> root_syzygy_rank_{0};
 
   BestMoveInfo::Callback best_move_callback_;
   ThinkingInfo::Callback info_callback_;
