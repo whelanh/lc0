@@ -59,13 +59,13 @@ build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-opencl.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-opencl.zip client.exe
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-opencl.zip C:\cache\OpenBLAS\dist64\bin\libopenblas.dll
+- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-opencl.zip C:\cache\opencl-nug.0.777.77\build\native\bin\OpenCL.dll
 - cmd: copy build\lc0.exe lc0-opencl.exe
 - cmd: meson configure build -Dgtest=%GTEST% -Dopencl=false -Dblas=false
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-blas.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-blas.zip client.exe
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %OPENCL%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-blas.zip C:\cache\opencl-nug.0.777.77\build\native\bin\OpenCL.dll
+- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-blas.zip C:\cache\OpenBLAS\dist64\bin\libopenblas.dll
 - cmd: copy build\lc0.exe lc0-blas.exe
 artifacts:
   - path: lc0-cuda.exe
