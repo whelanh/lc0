@@ -197,6 +197,10 @@ class BitBoard {
     return board_ == other.board_;
   }
 
+  bool operator!=(const BitBoard& other) const {
+    return board_ != other.board_;
+  }
+
   BitIterator<BoardSquare> begin() const { return board_; }
   BitIterator<BoardSquare> end() const { return 0; }
 
@@ -215,7 +219,7 @@ class BitBoard {
   }
 
   // Applies a mask to the bitboard (intersects).
-  BitBoard& operator*=(const BitBoard& a) {
+  BitBoard& operator&=(const BitBoard& a) {
     board_ &= a.board_;
     return *this;
   }
@@ -226,8 +230,13 @@ class BitBoard {
   }
 
   // Returns union (bitwise OR) of two boards.
-  friend BitBoard operator+(const BitBoard& a, const BitBoard& b) {
+  friend BitBoard operator|(const BitBoard& a, const BitBoard& b) {
     return {a.board_ | b.board_};
+  }
+
+  // Returns intersection (bitwise AND) of two boards.
+  friend BitBoard operator&(const BitBoard& a, const BitBoard& b) {
+    return {a.board_ & b.board_};
   }
 
   // Returns bitboard with one bit reset.
@@ -238,11 +247,6 @@ class BitBoard {
   // Returns difference (bitwise AND-NOT) of two boards.
   friend BitBoard operator-(const BitBoard& a, const BitBoard& b) {
     return {a.board_ & ~b.board_};
-  }
-
-  // Returns intersection (bitwise AND) of two boards.
-  friend BitBoard operator*(const BitBoard& a, const BitBoard& b) {
-    return {a.board_ & b.board_};
   }
 
  private:

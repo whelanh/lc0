@@ -146,6 +146,10 @@ const OptionId SearchParams::kOutOfOrderEvalId{
     "in the cache or is terminal, evaluate it right away without sending the "
     "batch to the NN. When off, this may only happen with the very first node "
     "of a batch; when on, this can happen with any node."};
+const OptionId SearchParams::kSyzygyFastPlayId{
+    "syzygy-fast-play", "SyzygyFastPlay",
+    "With DTZ tablebase files, only allow the network pick from winning moves "
+    "that have shortest DTZ to play faster (but not necessarily optimally)."};
 const OptionId SearchParams::kMultiPvId{
     "multipv", "MultiPV",
     "Number of game play lines (principal variations) to show in UCI info "
@@ -162,14 +166,13 @@ const OptionId SearchParams::kHistoryFillId{
     "synthesize them (always, never, or only at non-standard fen position)."};
 
 void SearchParams::Populate(OptionsParser* options) {
-  // Here the "safe defaults" are listed.
-  // Many of them are overridden with optimized defaults in engine.cc and
-  // tournament.cc
-  options->Add<IntOption>(kMiniBatchSizeId, 1, 1024) = 1;
+  // Here the uci optimized defaults" are set.
+  // Many of them are overridden with training specific values in tournament.cc.
+  options->Add<IntOption>(kMiniBatchSizeId, 1, 1024) = 256;
   options->Add<IntOption>(kMaxPrefetchBatchId, 0, 1024) = 32;
-  options->Add<FloatOption>(kCpuctId, 0.0f, 100.0f) = 1.2f;
+  options->Add<FloatOption>(kCpuctId, 0.0f, 100.0f) = 3.0f;
   options->Add<FloatOption>(kCpuctBaseId, 1.0f, 1000000000.0f) = 19652.0f;
-  options->Add<FloatOption>(kCpuctFactorId, 0.0f, 1000.0f) = 0.0f;
+  options->Add<FloatOption>(kCpuctFactorId, 0.0f, 1000.0f) = 2.0f;
   options->Add<FloatOption>(kTemperatureId, 0.0f, 100.0f) = 0.0f;
   options->Add<IntOption>(kTempDecayMovesId, 0, 100) = 0;
   options->Add<IntOption>(kTemperatureCutoffMoveId, 0, 1000) = 0;
@@ -182,13 +185,14 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<FloatOption>(kSmartPruningFactorId, 0.0f, 10.0f) = 1.33f;
   std::vector<std::string> fpu_strategy = {"reduction", "absolute"};
   options->Add<ChoiceOption>(kFpuStrategyId, fpu_strategy) = "reduction";
-  options->Add<FloatOption>(kFpuReductionId, -100.0f, 100.0f) = 0.0f;
+  options->Add<FloatOption>(kFpuReductionId, -100.0f, 100.0f) = 1.2f;
   options->Add<FloatOption>(kFpuValueId, -1.0f, 1.0f) = -1.0f;
-  options->Add<IntOption>(kCacheHistoryLengthId, 0, 7) = 7;
-  options->Add<FloatOption>(kPolicySoftmaxTempId, 0.1f, 10.0f) = 1.0f;
-  options->Add<IntOption>(kMaxCollisionEventsId, 1, 1024) = 1;
-  options->Add<IntOption>(kMaxCollisionVisitsId, 1, 1000000) = 1;
-  options->Add<BoolOption>(kOutOfOrderEvalId) = false;
+  options->Add<IntOption>(kCacheHistoryLengthId, 0, 7) = 0;
+  options->Add<FloatOption>(kPolicySoftmaxTempId, 0.1f, 10.0f) = 2.2f;
+  options->Add<IntOption>(kMaxCollisionEventsId, 1, 1024) = 32;
+  options->Add<IntOption>(kMaxCollisionVisitsId, 1, 1000000) = 9999;
+  options->Add<BoolOption>(kOutOfOrderEvalId) = true;
+  options->Add<BoolOption>(kSyzygyFastPlayId) = true;
   options->Add<IntOption>(kMultiPvId, 1, 500) = 1;
   std::vector<std::string> score_type = {"centipawn", "win_percentage", "Q"};
   options->Add<ChoiceOption>(kScoreTypeId, score_type) = "centipawn";
@@ -212,9 +216,10 @@ SearchParams::SearchParams(const OptionsDict& options)
       kMaxCollisionEvents(options.Get<int>(kMaxCollisionEventsId.GetId())),
       kMaxCollisionVisits(options.Get<int>(kMaxCollisionVisitsId.GetId())),
       kOutOfOrderEval(options.Get<bool>(kOutOfOrderEvalId.GetId())),
-      kMiniBatchSize(options.Get<int>(kMiniBatchSizeId.GetId())),
+      kSyzygyFastPlay(options.Get<bool>(kSyzygyFastPlayId.GetId())),
       kHistoryFill(
-          EncodeHistoryFill(options.Get<std::string>(kHistoryFillId.GetId()))) {
+          EncodeHistoryFill(options.Get<std::string>(kHistoryFillId.GetId()))),
+      kMiniBatchSize(options.Get<int>(kMiniBatchSizeId.GetId())){
 }
 
 }  // namespace lczero

@@ -26,7 +26,6 @@ endif
 if cc.get_id() == 'clang' or cc.get_id() == 'gcc'
   add_project_arguments('-Wextra', language : 'cpp')
   add_project_arguments('-pedantic', language : 'cpp')
-  add_project_arguments('-ffast-math', language : 'cpp')
 
   if get_option('buildtype') == 'release'
     add_project_arguments('-march=native', language : 'cpp')
@@ -51,7 +50,10 @@ else
 endif
 protoc = find_program('protoc', required : false)
 # For tensorflow skip system protobuf, chances are it will not work.
-if not protobuf_dep.found() or not protoc.found() or get_option('tensorflow')
+if get_option('protobuf-3-6-0')
+  deps += subproject('protobuf-3.6.0').get_variable('protobuf_dep')
+  protoc = subproject('protobuf-3.6.0').get_variable('protoc')
+elif not protobuf_dep.found() or not protoc.found() or get_option('tensorflow')
   deps += subproject('protobuf').get_variable('protobuf_dep')
   protoc = subproject('protobuf').get_variable('protoc')
 else
@@ -157,6 +159,7 @@ if get_option('build_backends')
       tensorflow_include,
       tensorflow_include[0] + '/bazel-genfiles',
       tensorflow_include[0] + '/tensorflow/contrib/makefile/downloads',
+      tensorflow_include[0] + '/tensorflow/contrib/makefile/downloads/absl',
       tensorflow_include[0] + '/tensorflow/contrib/makefile/downloads/eigen',
       tensorflow_include[0] + '/tensorflow/contrib/makefile/downloads/gemmlowp',
       tensorflow_include[0] + '/tensorflow/contrib/makefile/downloads/nsync/public',
@@ -181,6 +184,9 @@ if get_option('build_backends')
 
   mkl_libdirs = get_option('mkl_libdirs')
   mkl_lib = cc.find_library('mkl_rt', dirs: mkl_libdirs, required: false)
+  if not mkl_lib.found()
+    mkl_lib = cc.find_library('mklml', dirs: mkl_libdirs, required: false)
+  endif
 
   openblas_libdirs = get_option('openblas_libdirs')
   openblas_lib = cc.find_library('openblas.dll', dirs: openblas_libdirs, required: false)
@@ -396,9 +402,9 @@ endif # if get_option('build_backends')
 if not has_backends and get_option('build_backends')
   error('''
 
-        No usable computation backends (cudnn/tensorflow/etc) are found.
-        If you want to build it with random only backend, pass
-        -D build_backends=false to a meson build.''')
+        No usable computation backends (cudnn/opencl/blas/etc) enabled.
+        If you want to build with the random backend only, add
+        -Dbuild_backends=false to the build command line.''')
 endif
 
 
@@ -427,6 +433,10 @@ endif
 
 if not get_option('popcnt')
   add_project_arguments('-DNO_POPCNT', language : 'cpp')
+endif
+
+if not get_option('pext')
+  add_project_arguments('-DNO_PEXT', language : 'cpp')
 endif
 
 executable('lc0', 'src/main.cc',
