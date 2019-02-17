@@ -84,7 +84,7 @@ deploy:
   - provider: GitHub
     artifact: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-cuda.zip,lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-opencl.zip,lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-blas.zip
     auth_token:
-      secure: cDBBHS9pbSEEe+Dt/kGjHCrSPqaTQuZsrvFETud2tfVwTTnm7JneWQLB1n6Z+L6/
+      secure: USFAdwQKTXqOXQjCYQfzWvzRpUhvqJLBkN4hbOg+j876vDxGZHt9bMYayb5evePp
     on:
       appveyor_repo_tag: true
 test_script:
