@@ -1,0 +1,10 @@
+[wrap-file]
+directory = abseil-cpp-20181200
+
+source_url = https://github.com/abseil/abseil-cpp/archive/20181200.tar.gz
+source_filename = abseil-cpp-20181200.tar.gz
+source_hash = e2b53bfb685f5d4130b84c4f3050c81bf48c497614dc85d91dbd3ed9129bce6d
+
+patch_url = https://github.com/borg323/abseil-wrap/raw/master/abseil-cpp-20181200-wrap.zip
+patch_filename = abseil-cpp-20181200-wrap.zip
+patch_hash = f244cff7e92ffa38e12dc92ade6e0dc035855131add704416146b370420453ce

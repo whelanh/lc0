@@ -41,6 +41,11 @@ has_backends = false
 # Third party files.
 includes += include_directories('third_party', is_system: true)
 
+# Abseil
+abseil = subproject('abseil')
+deps += declare_dependency(link_with: [abseil.get_variable('hash_lib')],
+                           include_directories: abseil.get_variable('top_inc'))
+
 # Both protobuf and protoc must be the same version, so couple them together.
 protobuf_lib = cc.find_library('libprotobuf', dirs : get_option('protobuf_libdir'), required : false)
 if not protobuf_lib.found()
