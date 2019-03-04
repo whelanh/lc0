@@ -4,10 +4,11 @@ platform: x86
 image:
 - Visual Studio 2017
 environment:
-- BITS: 32
   matrix:
   - NAME: opencl
+    BITS: 32
   - NAME: blas
+    BITS: 32
 install:
 - cmd: set OPENCL=false
 - cmd: set BLAS=true
