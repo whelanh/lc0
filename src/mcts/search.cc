@@ -648,8 +648,13 @@ void Search::StartThreads(size_t how_many) {
   // Start working threads.
   while (threads_.size() <= how_many) {
     threads_.emplace_back([this]() {
-      SearchWorker worker(this, params_);
-      worker.RunBlocking();
+      try {
+        SearchWorker worker(this, params_);
+        worker.RunBlocking();
+      } catch (std::runtime_error& e) {
+        std::cerr << e.what() << std::endl;
+        exit(1);
+      }
     });
   }
 }
