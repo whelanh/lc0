@@ -62,6 +62,7 @@ test_script:
 - cmd: IF %GTEST%==true meson test --print-errorlogs
 - cmd: cd ..
 on_finish:
+  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 - cmd: cd build
 - cmd: IF %GTEST%==true for %%a in (*.xml) do curl -F file=@%%a https://ci.appveyor.com/api/testresults/junit/%APPVEYOR_JOB_ID%
 - cmd: cd ..
