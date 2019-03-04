@@ -4,6 +4,7 @@ platform: x86
 image:
 - Visual Studio 2017
 environment:
+  - BITS: 32
   matrix:
   - NAME: opencl
   - NAME: blas
