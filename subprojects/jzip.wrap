@@ -1,0 +1,5 @@
+[wrap-git]
+directory = jzip
+url = https://github.com/borg323/jzip.git
+revision = head
+

@@ -32,12 +32,14 @@
 #include "utils/commandline.h"
 #include "utils/logging.h"
 #include "version.h"
+#include "zmachine/zmachine.h"
 
 int main(int argc, const char** argv) {
-  LOGFILE << "Lc0 started.";
-  CERR << "       _";
-  CERR << "|   _ | |";
-  CERR << "|_ |_ |_| v" << GetVersionStr() << " built " << __DATE__;
+  LOGFILE << "LcZ started.";
+  CERR << " _       ____";
+  CERR << "| |   __|_  /";
+  CERR << "| |__/ _|/ / ";
+  CERR << "|____\\__/___| " << GetVersionStr() << " built " << __DATE__;
   using namespace lczero;
 
   InitializeMagicBitboards();
@@ -46,6 +48,7 @@ int main(int argc, const char** argv) {
   CommandLine::RegisterMode("uci", "(default) Act as UCI engine");
   CommandLine::RegisterMode("selfplay", "Play games with itself");
   CommandLine::RegisterMode("benchmark", "Quick benchmark");
+  CommandLine::RegisterMode("z", "Z-Machine interpreter");
 
   if (CommandLine::ConsumeCommand("selfplay")) {
     // Selfplay mode.
@@ -55,6 +58,10 @@ int main(int argc, const char** argv) {
     // Benchmark mode.
     Benchmark benchmark;
     benchmark.Run();
+  } else if (CommandLine::ConsumeCommand("z")) {
+    // Benchmark mode.
+    ZMachine interpreter;
+    interpreter.Run();
   } else {
     // Consuming optional "uci" mode.
     CommandLine::ConsumeCommand("uci");

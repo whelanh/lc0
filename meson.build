@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
 
-project('lc0', 'cpp',
+project('lcZ', 'cpp',
         default_options : ['cpp_std=c++14', 'b_ndebug=if-release'],
         meson_version: '>=0.45')
 
@@ -40,6 +40,8 @@ has_backends = false
 
 # Third party files.
 includes += include_directories('third_party', is_system: true)
+
+deps += subproject('jzip').get_variable('jzip_dep')
 
 # Both protobuf and protoc must be the same version, so couple them together.
 protobuf_lib = cc.find_library('libprotobuf', dirs : get_option('protobuf_libdir'), required : false)
@@ -121,6 +123,7 @@ files += [
   'src/utils/string.cc',
   'src/utils/transpose.cc',
   'src/utils/weights_adapter.cc',
+  'src/zmachine/zmachine.cc',
 ]
 includes += include_directories('src')
 
@@ -439,7 +442,7 @@ if not get_option('pext')
   add_project_arguments('-DNO_PEXT', language : 'cpp')
 endif
 
-executable('lc0', 'src/main.cc',
+executable('lcZ', 'src/main.cc',
   files, include_directories: includes, dependencies: deps, install: true)
 
 
