@@ -67,6 +67,7 @@ build_script:
 - cmd: IF %APPVEYOR_REPO_TAG%==true msbuild "C:\projects\lc0\build\lcZ.sln" /m /p:WholeProgramOptimization=PGOptimize /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lcZ-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lcZ.exe
+- cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lcZ-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\zugzwang.z5
 - cmd: IF %APPVEYOR_REPO_TAG%==true appveyor DownloadFile "https://ci.appveyor.com/api/projects/LeelaChessZero/lczero-client/artifacts/client.exe?branch=release&pr=false&job=Environment%%3A%%20NAME%%3D.exe%%2C%%20GOOS%%3Dwindows"
 - cmd: IF %APPVEYOR_REPO_TAG%==true 7z a lcZ-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip client.exe
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %BLAS%==true 7z a lcZ-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\OpenBLAS\dist64\bin\libopenblas.dll
@@ -87,7 +88,7 @@ deploy:
   - provider: GitHub
     artifact: lcZ-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME).zip
     auth_token:
-      secure: USFAdwQKTXqOXQjCYQfzWvzRpUhvqJLBkN4hbOg+j876vDxGZHt9bMYayb5evePp
+      secure: cDBBHS9pbSEEe+Dt/kGjHCrSPqaTQuZsrvFETud2tfVwTTnm7JneWQLB1n6Z+L6/
     on:
       appveyor_repo_tag: true
 test_script:
