@@ -34,13 +34,14 @@
 namespace lczero {
 namespace {
 
-const OptionId kZFileId{"z-file", "", "Zcode file to load."};
+const OptionId kZFileId{"z-file", "", "Zcode file to load.", 'z'};
 const OptionId kColorId{"color", "", "Render text in color."};
 const OptionId kHistBufId{"hist-buf-size", "", "Size of the history buffer."};
+const OptionId kUnicodeId{"unicode", "", "Display and handle unicode text."};
 
 void configure( zbyte_t min_version, zbyte_t max_version )
 {
-   zbyte_t header[PAGE_SIZE], second;
+   zbyte_t header[PAGE_SIZE]/*, second*/;
 
    read_page( 0, header );
    datap = header;
@@ -112,10 +113,6 @@ void configure( zbyte_t min_version, zbyte_t max_version )
    h_checksum = get_word( H_CHECKSUM );
    h_alternate_alphabet_offset = get_word( H_ALTERNATE_ALPHABET_OFFSET );
 
-   if ( h_type >= V5 )
-   {
-      h_unicode_table = get_word( H_UNICODE_TABLE );
-   }
    datap = NULL;
 }
 
@@ -126,14 +123,16 @@ void ZMachine::Run() {
   OptionsParser options;
 
   options.Add<StringOption>(kZFileId) = "zugzwang.z5";
-  options.Add<IntOption>(kHistBufId, 0, 4096) = 1024;
+  options.Add<IntOption>(kHistBufId, 0, 16384) = 1024;
   options.Add<BoolOption>(kColorId) = false;
+  options.Add<BoolOption>(kUnicodeId) = true;
 
   if (!options.ProcessAllFlags()) return;
 
   auto option_dict = options.GetOptionsDict();
 
-  monochrome = option_dict.Get<bool>(kColorId.GetId())?0:1;
+  monochrome = option_dict.Get<bool>(kColorId.GetId()) ? 0 : 1;
+  unicode = option_dict.Get<bool>(kUnicodeId.GetId()) ? 1 : 0;
   hist_buf_size = option_dict.Get<int>(kHistBufId.GetId());
 
   open_story(option_dict.Get<std::string>(kZFileId.GetId()).c_str());
@@ -148,11 +147,11 @@ void ZMachine::Run() {
 
   ( void ) interpret(  );
 
-  unload_cache(  );
-
   close_story(  );
 
   close_script(  );
+
+  unload_cache(  );
 
   reset_screen(  );
 
