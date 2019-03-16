@@ -37,7 +37,7 @@ namespace {
 const OptionId kZFileId{"z-file", "", "Zcode file to load.", 'z'};
 const OptionId kColorId{"color", "", "Render text in color."};
 const OptionId kHistBufId{"hist-buf-size", "", "Size of the history buffer."};
-const OptionId kUnicodeId{"unicode", "", "Display and handle unicode text."};
+const OptionId kUnicodeId{"unicode", "", "How to display and handle unicode text."};
 
 void configure( zbyte_t min_version, zbyte_t max_version )
 {
@@ -125,14 +125,23 @@ void ZMachine::Run() {
   options.Add<StringOption>(kZFileId) = "zugzwang.z5";
   options.Add<IntOption>(kHistBufId, 0, 16384) = 1024;
   options.Add<BoolOption>(kColorId) = false;
-  options.Add<BoolOption>(kUnicodeId) = true;
+  std::vector<std::string> unicode_opts = {"none", "zscii", "full"};
+  options.Add<ChoiceOption>(kUnicodeId, unicode_opts) = "full";
 
   if (!options.ProcessAllFlags()) return;
 
   auto option_dict = options.GetOptionsDict();
 
   monochrome = option_dict.Get<bool>(kColorId.GetId()) ? 0 : 1;
-  unicode = option_dict.Get<bool>(kUnicodeId.GetId()) ? 1 : 0;
+
+  if (option_dict.Get<std::string>(kUnicodeId.GetId()) == "none") {
+    unicode = 0;
+  } else if (option_dict.Get<std::string>(kUnicodeId.GetId()) == "zscii") {
+    unicode = 1;
+  } else {
+    unicode = 2;
+  }
+
   hist_buf_size = option_dict.Get<int>(kHistBufId.GetId());
 
   open_story(option_dict.Get<std::string>(kZFileId.GetId()).c_str());
