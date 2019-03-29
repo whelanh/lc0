@@ -35,9 +35,27 @@ namespace lczero {
 namespace {
 
 const OptionId kZFileId{"z-file", "", "Zcode file to load.", 'z'};
-const OptionId kColorId{"color", "", "Render text in color."};
-const OptionId kHistBufId{"hist-buf-size", "", "Size of the history buffer."};
-const OptionId kUnicodeId{"unicode", "", "How to display and handle unicode text."};
+const OptionId kMonochromeId{"monochrome", "",
+                             "Disable color support. You can still select "
+                             "foreground and background colors."};
+const OptionId kHistBufId{"hist-buf-size", "",
+                          "Size of the history buffer in bytes."};
+const OptionId kUndoBufId{"undo-buf-size", "",
+                          "Size of the uundo buffer in moves."};
+const OptionId kUnicodeId{"unicode", "",
+                          "How to display and handle unicode text."};
+const OptionId kBackgroundId{"background", "", "Background color."};
+const OptionId kForegroundId{"foreground", "", "Foreground color."};
+const OptionId kBeyondZorkId{"beyond-zork", "",
+                             "Enter \"Beyond Zork\" mode using IBM graphics "
+                             "characters and passing PgUp/PgDn keys as cursor "
+                             "ones to the game for scrolling the status "
+                             "window."};
+const OptionId kLineEditorId{"line-editor", "",
+                             "Disable the line editor inorder to pass all keys "
+                             "to the game. Note that this isn't necessary for "
+                             "playing \"Beyond Zork\" as the --beyond-zork "
+                             "option is sufficient."};
 
 void configure( zbyte_t min_version, zbyte_t max_version )
 {
@@ -119,20 +137,26 @@ void configure( zbyte_t min_version, zbyte_t max_version )
 }  // namespace
 
 void ZMachine::Run() {
-
   OptionsParser options;
 
   options.Add<StringOption>(kZFileId) = "zugzwang.z5";
   options.Add<IntOption>(kHistBufId, 0, 16384) = 1024;
-  options.Add<BoolOption>(kColorId) = false;
+  options.Add<IntOption>(kUndoBufId, 0, 100) = 15;
+  options.Add<BoolOption>(kMonochromeId) = false;
   std::vector<std::string> unicode_opts = {"none", "zscii", "full"};
   options.Add<ChoiceOption>(kUnicodeId, unicode_opts) = "full";
+  std::vector<std::string> colors = {"black", "red",     "green", "yellow",
+                                     "blue",  "magenda", "cyan",  "white"};
+  options.Add<ChoiceOption>(kBackgroundId, colors) = "black";
+  options.Add<ChoiceOption>(kForegroundId, colors) = "white";
+  options.Add<BoolOption>(kBeyondZorkId) = false;
+  options.Add<BoolOption>(kLineEditorId) = true;
 
   if (!options.ProcessAllFlags()) return;
 
   auto option_dict = options.GetOptionsDict();
 
-  monochrome = option_dict.Get<bool>(kColorId.GetId()) ? 0 : 1;
+  monochrome = option_dict.Get<bool>(kMonochromeId.GetId()) ? 1 : 0;
 
   if (option_dict.Get<std::string>(kUnicodeId.GetId()) == "none") {
     unicode = 0;
@@ -143,6 +167,24 @@ void ZMachine::Run() {
   }
 
   hist_buf_size = option_dict.Get<int>(kHistBufId.GetId());
+
+  undo_size = option_dict.Get<int>(kUndoBufId.GetId());
+
+  default_bg = 0;
+  for (std::string c : colors) {
+    if (option_dict.Get<std::string>(kBackgroundId.GetId()) == c) break;
+    default_bg++;
+  }
+
+  default_fg = 0;
+  for (std::string c : colors) {
+    if (option_dict.Get<std::string>(kForegroundId.GetId()) == c) break;
+    default_fg++;
+  }
+
+  fIBMGraphics = option_dict.Get<bool>(kBeyondZorkId.GetId()) ? 1 : 0;
+
+  line_editing = option_dict.Get<bool>(kLineEditorId.GetId()) ? 1 : 0;
 
   open_story(option_dict.Get<std::string>(kZFileId.GetId()).c_str());
 
