@@ -5,9 +5,7 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: cuda
   - NAME: opencl
-  - NAME: blas
 install:
 - cmd: set CUDA=false
 - cmd: set OPENCL=false
