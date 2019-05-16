@@ -299,7 +299,7 @@ if get_option('build_backends')
   opencl_dep = []
 
   opencl_libdirs = get_option('opencl_libdirs')
-  opencl_lib=cc.find_library('xOpenCL', dirs: opencl_libdirs, required: false)
+  opencl_lib=cc.find_library('OpenCL', dirs: opencl_libdirs, required: false)
 
   opencl_framework=dependency('OpenCL', required: false)
   if opencl_framework.found()
