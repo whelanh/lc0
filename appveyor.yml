@@ -17,7 +17,7 @@ install:
 - cmd: IF NOT EXIST C:\cache\ispc-v1.11.0-windows 7z x ispc-v1.11.0-windows.zip -oC:\cache
 - cmd: set PATH=C:\cache\ispc-v1.11.0-windows\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
-- cmd: pip3 install --upgrade meson==0.50.1
+- cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
 - cmd: IF NOT EXIST c:\cache\protobuf\ git clone -b v3.5.1 --single-branch --depth 1 https://github.com/google/protobuf.git
@@ -29,7 +29,7 @@ install:
 - cmd: IF NOT EXIST c:\cache\testnet appveyor DownloadFile http://lczero.org/get_network?sha=7170f639ba1cdc407283b8e52377283e36845b954788c6ada8897937637ef032 -Filename c:\cache\testnet
 - cmd: cd C:\projects\lc0
 cache:
-  - C:\cache -> appveyor.yml
+  - C:\cache
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
