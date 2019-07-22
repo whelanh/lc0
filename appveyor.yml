@@ -11,6 +11,9 @@ install:
 - cmd: set OPENCL=false
 - cmd: set BLAS=false
 - cmd: set GTEST=false
+- cmd: IF NOT EXIST C:\cache\cutechess appveyor DownloadFile https://github.com/cutechess/cutechess/releases/download/gui-1.0.0/cutechess_setup.exe
+- cmd: IF NOT EXIST C:\cache\cutechess cutechess_setup.exe /SUPPRESSMSGBOXES /DIR=C:\cache\cutechess /VERYSILENT
+- cmd: set PATH=C:\cache\cutechess;%PATH%
 - cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.5.20190502 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.20/mklml_win_2019.0.5.20190502.zip
 - cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.5.20190502 7z x mklml_win_2019.0.5.20190502.zip -oC:\cache
 - cmd: IF NOT EXIST C:\cache\ispc-v1.11.0-windows appveyor DownloadFile http://sourceforge.net/projects/ispcmirror/files/v1.11.0/ispc-v1.11.0-windows.zip
@@ -38,7 +41,7 @@ build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGInstrument /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 - cmd: cd build
 - cmd: copy C:\cache\mklml_win_2019.0.5.20190502\lib\*.dll
-- cmd: lc0 benchmark --weights=c:\cache\testnet --movetime=10000
+- cmd: cutechess-cli -rounds 1 -engine cmd=lc0 -engine cmd=lc0 -each arg="--weights=c:\cache\testnet" tc=30+.5 proto=uci timemargin=100 -debug
 - cmd: cd ..
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGOptimize /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
