@@ -11,11 +11,11 @@ install:
 - cmd: set OPENCL=false
 - cmd: set BLAS=false
 - cmd: set GTEST=false
-- cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.5.20190502 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_win_2019.0.5.20190502.zip
+- cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.5.20190502 appveyor DownloadFile https://github.com/intel/mkl-dnn/releases/download/v0.20/mklml_win_2019.0.5.20190502.zip
 - cmd: IF NOT EXIST C:\cache\mklml_win_2019.0.5.20190502 7z x mklml_win_2019.0.5.20190502.zip -oC:\cache
-- cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
-- cmd: IF NOT EXIST C:\cache\ispc-v1.9.2-windows 7z x ispc-v1.9.2-windows.zip -oC:\cache
-- cmd: set PATH=C:\cache\ispc-v1.9.2-windows;%PATH%
+- cmd: IF NOT EXIST C:\cache\ispc-v1.11.0-windows appveyor DownloadFile http://sourceforge.net/projects/ispcmirror/files/v1.11.0/ispc-v1.11.0-windows.zip
+- cmd: IF NOT EXIST C:\cache\ispc-v1.11.0-windows 7z x ispc-v1.11.0-windows.zip -oC:\cache
+- cmd: set PATH=C:\cache\ispc-v1.11.0-windows\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson==0.50.1
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
