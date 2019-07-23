@@ -46,7 +46,7 @@ build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGInstrument /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 - cmd: cd build
 - cmd: copy C:\cache\mklml_win_2019.0.5.20190502\lib\*.dll
-- cmd: cutechess-cli -rounds 3 -openings file=C:\projects\lc0\pgo.pgn format=pgn -engine cmd=lc0 -engine cmd=lc0 -each arg="--weights=c:\cache\testnet" arg="--syzygy-paths=C:\cache\syzygy" tc=60+1 proto=uci timemargin=100 -debug
+- cmd: cutechess-cli -rounds 3 -openings file=C:\projects\lc0\pgo.pgn format=pgn -engine cmd=lc0 -engine cmd=lc0 -each arg="--weights=c:\cache\testnet" arg="--syzygy-paths=C:\cache\syzygy" tc=60+1 proto=uci timemargin=200 -debug
 - cmd: cd ..
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGOptimize /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
