@@ -276,9 +276,11 @@ std::string Tuner::tune_sgemm(const int m, const int n, const int k,
     auto defines = parameters_to_defines(p);
 
     try {
-      auto args = m_opencl.m_cl_args + " " + defines;
+      auto args = m_opencl.m_cl_args + " " + defines + " -Werror";
+      CERR << "Trying " << parameters_to_string(p);
       program.build(args.c_str());
-    } catch (const cl::Error&) {
+    } catch (const cl::Error& e) {
+      CERR << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(m_device);
       // Failed to compile, get next parameter.
       continue;
     }
