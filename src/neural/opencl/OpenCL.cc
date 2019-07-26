@@ -358,7 +358,7 @@ void OpenCL::initialize(const int channels, const OpenCLParams& params) {
     std::string args = cl_args;
     args += sgemm_tuners;
     m_program.build(args.c_str());
-    CERR << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(m_device);
+    CERR << m_program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(m_device);
   } catch (const cl::Error&) {
     CERR << "Error building kernels: "
          << m_program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(m_device) << ".";
