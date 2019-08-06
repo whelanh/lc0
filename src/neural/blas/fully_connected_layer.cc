@@ -23,10 +23,6 @@
 #include <cassert>
 #include <cmath>
 
-#ifdef USE_EIGEN
-#include <Eigen/Dense>
-#endif
-
 namespace lczero {
 #ifdef USE_EIGEN
 template <typename T>

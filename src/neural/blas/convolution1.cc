@@ -19,10 +19,6 @@
 #include "neural/blas/convolution1.h"
 #include "neural/blas/blas.h"
 
-#ifdef USE_EIGEN
-#include <Eigen/Dense>
-#endif
-
 namespace lczero {
 #ifdef USE_EIGEN
 template <typename T>

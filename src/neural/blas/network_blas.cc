@@ -33,10 +33,6 @@
 #include <cmath>
 #include <iostream>
 
-#ifdef USE_EIGEN
-#include <Eigen/Core>
-#endif
-
 namespace lczero {
 namespace {
 

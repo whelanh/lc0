@@ -20,11 +20,10 @@
 
 // Select the BLAS vendor based on defines
 
-#ifdef USE_MKL
+#if defined(USE_MKL)
 #include <mkl.h>
-#else
 
-#ifdef USE_OPENBLAS
+#elif defined(USE_OPENBLAS)
 #include <cblas.h>
 
 // Specific openblas routines.
@@ -35,13 +34,12 @@ char* openblas_get_corename(void);
 char* openblas_get_config(void);
 }
 
-#else
+#elif defined(USE_EIGEN)
+#include <Eigen/Core>
+#include <Eigen/Dense>
 
-#ifdef __APPLE__
+#elif defined(__APPLE__)
 #include <Accelerate/Accelerate.h>
 #define USE_ACCELERATE
+
 #endif
-
-#endif  // USE_OPENBLAS
-
-#endif  // USE_MKL

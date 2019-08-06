@@ -29,10 +29,6 @@
 #include "winograd_transform_ispc.h"
 #endif
 
-#ifdef USE_EIGEN
-#include <Eigen/Dense>
-#endif
-
 namespace lczero {
 #ifdef USE_EIGEN
 template <typename T>
