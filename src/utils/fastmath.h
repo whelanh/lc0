@@ -28,6 +28,8 @@
 #pragma once
 
 #include <cstring>
+#include <cstdint>
+#include <cmath>
 
 namespace lczero {
 // These stunts are performed by trained professionals, do not try this at home.

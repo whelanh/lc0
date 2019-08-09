@@ -17,6 +17,7 @@
  */
 
 #include "neural/shared/activation.h"
+#include "utils/fastmath.h"
 
 #include <algorithm>
 #include <cmath>
@@ -33,7 +34,7 @@ void SoftmaxActivation(const size_t size, const float* input, float* output) {
 
   auto denom = 0.0f;
   for (size_t i = 0; i < size; i++) {
-    auto val = std::exp(input[i] - alpha);
+    auto val = FastExp(input[i] - alpha);
     output[i] = val;
     denom += val;
   }
