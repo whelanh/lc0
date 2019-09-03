@@ -24,8 +24,8 @@ install:
 - cmd: IF %BLAS%==true set PATH=C:\cache\ispc-v1.9.2-windows;%PATH%
 - cmd: set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2"
 - cmd: IF %CUDA%==true IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.2/Prod2/local_installers/cuda_9.2.148_win10
-- cmd: IF DEFINED CUDA_INSTALL cuda_9.2.148_win10 -s nvcc_9.2 cublas_dev_9.2 cublas_9.2 cudart_9.2
+- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.nvidia.com/compute/cuda/9.2/Prod2/network_installers2/cuda_9.2.148_win10_network
+- cmd: IF DEFINED CUDA_INSTALL cuda_9.2.148_win10_network -s nvcc_9.2 cublas_dev_9.2 cublas_9.2 cudart_9.2
 - cmd: IF %CUDA%==true set PATH=%CUDA_PATH%\bin;%PATH%
 - cmd: IF %CUDA%==true IF NOT EXIST C:\cache\cuda appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.2.1/cudnn-9.2-windows10-x64-v7.2.1.38.zip
 - cmd: IF %CUDA%==true IF NOT EXIST C:\cache\cuda 7z x cudnn-9.2-windows10-x64-v7.2.1.38.zip -oC:\cache
