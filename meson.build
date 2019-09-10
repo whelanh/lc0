@@ -30,6 +30,8 @@ if cc.get_id() == 'clang' or cc.get_id() == 'gcc'
   if get_option('buildtype') == 'release'
     add_project_arguments('-march=native', language : 'cpp')
   endif
+elif cc.get_id() == 'msvc'
+  add_project_arguments('/fp:fast', language : 'cpp')
 endif
 
 # Files to compile.
