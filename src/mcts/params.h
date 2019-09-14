@@ -78,14 +78,14 @@ class SearchParams {
     return options_.Get<bool>(kLogLiveStatsId.GetId());
   }
   float GetSmartPruningFactor() const { return kSmartPruningFactor; }
-  bool GetFpuAbsolute() const { return kFpuAbsolute; }
-  float GetFpuReduction() const { return kFpuReduction; }
-  float GetFpuValue() const { return kFpuValue; }
+  bool GetFpuAbsolute(bool at_root) const { return at_root ? kFpuAbsoluteAtRoot : kFpuAbsolute; }
+  float GetFpuValue(bool at_root) const { return at_root ? kFpuValueAtRoot : kFpuValue; }
   int GetCacheHistoryLength() const { return kCacheHistoryLength; }
   float GetPolicySoftmaxTemp() const { return kPolicySoftmaxTemp; }
   int GetMaxCollisionEvents() const { return kMaxCollisionEvents; }
   int GetMaxCollisionVisitsId() const { return kMaxCollisionVisits; }
   bool GetOutOfOrderEval() const { return kOutOfOrderEval; }
+  bool GetStickyEndgames() const { return kStickyEndgames; }
   bool GetSyzygyFastPlay() const { return kSyzygyFastPlay; }
   int GetMultiPv() const { return options_.Get<int>(kMultiPvId.GetId()); }
   std::string GetScoreType() const {
@@ -116,13 +116,15 @@ class SearchParams {
   static const OptionId kLogLiveStatsId;
   static const OptionId kSmartPruningFactorId;
   static const OptionId kFpuStrategyId;
-  static const OptionId kFpuReductionId;
   static const OptionId kFpuValueId;
+  static const OptionId kFpuStrategyAtRootId;
+  static const OptionId kFpuValueAtRootId;
   static const OptionId kCacheHistoryLengthId;
   static const OptionId kPolicySoftmaxTempId;
   static const OptionId kMaxCollisionEventsId;
   static const OptionId kMaxCollisionVisitsId;
   static const OptionId kOutOfOrderEvalId;
+  static const OptionId kStickyEndgamesId;
   static const OptionId kSyzygyFastPlayId;
   static const OptionId kMultiPvId;
   static const OptionId kScoreTypeId;
@@ -144,13 +146,15 @@ class SearchParams {
   const bool kNoise;
   const float kSmartPruningFactor;
   const bool kFpuAbsolute;
-  const float kFpuReduction;
   const float kFpuValue;
+  const bool kFpuAbsoluteAtRoot;
+  const float kFpuValueAtRoot;
   const int kCacheHistoryLength;
   const float kPolicySoftmaxTemp;
   const int kMaxCollisionEvents;
   const int kMaxCollisionVisits;
   const bool kOutOfOrderEval;
+  const bool kStickyEndgames;
   const bool kSyzygyFastPlay;
   const FillEmptyHistory kHistoryFill;
   const int kMiniBatchSize;

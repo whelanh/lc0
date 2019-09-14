@@ -98,10 +98,11 @@ void SelfPlayTournament::PopulateOptions(OptionsParser* options) {
   defaults->Set<float>(SearchParams::kSmartPruningFactorId.GetId(), 0.0f);
   defaults->Set<float>(SearchParams::kTemperatureId.GetId(), 1.0f);
   defaults->Set<bool>(SearchParams::kNoiseId.GetId(), true);
-  defaults->Set<float>(SearchParams::kFpuReductionId.GetId(), 0.0f);
+  defaults->Set<float>(SearchParams::kFpuValueId.GetId(), 0.0f);
   defaults->Set<std::string>(SearchParams::kHistoryFillId.GetId(), "no");
   defaults->Set<std::string>(NetworkFactory::kBackendId.GetId(),
                              "multiplexing");
+  defaults->Set<bool>(SearchParams::kStickyEndgamesId.GetId(), false);
 }
 
 SelfPlayTournament::SelfPlayTournament(const OptionsDict& options,
@@ -237,7 +238,8 @@ void SelfPlayTournament::PlayOneGame(int game_number) {
   auto& game = **game_iter;
 
   // If kResignPlaythrough == 0, then this comparison is unconditionally true
-  const bool enable_resign = Random::Get().GetFloat(100.0f) >= kResignPlaythrough;
+  const bool enable_resign =
+      Random::Get().GetFloat(100.0f) >= kResignPlaythrough;
 
   // PLAY GAME!
   game.Play(kThreads[color_idx[0]], kThreads[color_idx[1]], kTraining,
@@ -271,6 +273,8 @@ void SelfPlayTournament::PlayOneGame(int game_number) {
                        : game.GetGameResult() == GameResult::WHITE_WON ? 0 : 2;
       if (player1_black) result = 2 - result;
       ++tournament_info_.results[result][player1_black ? 1 : 0];
+      tournament_info_.move_count_ += game.move_count_;
+      tournament_info_.nodes_total_ += game.nodes_total_;
       tournament_callback_(tournament_info_);
     }
   }
@@ -339,6 +343,11 @@ void SelfPlayTournament::Abort() {
   abort_ = true;
   for (auto& game : games_)
     if (game) game->Abort();
+}
+
+void SelfPlayTournament::Stop() {
+  Mutex::Lock lock(mutex_);
+  abort_ = true;
 }
 
 SelfPlayTournament::~SelfPlayTournament() {

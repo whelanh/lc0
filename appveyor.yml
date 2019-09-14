@@ -9,6 +9,7 @@ environment:
     BITS: 32
   - NAME: blas
     BITS: 32
+clone_folder: c:\projects\lc0
 install:
 - cmd: set OPENCL=false
 - cmd: set BLAS=true
@@ -29,7 +30,7 @@ install:
 - cmd: IF NOT EXIST c:\cache\protobuf\ git clone -b v3.5.1 --single-branch --depth 1 https://github.com/google/protobuf.git
 - cmd: IF NOT EXIST c:\cache\protobuf\ mkdir protobuf\build_msvc
 - cmd: IF NOT EXIST c:\cache\protobuf\ cd protobuf\build_msvc
-- cmd: IF NOT EXIST c:\cache\protobuf\ cmake -G "Visual Studio 15 2017" -Dprotobuf_BUILD_SHARED_LIBS=NO -Dprotobuf_MSVC_STATIC_RUNTIME=NO -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=c:/cache/protobuf ../cmake
+- cmd: IF NOT EXIST c:\cache\protobuf\ cmake -G "Visual Studio 15 2017" -Dprotobuf_BUILD_SHARED_LIBS=NO -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=c:/cache/protobuf ../cmake
 - cmd: IF NOT EXIST c:\cache\protobuf\ msbuild INSTALL.vcxproj /p:Configuration=Release /p:Platform=win32 /m
 - cmd: set PATH=c:\cache\protobuf\bin;%PATH%
 - cmd: IF %GTEST%==true IF NOT EXIST C:\cache\syzygy mkdir C:\cache\syzygy 
@@ -39,7 +40,7 @@ install:
 - cmd: IF %GTEST%==true IF NOT EXIST KQvKQ.rtbz curl --remote-name-all https://tablebase.lichess.ovh/tables/standard/3-4-5/K{P,N,R,B,Q}vK{P,N,R,B,Q}.rtb{w,z}
 - cmd: cd C:\projects\lc0
 cache:
-  - C:\cache
+  - C:\cache -> appveyor.yml
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive

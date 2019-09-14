@@ -102,12 +102,11 @@ class OpenCLComputation : public NetworkComputation {
       buffers_->forward(input_data, output_pol, output_val, batch_size);
 
       for (size_t j = 0; j < batch_size; j++) {
-        std::vector<float> policy(weights_.num_output_policies);
+        std::vector<float> policy(num_output_policies);
 
         // Get the moves.
-        SoftmaxActivation(num_output_policies,
-                          &output_pol[j * num_output_policies], policy.data());
-
+        policy.assign(output_pol.begin() + j * num_output_policies,
+                      output_pol.begin() + (j + 1) * num_output_policies);
         policies_.emplace_back(std::move(policy));
 
         // Now get the score.
@@ -349,7 +348,7 @@ class OpenCLNetwork : public Network {
   }
 
  private:
-  static constexpr auto kHardMaxBatchSize = 16;
+  static constexpr auto kHardMaxBatchSize = 32;
   static constexpr auto kPolicyUsedPlanes = 73;
   static constexpr auto kPolicyOutputs = 1858;
 
