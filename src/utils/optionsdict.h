@@ -29,7 +29,7 @@
 
 #include <map>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 #include "utils/exception.h"
 
@@ -38,7 +38,7 @@ namespace lczero {
 template <typename T>
 class TypeDict {
  protected:
-  std::unordered_map<std::string, T> dict_;
+  absl::flat_hash_map<std::string, T> dict_;
 };
 
 class OptionsDict : TypeDict<bool>,

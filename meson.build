@@ -43,8 +43,12 @@ includes += include_directories('third_party', is_system: true)
 
 # Abseil
 abseil = subproject('abseil')
-deps += declare_dependency(link_with: [abseil.get_variable('hash_lib')],
-                           include_directories: abseil.get_variable('top_inc'))
+deps += [abseil.get_variable('container_dep'), abseil.get_variable('hash_dep'),
+         abseil.get_variable('synchronization_dep'), abseil.get_variable('base_dep'),
+         abseil.get_variable('debugging_dep'), abseil.get_variable('time_dep'),
+         abseil.get_variable('numeric_dep')]
+includes += abseil.get_variable('top_inc')
+abseil_include = abseil.get_variable('top_dir')
 
 # Both protobuf and protoc must be the same version, so couple them together.
 protobuf_lib = cc.find_library('libprotobuf', dirs : get_option('protobuf_libdir'), required : false)
@@ -410,7 +414,7 @@ if get_option('build_backends')
     includes += include_directories('src/neural/cuda/')
 
     cuda_arguments = ['@EXTRA_ARGS@', '-c', '@INPUT@', '-o', '@OUTPUT@',
-                      '-I', meson.current_source_dir() + '/src']
+                      '-I', meson.current_source_dir() + '/src', '-I', abseil_include]
     if host_machine.system() == 'windows'
       # meson bug fixed in v0.51
       if meson.version().version_compare('<0.51') or get_option('default_library') != 'static'

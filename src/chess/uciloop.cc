@@ -32,8 +32,8 @@
 #include <mutex>
 #include <sstream>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include <utility>
 #include "utils/exception.h"
 #include "utils/logging.h"
@@ -43,7 +43,7 @@
 namespace lczero {
 
 namespace {
-const std::unordered_map<std::string, std::unordered_set<std::string>>
+const absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>
     kKnownCommands = {
         {{"uci"}, {}},
         {{"isready"}, {}},
@@ -60,9 +60,9 @@ const std::unordered_map<std::string, std::unordered_set<std::string>>
         {{"xyzzy"}, {}},
 };
 
-std::pair<std::string, std::unordered_map<std::string, std::string>>
+std::pair<std::string, absl::flat_hash_map<std::string, std::string>>
 ParseCommand(const std::string& line) {
-  std::unordered_map<std::string, std::string> params;
+  absl::flat_hash_map<std::string, std::string> params;
   std::string* value = nullptr;
 
   std::istringstream iss(line);
@@ -94,14 +94,14 @@ ParseCommand(const std::string& line) {
 }
 
 std::string GetOrEmpty(
-    const std::unordered_map<std::string, std::string>& params,
+    const absl::flat_hash_map<std::string, std::string>& params,
     const std::string& key) {
   const auto iter = params.find(key);
   if (iter == params.end()) return {};
   return iter->second;
 }
 
-int GetNumeric(const std::unordered_map<std::string, std::string>& params,
+int GetNumeric(const absl::flat_hash_map<std::string, std::string>& params,
                const std::string& key) {
   const auto iter = params.find(key);
   if (iter == params.end()) {
@@ -118,7 +118,7 @@ int GetNumeric(const std::unordered_map<std::string, std::string>& params,
   }
 }
 
-bool ContainsKey(const std::unordered_map<std::string, std::string>& params,
+bool ContainsKey(const absl::flat_hash_map<std::string, std::string>& params,
                  const std::string& key) {
   return params.find(key) != params.end();
 }
@@ -142,7 +142,7 @@ void UciLoop::RunLoop() {
 
 bool UciLoop::DispatchCommand(
     const std::string& command,
-    const std::unordered_map<std::string, std::string>& params) {
+    const absl::flat_hash_map<std::string, std::string>& params) {
   if (command == "uci") {
     CmdUci();
   } else if (command == "isready") {

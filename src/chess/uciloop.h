@@ -29,7 +29,7 @@
 
 #include <fstream>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 #include "chess/callbacks.h"
 #include "utils/exception.h"
@@ -86,7 +86,7 @@ class UciLoop {
  private:
   bool DispatchCommand(
       const std::string& command,
-      const std::unordered_map<std::string, std::string>& params);
+      const absl::flat_hash_map<std::string, std::string>& params);
 };
 
 }  // namespace lczero
