@@ -114,7 +114,7 @@ __global__ void SE_Layer_NHWC(half* output, const half* skip, const half* input,
   B += b2[c + C];
 
   // Sigmoid (only on the scale part).
-  S = (half)(1.0f / (1.0f + exp(-(float)(S))));
+  S = (half)__fdividef(1.0f, 1.0f + __expf(-(float)(S)));
 
   // 4. Scale, and add skip connection, perform relu, and write to output.
   #pragma unroll
