@@ -123,6 +123,9 @@ files += [
   'src/mcts/node.cc',
   'src/mcts/params.cc',
   'src/mcts/search.cc',
+  'src/mcts/stoppers/factory.cc',
+  'src/mcts/stoppers/stoppers.cc',
+  'src/mcts/stoppers/timemgr.cc',
   'src/neural/cache.cc',
   'src/neural/encoder.cc',
   'src/neural/factory.cc',
@@ -235,7 +238,6 @@ if get_option('build_backends')
       has_blas = true
 
     elif get_option('accelerate') and accelerate_lib.found()
-      includes += include_directories('/System/Library/Frameworks/Accelerate.framework/Frameworks/vecLib.framework/Headers')
       deps += [ accelerate_lib ]
       has_blas = true
 
@@ -339,7 +341,7 @@ if get_option('build_backends')
       deps += [ opencl_framework ]
       has_opencl = true
 
-  elif opencl_lib.found()
+  elif opencl_lib.found() and cc.has_header('CL/opencl.h', args: '-I' + get_option('opencl_include'))
 
       deps += [ opencl_lib ]
       has_opencl = true
@@ -360,7 +362,9 @@ if get_option('build_backends')
     'src/neural/shared/winograd_filter.cc',
     ]
 
-    includes += include_directories(get_option('opencl_include'))
+    if not opencl_framework.found()
+      includes += include_directories(get_option('opencl_include'))
+    endif
     files += opencl_files
     has_backends = true
 
