@@ -36,7 +36,7 @@ install:
 - cmd: pip3 install --upgrade meson==0.51.2
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
-- cmd: set VCPKG_DEFAULT_TRIPLET=x64-windows
+#- cmd: set VCPKG_DEFAULT_TRIPLET=x64-windows
 - cmd: vcpkg install zlib
 #- cmd: vcpkg install protobuf
 #- cmd: set PATH=C:\Tools\vcpkg\packages\protobuf_x64-windows\tools\protobuf;%PATH%
@@ -57,7 +57,7 @@ cache:
   - C:\cache
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0'
   - C:\projects\lc0\subprojects\packagecache
-  - C:\Tools\vcpkg\packages
+  - C:\Tools\vcpkg\
 before_build:
 - cmd: git submodule update --init --recursive
 - cmd: SET BUILD_BLAS=%BLAS%
