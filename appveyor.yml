@@ -96,13 +96,13 @@ after_build:
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
-  - path: *.zip
+  - path: /*.zip/
     name: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME)-zip
   - path: build/lc0.pdb
     name: lc0-debug-symbols
 deploy:
   - provider: GitHub
-    artifact: *.zip
+    artifact: /*.zip/
     auth_token:
       secure: cDBBHS9pbSEEe+Dt/kGjHCrSPqaTQuZsrvFETud2tfVwTTnm7JneWQLB1n6Z+L6/
     on:
