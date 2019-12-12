@@ -372,10 +372,10 @@ class EdgeAndNode {
     const auto q = GetQ(default_q, logit_q);
     if (q >= target_score) return std::numeric_limits<int>::max();
     const auto n1 = GetNStarted() + 1;
-    return std::max(
+    return static_cast<int>(std::max(
         1.0f,
         std::min(std::floor(GetP() * numerator / (target_score - q) - n1) + 1,
-                 1e9f));
+                 1e9f)));
   }
 
   std::string DebugString() const;

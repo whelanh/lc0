@@ -44,12 +44,15 @@ class BoardSquare {
   // 0 is a1, 8 is a2, 63 is h8.
   constexpr BoardSquare(std::uint8_t num) : square_(num) {}
   // From row(bottom to top), and col(left to right), 0-based.
-  constexpr BoardSquare(int row, int col) : BoardSquare(row * 8 + col) {}
+  constexpr BoardSquare(int row, int col)
+      : BoardSquare(static_cast<std::uint8_t>(row * 8 + col)) {}
   // From Square name, e.g e4. Only lowercase.
   BoardSquare(const std::string& str, bool black = false)
       : BoardSquare(black ? '8' - str[1] : str[1] - '1', str[0] - 'a') {}
   constexpr std::uint8_t as_int() const { return square_; }
-  void set(int row, int col) { square_ = row * 8 + col; }
+  void set(int row, int col) {
+    square_ = static_cast<std::uint8_t>(row * 8 + col);
+  }
 
   // 0-based, bottom to top.
   int row() const { return square_ / 8; }
@@ -77,7 +80,8 @@ class BoardSquare {
 
   // Returns the square in algebraic notation (e.g. "e4").
   std::string as_string() const {
-    return std::string(1, 'a' + col()) + std::string(1, '1' + row());
+    return std::string(1, 'a' + static_cast<char>(col())) +
+           std::string(1, '1' + static_cast<char>(row()));
   }
 
  private:
@@ -241,12 +245,14 @@ class Move {
       : data_(to.as_int() + (from.as_int() << 6)) {}
   constexpr Move(BoardSquare from, BoardSquare to, Promotion promotion)
       : data_(to.as_int() + (from.as_int() << 6) +
-              (static_cast<uint8_t>(promotion) << 12)) {}
+              (static_cast<std::uint8_t>(promotion) << 12)) {}
   Move(const std::string& str, bool black = false);
   Move(const char* str, bool black = false) : Move(std::string(str), black) {}
 
   BoardSquare to() const { return BoardSquare(data_ & kToMask); }
-  BoardSquare from() const { return BoardSquare((data_ & kFromMask) >> 6); }
+  BoardSquare from() const {
+    return BoardSquare(static_cast<uint8_t>((data_ & kFromMask) >> 6));
+  }
   Promotion promotion() const { return Promotion((data_ & kPromoMask) >> 12); }
 
   void SetTo(BoardSquare to) { data_ = (data_ & ~kToMask) | to.as_int(); }

@@ -61,7 +61,7 @@ class BitIterator {
   bool operator!=(const BitIterator& other) { return value_ != other.value_; }
 
   void operator++() { value_ &= (value_ - 1); }
-  T operator*() const { return GetLowestBit(value_); }
+  T operator*() const { return static_cast<std::uint8_t>(GetLowestBit(value_)); }
 
  private:
   std::uint64_t value_;

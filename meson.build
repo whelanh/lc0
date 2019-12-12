@@ -28,6 +28,12 @@ if cc.get_id() == 'clang' or cc.get_id() == 'gcc'
     add_project_arguments('-march=native', language : 'cpp')
   endif
 endif
+if cc.get_id() == 'msvc'
+  # Silence "decimal digit terminates octal escape sequence" warning.
+  add_project_arguments('/wd4125', language : 'cpp')
+  # Silence some zlib warnings).
+  add_global_arguments('/wd4131', '/wd4267', '/wd4127', '/wd4244', '/wd4245', language : 'c')
+endif
 
 # Files to compile.
 deps = []

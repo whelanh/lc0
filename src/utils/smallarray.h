@@ -36,7 +36,9 @@ template <typename T>
 class SmallArray {
  public:
   SmallArray() = delete;
-  SmallArray(size_t size) : size_(size), data_(std::make_unique<T[]>(size)) {}
+  SmallArray(size_t size)
+      : size_(static_cast<unsigned char>(size)),
+        data_(std::make_unique<T[]>(size)) {}
   SmallArray(SmallArray&&);  // TODO implement when needed
   T& operator[](int idx) { return data_[idx]; }
   const T& operator[](int idx) const { return data_[idx]; }

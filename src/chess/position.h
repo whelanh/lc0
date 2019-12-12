@@ -99,7 +99,7 @@ class PositionHistory {
   }
 
   // Number of positions in history.
-  int GetLength() const { return positions_.size(); }
+  int GetLength() const { return static_cast<int>(positions_.size()); }
 
   // Resets the position to a given state.
   void Reset(const ChessBoard& board, int no_capture_ply, int game_ply);
