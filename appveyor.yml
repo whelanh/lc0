@@ -5,7 +5,8 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: mkl
+  - NAME: cpu-mkl
+clone_folder: c:\projects\lc0
 install:
 - cmd: set CUDA=false
 - cmd: set OPENCL=false
@@ -20,7 +21,7 @@ install:
 - cmd: IF NOT EXIST C:\cache\ispc-v1.11.0-windows 7z x ispc-v1.11.0-windows.zip -oC:\cache
 - cmd: set PATH=C:\cache\ispc-v1.11.0-windows\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
-- cmd: pip3 install --upgrade meson
+- cmd: pip3 install --upgrade meson==0.51.2
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
 - cmd: IF NOT EXIST c:\cache\protobuf\ git clone -b v3.5.1 --single-branch --depth 1 https://github.com/google/protobuf.git
