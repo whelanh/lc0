@@ -35,7 +35,6 @@
 
 #include "utils/logging.h"
 
-const auto TUNER_FILE_LOCAL = std::string("leelaz_opencl_tuning");
 constexpr auto MAX_ERROR = 1e-4f;
 
 static void sgemmBatched_ref(const std::vector<float>& a,
@@ -376,7 +375,7 @@ void Tuner::store_sgemm_tuners(const int m, const int n, const int k,
   auto file_contents = std::vector<std::string>();
   {
     // Read the previous contents to string.
-    auto file = std::ifstream{TUNER_FILE_LOCAL};
+    auto file = std::ifstream{m_params.tuner_file};
     if (file.good()) {
       auto line = std::string{};
       while (std::getline(file, line)) {
@@ -384,7 +383,7 @@ void Tuner::store_sgemm_tuners(const int m, const int n, const int k,
       }
     }
   }
-  auto file = std::ofstream{TUNER_FILE_LOCAL};
+  auto file = std::ofstream{m_params.tuner_file};
 
   auto device_name = m_opencl.get_device_name();
   auto tuning_params = std::stringstream{};
@@ -408,7 +407,7 @@ void Tuner::store_sgemm_tuners(const int m, const int n, const int k,
 
   if (file.fail()) {
     CERR << "Could not save the tuning result.";
-    CERR << "Do I have write permissions on " << TUNER_FILE_LOCAL << "?";
+    CERR << "Do I have write permissions on " << m_params.tuner_file << "?";
   }
 }
 
@@ -461,7 +460,7 @@ std::string Tuner::sgemm_tuners_from_line(std::string line, const int m,
 std::string Tuner::load_sgemm_tuners(const int m, const int n, const int k,
                                      const int batch_size) {
   if (!m_params.force_tune) {
-    auto file = std::ifstream{TUNER_FILE_LOCAL};
+    auto file = std::ifstream{m_params.tuner_file};
     if (file.good()) {
       auto line = std::string{};
       while (std::getline(file, line)) {
