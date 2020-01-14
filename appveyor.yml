@@ -5,11 +5,7 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: gpu-nvidia-cuda
   - NAME: gpu-dx
-  - NAME: gpu-opencl
-  - NAME: cpu-dnnl
-  - NAME: cpu-openblas
 clone_folder: c:\projects\lc0
 install:
 - cmd: set CUDA=false
