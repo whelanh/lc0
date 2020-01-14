@@ -16,172 +16,164 @@
 
 dxc = find_program('dxc', required: true)
 
+dxc_common = ['/Tcs_6_2', '-I../../../../../src/neural/dx/shaders/', '/Fh', '@OUTPUT@', '@INPUT@']
+
 files += custom_target('MatrixMul_Fp32',
     output : 'MatrixMul_Fp32.h',
     input : 'Gemm.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EMatrixMul', '/Vn', 'g_MatrixMul_Fp32', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EMatrixMul', '/Vn', 'g_MatrixMul_Fp32'] + dxc_common
 )
 
 files += custom_target('MatrixMul_Fp16',
     output : 'MatrixMul_Fp16.h',
     input : 'Gemm.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EMatrixMul', '/Vn', 'g_MatrixMul_Fp16', '/DUSE_FP16_MATH=1',
-               '/Fh', '@OUTPUT@', '@INPUT@', '-enable-16bit-types']
+    command : [dxc, '/EMatrixMul', '/Vn', 'g_MatrixMul_Fp16', '/DUSE_FP16_MATH=1',
+               '-enable-16bit-types'] + dxc_common
 )
 
 files += custom_target('ExpandPlanes_shader_fp32',
     output : 'ExpandPlanes_shader_fp32.h',
     input : 'ExpandPlanes.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EExpandPlanes_shader_fp32', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EExpandPlanes_shader_fp32'] + dxc_common
 )
 
 files += custom_target('ExpandPlanes_shader_fp16',
     output : 'ExpandPlanes_shader_fp16.h',
     input : 'ExpandPlanes.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EExpandPlanes_shader_fp16', '/Fh', '@OUTPUT@', '@INPUT@',
-               '-enable-16bit-types']
+    command : [dxc, '/EExpandPlanes_shader_fp16', '-enable-16bit-types'] + dxc_common
 )
 
 files += custom_target('input_transform_shader_fp32',
     output : 'input_transform_shader_fp32.h',
     input : 'WinogradTransform.hlsl',
-    command : [dxc, '/Tcs_6_2', '/Einput_transform_shader_fp32', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/Einput_transform_shader_fp32'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32',
     output : 'output_transform_shader_fp32.h',
     input : 'WinogradTransform.hlsl',
-    command : [dxc, '/Tcs_6_2', '/Eoutput_transform_shader_fp32', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/Eoutput_transform_shader_fp32'] + dxc_common
 )
 
 files += custom_target('conv_1x1_shader_fp32',
     output : 'conv_1x1_shader_fp32.h',
     input : 'Conv1x1.hlsl',
-    command : [dxc, '/Tcs_6_2', '/Econv_1x1_shader_fp32', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/Econv_1x1_shader_fp32'] + dxc_common
 )
 
 files += custom_target('add_vectors_shader',
     output : 'add_vectors_shader.h',
     input : 'AddVectors.hlsl',
-    command : [dxc, '/Tcs_6_2', '/Eadd_vectors_shader', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/Eadd_vectors_shader'] + dxc_common
 )
 
 files += custom_target('policy_map_shader_fp32',
     output : 'policy_map_shader_fp32.h',
     input : 'PolicyMap.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EPolicyMapShader', '/Vn', 'g_policy_map_shader_fp32',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EPolicyMapShader', '/Vn', 'g_policy_map_shader_fp32'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_128',
     output : 'output_transform_shader_fp32_se_128.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_128',
-               '/DBLOCK_SIZE=128', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_128',
+               '/DBLOCK_SIZE=128'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_256',
     output : 'output_transform_shader_fp32_se_256.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_256',
-               '/DBLOCK_SIZE=256', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_256',
+               '/DBLOCK_SIZE=256'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_320',
     output : 'output_transform_shader_fp32_se_320.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_320',
-               '/DBLOCK_SIZE=320', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_320',
+               '/DBLOCK_SIZE=320'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_384',
     output : 'output_transform_shader_fp32_se_384.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_384',
-               '/DBLOCK_SIZE=384', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_384',
+               '/DBLOCK_SIZE=384'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_512',
     output : 'output_transform_shader_fp32_se_512.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_512',
-               '/DBLOCK_SIZE=512', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_512',
+               '/DBLOCK_SIZE=512'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_640',
     output : 'output_transform_shader_fp32_se_640.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_640',
-               '/DBLOCK_SIZE=640', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_640',
+               '/DBLOCK_SIZE=640'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_768',
     output : 'output_transform_shader_fp32_se_768.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_768',
-               '/DBLOCK_SIZE=768', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_768',
+               '/DBLOCK_SIZE=768'] + dxc_common
 )
 
 files += custom_target('output_transform_shader_fp32_se_1024',
     output : 'output_transform_shader_fp32_se_1024.h',
     input : 'WinogradTransformSE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_1024',
-               '/DBLOCK_SIZE=1024', '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/EOutputTransformSE', '/Vn', 'g_output_transform_shader_fp32_se_1024',
+               '/DBLOCK_SIZE=1024'] + dxc_common
 )
 
 files += custom_target('se_128',
     output : 'se_128.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_128', '/DBLOCK_SIZE=128',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_128', '/DBLOCK_SIZE=128'] + dxc_common
 )
 
 files += custom_target('se_256',
     output : 'se_256.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_256', '/DBLOCK_SIZE=256',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_256', '/DBLOCK_SIZE=256'] + dxc_common
 )
 
 files += custom_target('se_320',
     output : 'se_320.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_320', '/DBLOCK_SIZE=320',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_320', '/DBLOCK_SIZE=320'] + dxc_common
 )
 
 files += custom_target('se_384',
     output : 'se_384.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_384', '/DBLOCK_SIZE=384',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_384', '/DBLOCK_SIZE=384'] + dxc_common
 )
 
 files += custom_target('se_512',
     output : 'se_512.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_512', '/DBLOCK_SIZE=512',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_512', '/DBLOCK_SIZE=512'] + dxc_common
 )
 
 files += custom_target('se_640',
     output : 'se_640.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_640', '/DBLOCK_SIZE=640',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_640', '/DBLOCK_SIZE=640'] + dxc_common
 )
 
 files += custom_target('se_768',
     output : 'se_768.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_768', '/DBLOCK_SIZE=768',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_768', '/DBLOCK_SIZE=768'] + dxc_common
 )
 
 files += custom_target('se_1024',
     output : 'se_1024.h',
     input : 'SE.hlsl',
-    command : [dxc, '/Tcs_6_2', '/ESE', '/Vn', 'g_se_1024', '/DBLOCK_SIZE=1024',
-               '/Fh', '@OUTPUT@', '@INPUT@']
+    command : [dxc, '/ESE', '/Vn', 'g_se_1024', '/DBLOCK_SIZE=1024'] + dxc_common
 )
 
