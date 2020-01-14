@@ -281,6 +281,7 @@ std::string Tuner::tune_sgemm(const int m, const int n, const int k,
       if (param_str.find("KWG=32 KWI=2 MDIMA=8 MDIMC=8 MWG=64 NDIMB=8 NDIMC=8 NWG=64 SA=1 SB=1 STRM=0 STRN=0 VWM=1 VWN=1") != std::string::npos) continue;
       if (param_str.find("KWG=32 KWI=2 MDIMA=8 MDIMC=8 MWG=64 NDIMB=8 NDIMC=8 NWG=32 SA=1 SB=1 STRM=0 STRN=0 VWM=1 VWN=1") != std::string::npos) continue;
       if (param_str.find("KWG=32 KWI=2 MDIMA=8 MDIMC=8 MWG=64 NDIMB=16 NDIMC=16 NWG=32 SA=1 SB=1 STRM=0 STRN=0 VWM=1 VWN=1") != std::string::npos) continue;
+      if (param_str.find("KWG=32 KWI=2 MDIMA=8 MDIMC=8 MWG=64 NDIMB=16 NDIMC=16 NWG=64 SA=1 SB=1 STRM=0 STRN=0 VWM=1 VWN=1") != std::string::npos) continue;
       CERR << "Trying " << param_str;
       program.build(args.c_str());
     } catch (const cl::Error& e) {
