@@ -129,7 +129,7 @@ class SmartPruningStopper : public SearchStopper {
  private:
   const double smart_pruning_factor_;
   Mutex mutex_;
-  optional<int64_t> first_eval_time_ GUARDED_BY(mutex_);
+  std::optional<int64_t> first_eval_time_ GUARDED_BY(mutex_);
 };
 
 }  // namespace lczero
