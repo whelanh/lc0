@@ -25,7 +25,6 @@
   Program grant you additional permission to convey the resulting work.
 */
 
-#include "layers_dx.h"
 #include <cassert>
 #include <cstring>
 #include <vector>
