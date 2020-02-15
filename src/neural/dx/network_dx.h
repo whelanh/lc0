@@ -27,6 +27,7 @@
 #pragma once
 
 #include "dx_common.h"
+#include "layers_dx.h"
 #include "neural/factory.h"
 #include "neural/network_legacy.h"
 
