@@ -62,9 +62,9 @@ before_build:
 - cmd: IF %DX%==true SET BUILD_BLAS=true
 - cmd: meson build --backend vs2017 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=%BUILD_BLAS% -Ddnnl=true -Deigen=true -Ddx=%DX% -Dcudnn=%CUDA% -Dispc_native_only=false -Dpopcnt=false -Dcudnn_include="%CUDA_PATH%\include","%PKG_FOLDER%\cuda\include" -Dcudnn_libdirs="%CUDA_PATH%\lib\x64","%PKG_FOLDER%\cuda\lib\x64" -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\dist64\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\dist64\lib" -Ddnnl_dir="%PKG_FOLDER%\dnnl_win_1.1.1_cpu_vcomp" -Dopencl_include="%PKG_FOLDER%\opencl-nug.0.777.77\build\native\include" -Dopencl_libdirs="%PKG_FOLDER%\opencl-nug.0.777.77\build\native\lib\x64" -Ddefault_library=static
 build_script:
-- cmd: call scripts\appveyor_win_build.cmd
+- cmd: scripts\appveyor_win_build.cmd
 after_build:
-- cmd: IF %APPVEYOR_REPO_TAG%==true call scripts\appveyor_win_package.cmd
+- cmd: IF %APPVEYOR_REPO_TAG%==true scripts\appveyor_win_package.cmd
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
