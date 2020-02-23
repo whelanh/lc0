@@ -39,7 +39,7 @@ install:
 - cmd: IF %CUDA%==true IF NOT EXIST C:\cache\cuda appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.4.2/cudnn-10.0-windows10-x64-v7.4.2.24.zip
 - cmd: IF %CUDA%==true IF NOT EXIST C:\cache\cuda 7z x cudnn-10.0-windows10-x64-v7.4.2.24.zip -oC:\cache
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
-- cmd: pip3 install --upgrade meson==0.51.2
+- cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
 - cmd: set PKG_FOLDER="C:\cache"
 - cmd: IF NOT EXIST c:\cache\testnet appveyor DownloadFile http://training.lczero.org/get_network?sha=7170f639ba1cdc407283b8e52377283e36845b954788c6ada8897937637ef032 -Filename c:\cache\testnet
