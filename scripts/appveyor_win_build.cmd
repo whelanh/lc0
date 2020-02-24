@@ -1,3 +1,4 @@
+@echo on
 SET PGO=false
 IF %APPVEYOR_REPO_TAG%==true IF %DX%==false SET PGO=true
 IF %PGO%==false msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /p:DebugInformationFormat=ProgramDatabase /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
