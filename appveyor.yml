@@ -6,10 +6,10 @@ image:
 environment:
   matrix:
   - NAME: gpu-nvidia-cuda
-  - NAME: gpu-dx12
-  - NAME: gpu-opencl
-  - NAME: cpu-dnnl
-  - NAME: cpu-openblas
+#  - NAME: gpu-dx12
+#  - NAME: gpu-opencl
+#  - NAME: cpu-dnnl
+#  - NAME: cpu-openblas
 clone_folder: c:\projects\lc0
 install:
 - cmd: set CUDA=false
@@ -55,6 +55,10 @@ cache:
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
+- cmd: cd libs\lczero-common
+- cmd: git fetch https://github.com/LeelaChessZero/lczero-common.git pull/9/head:pr9
+- cmd: git checkout pr9
+- cmd: cd ..\..
 - cmd: SET BUILD_BLAS=%BLAS%
 - cmd: IF %OPENCL%==true SET BUILD_BLAS=true
 - cmd: IF %DX%==true SET BUILD_BLAS=true
