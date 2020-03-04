@@ -59,7 +59,7 @@ install:
 - cmd: set PKG_FOLDER="C:\cache"
 - cmd: IF NOT EXIST c:\cache mkdir c:\cache
 - cmd: IF NOT EXIST c:\cache\591226.pb.gz appveyor DownloadFile http://training.lczero.org/get_network?sha=47e3f899519dc1bc95496a457b77730fce7b0b89b6187af5c01ecbbd02e88398 -Filename c:\cache\591226.pb.gz
-- cmd: touch -t 201801010000.00 c:\cache\591226.pb.gz
+- cmd: IF EXIST c:\cache\591226.pb.gz touch -t 201801010000.00 c:\cache\591226.pb.gz
 - cmd: 7z a -mx=0 embed.zip c:\cache\591226.pb.gz
 - cmd: IF %GTEST%==true IF NOT EXIST C:\cache\syzygy mkdir C:\cache\syzygy
 - cmd: IF %GTEST%==true cd C:\cache\syzygy
@@ -68,7 +68,7 @@ install:
 - cmd: IF %GTEST%==true IF NOT EXIST KQvKQ.rtbz curl --remote-name-all https://tablebase.lichess.ovh/tables/standard/3-4-5/K{P,N,R,B,Q}vK{P,N,R,B,Q}.rtb{w,z}
 - cmd: cd C:\projects\lc0
 cache:
-  - C:\cache
+  - C:\cache <- appyeyor.yml
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0'
   - C:\projects\lc0\subprojects\packagecache
 before_build:
