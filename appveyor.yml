@@ -5,12 +5,12 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: gpu-nvidia-cuda
-  - NAME: gpu-dx12
-  - NAME: gpu-opencl
-  - NAME: cpu-dnnl
-  - NAME: cpu-openblas
-  - NAME: android-aarch64
+#  - NAME: gpu-nvidia-cuda
+#  - NAME: gpu-dx12
+#  - NAME: gpu-opencl
+#  - NAME: cpu-dnnl
+#  - NAME: cpu-openblas
+#  - NAME: android-aarch64
   - NAME: android-armv7a
 clone_folder: c:\projects\lc0
 install:
