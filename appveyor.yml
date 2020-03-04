@@ -75,9 +75,11 @@ before_build:
 - cmd: SET BUILD_BLAS=%BLAS%
 - cmd: IF %OPENCL%==true SET BUILD_BLAS=true
 - cmd: IF %DX%==true SET BUILD_BLAS=true
+- cmd: SET EMBED=false
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true SET EMBED=true
 - cmd: IF %ANDROID%==false meson build --backend vs2017 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=%BUILD_BLAS% -Ddnnl=true -Deigen=true -Ddx=%DX% -Dcudnn=%CUDA% -Dispc_native_only=false -Dpopcnt=false -Dcudnn_include="%CUDA_PATH%\include","%PKG_FOLDER%\cuda\include" -Dcudnn_libdirs="%CUDA_PATH%\lib\x64","%PKG_FOLDER%\cuda\lib\x64" -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\dist64\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\dist64\lib" -Ddnnl_dir="%PKG_FOLDER%\dnnl_win_1.1.1_cpu_vcomp" -Dopencl_include="%PKG_FOLDER%\opencl-nug.0.777.77\build\native\include" -Dopencl_libdirs="%PKG_FOLDER%\opencl-nug.0.777.77\build\native\lib\x64" -Ddefault_library=static
-- cmd: IF %ANDROID%==true meson arm64-v8a --buildtype release -Dgtest=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\android-aarch64\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\android-aarch64\lib" -Ddefault_library=static --cross-file crossfile-aarch64
-- cmd: IF %ANDROID%==true meson armeabi-v7a --buildtype release -Dgtest=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\android-armv7a\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\android-armv7a\lib" -Ddefault_library=static --cross-file crossfile-armv7a
+- cmd: IF %ANDROID%==true meson arm64-v8a --buildtype release -Dgtest=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\android-aarch64\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\android-aarch64\lib" -Dembed=%EMBED% -Ddefault_library=static --cross-file crossfile-aarch64
+- cmd: IF %ANDROID%==true meson armeabi-v7a --buildtype release -Dgtest=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\android-armv7a\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\android-armv7a\lib" -Dembed=%EMBED% -Ddefault_library=static --cross-file crossfile-armv7a
 build_script:
 - cmd: IF %ANDROID%==false call scripts\appveyor_win_build.cmd
 - cmd: IF %ANDROID%==true cd arm64-v8a
@@ -91,8 +93,8 @@ after_build:
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip arm64-v8a\lc0
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip armeabi-v7a\lc0
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true mkdir networks
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true copy c:\cache\591226.pb.gz networks
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip networks\591226.pb.gz
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a -mx=0 networks\embed.zip c:\cache\591226.pb.gz
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip networks\embed.zip
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
