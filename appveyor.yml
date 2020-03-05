@@ -90,18 +90,32 @@ build_script:
 - cmd: cd C:\projects\lc0
 after_build:
 - cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==false call scripts\appveyor_win_package.cmd
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip arm64-v8a\lc0
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip armeabi-v7a\lc0
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true mkdir networks
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a -mx=0 networks\embed.zip c:\cache\591226.pb.gz
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-android.zip networks\embed.zip
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true git clone https://github.com/lealgo/chessenginesupport-androidlib.git --branch lc0 --single-branch oex
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true del oex\LeelaChessEngine\leelaChessEngine\src\main\assets\networks\embed.zip
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z a -mx=0 oex\LeelaChessEngine\leelaChessEngine\src\main\assets\networks\embed.zip c:\cache\591226.pb.gz
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true copy /y arm64-v8a\lc0 oex\LeelaChessEngine\leelaChessEngine\src\main\jniLibs\arm64-v8a\liblc0.so
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true copy /y armeabi-v7a\lc0 oex\LeelaChessEngine\leelaChessEngine\src\main\jniLibs\armeabi-v7a\liblc0.so
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true set ANDROID_HOME=C:\android-sdk-windows
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true appveyor DownloadFile https://dl.google.com/android/repository/sdk-tools-windows-3859397.zip
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true 7z x sdk-tools-windows-3859397.zip -oC:\android-sdk-windows > nul
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true yes | C:\android-sdk-windows\tools\bin\sdkmanager.bat --licenses
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true cd oex\LeelaChessEngine
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true gradlew.bat assemble
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true copy leelaChessEngine\build\outputs\apk\release\leelaChessEngine-release-unsigned.apk ..\..\lc0-%APPVEYOR_REPO_TAG_NAME%-android.apk
+- cmd: cd C:\projects\lc0
 artifacts:
   - path: build/lc0.exe
     name: lc0-$(NAME)
+  - path: arm64-v8a/lc0
+    name: lc0-android-arm64-v8a
+  - path: armeabi-v7a/lc0
+    name: lc0-android-armeabi-v7a
   - path: /lc0*.zip/
     name: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME)-zip
   - path: build/lc0.pdb
     name: lc0-debug-symbols
+  - path: /lc0*.apk/
+    name: lc0-$(APPVEYOR_REPO_TAG_NAME)-android-apk
 deploy:
   - provider: GitHub
     artifact: /.*\.zip/
@@ -110,7 +124,7 @@ deploy:
     on:
       appveyor_repo_tag: true
   - provider: GitHub
-    artifact: /lc0-android.*/
+    artifact: /.*\.apk/
     auth_token:
       secure: USFAdwQKTXqOXQjCYQfzWvzRpUhvqJLBkN4hbOg+j876vDxGZHt9bMYayb5evePp
     on:
