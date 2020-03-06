@@ -1,6 +1,7 @@
 git clone https://github.com/lealgo/chessenginesupport-androidlib.git --branch lc0 --single-branch oex
 cd oex
 git checkout ca00901abb53c5e56098b446c15e1d9236dd48f5
+cd ..
 7z a -mx=0 embed.zip c:\cache\591226.pb.gz
 copy /y /b arm64-v8a\lc0+embed.zip oex\LeelaChessEngine\leelaChessEngine\src\main\jniLibs\arm64-v8a\liblc0.so
 copy /y /b armeabi-v7a\lc0+embed.zip oex\LeelaChessEngine\leelaChessEngine\src\main\jniLibs\armeabi-v7a\liblc0.so
