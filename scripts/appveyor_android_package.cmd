@@ -10,5 +10,6 @@ appveyor DownloadFile https://dl.google.com/android/repository/sdk-tools-windows
 7z x sdk-tools-windows-3859397.zip -oC:\android-sdk-windows > nul
 yes | C:\android-sdk-windows\tools\bin\sdkmanager.bat --licenses
 cd oex\LeelaChessEngine
+sed -i "s/0.22/%APPVEYOR_REPO_TAG_NAME%/g" leelaChessEngine/src/main/AndroidManifest.xml
 call gradlew.bat assemble
 copy leelaChessEngine\build\outputs\apk\debug\leelaChessEngine-debug.apk ..\..\lc0-%APPVEYOR_REPO_TAG_NAME%-android.apk
