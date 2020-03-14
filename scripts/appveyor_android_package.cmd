@@ -13,5 +13,5 @@ cd oex\LeelaChessEngine
 rem sed -i "s/591226/%NET%/" leelaChessEngine/src/main/res/values/strings.xml
 sed -i "/versionCode/ s/1/%APPVEYOR_BUILD_NUMBER%/" leelaChessEngine/src/main/AndroidManifest.xml
 sed -i "s/0.25dev/%APPVEYOR_REPO_TAG_NAME%/" leelaChessEngine/src/main/AndroidManifest.xml
-call gradlew.bat assemble
+call gradlew.bat --no-daemon assemble
 copy leelaChessEngine\build\outputs\apk\debug\leelaChessEngine-debug.apk ..\..\lc0-%APPVEYOR_REPO_TAG_NAME%-android.apk
