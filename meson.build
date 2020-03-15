@@ -319,18 +319,25 @@ if get_option('build_backends')
   ## OpenCL
   ## ~~~~~
 
-  opencl_libdirs = get_option('opencl_libdirs')
-  opencl_lib=cc.find_library('OpenCL', dirs: opencl_libdirs, required: false)
-
-  if opencl_lib.found() and cc.has_header('CL/opencl.h', args: '-I' + get_option('opencl_include'))
-      opencl_dep = opencl_lib
-  else
-      opencl_dep = dependency('OpenCL', fallback: ['opencl', 'opencl_dep'])
-  endif
-
   if get_option('opencl')
 
-    opencl_files = [
+    opencl_libdirs = get_option('opencl_libdirs')
+    opencl_lib=cc.find_library('OpenCL', dirs: opencl_libdirs, required: false)
+
+    opencl_framework=dependency('OpenCL', required: false)
+    if opencl_framework.found()
+      deps += opencl_framework
+    elif opencl_lib.found() and cc.has_header('CL/opencl.h', args: '-I' + get_option('opencl_include'))
+      deps += opencl_lib
+      includes += include_directories(get_option('opencl_include'))
+    else
+      deps += subproject('opencl').get_variable('opencl_dep')
+      if get_option('default_library') == 'static' and host_machine.system() != 'windows'
+        deps += cc.find_library('dl', required: true)
+      endif
+    endif
+
+    files += [
       'src/neural/opencl/network_opencl.cc',
       'src/neural/opencl/OpenCL.cc',
       'src/neural/opencl/OpenCLTuner.cc',
@@ -342,11 +349,6 @@ if get_option('build_backends')
     'src/neural/shared/winograd_filter.cc',
     ]
 
-    if opencl_lib.found()
-      includes += include_directories(get_option('opencl_include'))
-    endif
-    deps += opencl_dep
-    files += opencl_files
     has_backends = true
 
   endif
