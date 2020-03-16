@@ -332,8 +332,10 @@ if get_option('build_backends')
       includes += include_directories(get_option('opencl_include'))
     else
       deps += subproject('opencl').get_variable('opencl_dep')
-      if get_option('default_library') == 'static' and host_machine.system() != 'windows'
-        deps += cc.find_library('dl', required: true)
+      if get_option('default_library') == 'static'
+        if host_machine.system() != 'windows' and host_machine.system() != 'android'
+          deps += cc.find_library('dl', required: true)
+        endif
       endif
     endif
 
