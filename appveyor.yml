@@ -79,12 +79,12 @@ before_build:
 - cmd: IF %ANDROID%==true meson arm64-v8a --buildtype release -Dgtest=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\android-aarch64\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\android-aarch64\lib" -Dembed=%EMBED% -Ddefault_library=static --cross-file crossfile-aarch64
 - cmd: IF %ANDROID%==true meson armeabi-v7a --buildtype release -Dgtest=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\android-armv7a\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\android-armv7a\lib" -Dembed=%EMBED% -Ddefault_library=static --cross-file crossfile-armv7a
 build_script:
-- cmd: IF %ANDROID%==false scripts\appveyor_win_build.cmd
-- cmd: IF %ANDROID%==true scripts\appveyor_android_build.cmd
+- cmd: IF %ANDROID%==false call scripts\appveyor_win_build.cmd
+- cmd: IF %ANDROID%==true call scripts\appveyor_android_build.cmd
 - cmd: cd C:\projects\lc0
 after_build:
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==false scripts\appveyor_win_package.cmd
-- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true scripts\appveyor_android_package.cmd
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==false call scripts\appveyor_win_package.cmd
+- cmd: IF %APPVEYOR_REPO_TAG%==true IF %ANDROID%==true call scripts\appveyor_android_package.cmd
 - cmd: cd C:\projects\lc0
 artifacts:
   - path: build/lc0.exe
