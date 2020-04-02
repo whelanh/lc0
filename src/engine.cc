@@ -35,6 +35,8 @@
 #include "mcts/stoppers/factory.h"
 #include "utils/configfile.h"
 #include "utils/logging.h"
+#include "utils/commandline.h"
+#include "neural/factory.h"
 
 namespace lczero {
 namespace {
@@ -73,7 +75,7 @@ MoveList StringsToMovelist(const std::vector<std::string>& moves,
 
 EngineController::EngineController(std::unique_ptr<UciResponder> uci_responder,
                                    const OptionsDict& options)
-    : options_(options),
+    : options_(&options),
       uci_responder_(std::move(uci_responder)),
       time_manager_(MakeLegacyTimeManager()) {}
 
@@ -159,10 +161,29 @@ void EngineController::SetPosition(const std::string& fen,
   search_.reset();
 }
 
+bool FirstLoad = false;
+
 void EngineController::SetupPosition(
     const std::string& fen, const std::vector<std::string>& moves_str) {
   SharedLock lock(busy_mutex_);
   search_.reset();
+
+	//if it's the first time running, don't get the board, otherwise there will be a segfault
+	if(FirstLoad) {
+		if(tree_->HeadPosition().GetBoard().TotalPieceCount() < 17) {
+			//use smaller net
+			const std::string root_path = CommandLine::BinaryDirectory();
+			std::string small_weights_path = root_path + "/networks/" + "smallnet.pb";
+			options_.Set<std::string>(NetworkFactory::kWeightsId, small_weights_path);
+			CERR << "Loaded smaller weights";
+		} else {
+			const std::string root_path = CommandLine::BinaryDirectory();
+			std::string small_weights_path = root_path + "/networks/" + "bignet.pb";
+			options_.Set<std::string>(NetworkFactory::kWeightsId, small_weights_path);
+			CERR << "Loaded large weights";
+		}
+	}
+	FirstLoad = true;
 
   UpdateFromUciOptions();
 

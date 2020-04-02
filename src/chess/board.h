@@ -92,6 +92,8 @@ class ChessBoard {
   // Checks if "our" (white) king is under check.
   bool IsUnderCheck() const { return IsUnderAttack(our_king_); }
 
+	//returns the number of pieces currently on the board
+	int TotalPieceCount() const;
   // Checks whether at least one of the sides has mating material.
   bool HasMatingMaterial() const;
   // Generates legal moves.

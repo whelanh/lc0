@@ -1100,6 +1100,10 @@ void ChessBoard::SetFromFen(const std::string& fen, int* no_capture_ply,
   if (moves) *moves = total_moves;
 }
 
+int ChessBoard::TotalPieceCount() const {
+	return (our_pieces_ | their_pieces_).count();
+}
+
 bool ChessBoard::HasMatingMaterial() const {
   if (!rooks_.empty() || !pawns_.empty()) {
     return true;

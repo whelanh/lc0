@@ -81,7 +81,7 @@ class EngineController {
                      const std::vector<std::string>& moves);
   void ResetMoveTimer();
 
-  const OptionsDict& options_;
+  OptionsDict options_;
 
   std::unique_ptr<UciResponder> uci_responder_;
 
