@@ -161,15 +161,13 @@ void EngineController::SetPosition(const std::string& fen,
   search_.reset();
 }
 
-bool FirstLoad = false;
-
 void EngineController::SetupPosition(
     const std::string& fen, const std::vector<std::string>& moves_str) {
   SharedLock lock(busy_mutex_);
   search_.reset();
 
-	//if it's the first time running, don't get the board, otherwise there will be a segfault
-	if(FirstLoad) {
+	//Swap network based on piece count
+	if(tree_) {
 		if(tree_->HeadPosition().GetBoard().TotalPieceCount() < 17) {
 			//use smaller net
 			const std::string root_path = CommandLine::BinaryDirectory();
@@ -183,7 +181,6 @@ void EngineController::SetupPosition(
 			CERR << "Loaded large weights";
 		}
 	}
-	FirstLoad = true;
 
   UpdateFromUciOptions();
 
