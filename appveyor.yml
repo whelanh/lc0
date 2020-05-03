@@ -22,7 +22,7 @@ install:
 - cmd: IF %OPENCL%==true IF NOT EXIST C:\cache\OpenCL 7z x OpenCL_win32.zip -oC:\cache\OpenCL
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.13.0-windows appveyor DownloadFile https://github.com/ispc/ispc/releases/download/v1.13.0/ispc-v1.13.0-windows.zip
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.13.0-windows 7z x ispc-v1.13.0-windows.zip -oC:\cache\ispc-v1.13.0-windows
-- cmd: IF %BLAS%==true set PATH=C:\cache\ispc-v1.13.0-windows;%PATH%
+- cmd: IF %BLAS%==true set PATH=C:\cache\ispc-v1.13.0-windows\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x86
