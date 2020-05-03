@@ -277,7 +277,7 @@ if get_option('build_backends')
       if ispc_native_only
         ispc_target = 'host'
       else
-        ispc_target = 'sse2-i32x8,sse4-i32x8,avx1-i32x8,avx1.1-i32x8,avx2-i32x8'
+        ispc_target = 'sse2-i32x8,sse4-i32x8,avx1-i32x8,avx2-i32x8'
       endif
       iscp_gen = generator(ispc,
         output: [ '@BASENAME@_ispc.h', outputnames ],
