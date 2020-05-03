@@ -20,9 +20,9 @@ install:
 - cmd: IF %BLAS%==true IF NOT EXIST C:\cache\OpenBLAS 7z x OpenBLAS-0.3.3-win-oldthread.zip -oC:\cache\OpenBLAS
 - cmd: IF %OPENCL%==true IF NOT EXIST C:\cache\OpenCL appveyor DownloadFile https://github.com/borg323/OpenCL-ICD-Loader/releases/download/1/OpenCL_win32.zip
 - cmd: IF %OPENCL%==true IF NOT EXIST C:\cache\OpenCL 7z x OpenCL_win32.zip -oC:\cache\OpenCL
-- cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.9.2-windows appveyor DownloadFile https://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-windows.zip
-- cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.9.2-windows 7z x ispc-v1.9.2-windows.zip -oC:\cache
-- cmd: IF %BLAS%==true set PATH=C:\cache\ispc-v1.9.2-windows;%PATH%
+- cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.13.0-windows appveyor DownloadFile https://github.com/ispc/ispc/releases/download/v1.13.0/ispc-v1.13.0-windows.zip
+- cmd: IF %BLAS%==true IF NOT EXIST C:\cache\ispc-v1.13.0-windows 7z x ispc-v1.13.0-windows.zip -oC:\cache\ispc-v1.13.0-windows
+- cmd: IF %BLAS%==true set PATH=C:\cache\ispc-v1.13.0-windows;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x86
