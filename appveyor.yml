@@ -27,12 +27,6 @@ install:
 - cmd: pip3 install --upgrade meson
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x86
 - cmd: set PKG_FOLDER="C:\cache"
-- cmd: IF NOT EXIST c:\cache\protobuf\ git clone -b v3.5.1 --single-branch --depth 1 https://github.com/google/protobuf.git
-- cmd: IF NOT EXIST c:\cache\protobuf\ mkdir protobuf\build_msvc
-- cmd: IF NOT EXIST c:\cache\protobuf\ cd protobuf\build_msvc
-- cmd: IF NOT EXIST c:\cache\protobuf\ cmake -G "Visual Studio 15 2017" -Dprotobuf_BUILD_SHARED_LIBS=NO -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=c:/cache/protobuf ../cmake
-- cmd: IF NOT EXIST c:\cache\protobuf\ msbuild INSTALL.vcxproj /p:Configuration=Release /p:Platform=win32 /m
-- cmd: set PATH=c:\cache\protobuf\bin;%PATH%
 - cmd: IF %GTEST%==true IF NOT EXIST C:\cache\syzygy mkdir C:\cache\syzygy 
 - cmd: IF %GTEST%==true cd C:\cache\syzygy
 - cmd: IF %GTEST%==true IF NOT EXIST KQvK.rtbz curl --remote-name-all https://tablebase.lichess.ovh/tables/standard/3-4-5/K{P,N,R,B,Q}vK.rtb{w,z}
@@ -42,9 +36,10 @@ install:
 cache:
   - C:\cache -> appveyor.yml
   - C:\projects\lc0\subprojects\packagecache
+  - C:\ndk\android-ndk-r19c\toolchains\llvm\prebuilt\windows-x86_64
 before_build:
 - cmd: git submodule update --init --recursive
-- cmd: meson build --backend vs2017 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=true -Dispc_native_only=false -Dpopcnt=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\dist32\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\dist32\lib"  -Dopencl_include="%PKG_FOLDER%\OpenCL" -Dopencl_libdirs="%PKG_FOLDER%\OpenCL" -Ddefault_library=static -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" 
+- cmd: meson build --backend vs2017 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=true -Ddx=false -Dispc_native_only=false -Dpopcnt=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\dist32\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\dist32\lib" -Dopencl_include="%PKG_FOLDER%\OpenCL" -Dopencl_libdirs="%PKG_FOLDER%\OpenCL" -Ddefault_library=static -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" 
 build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /p:Platform=win32 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
@@ -61,8 +56,8 @@ test_script:
 - cmd: IF %GTEST%==true copy C:\cache\OpenBLAS\dist32\bin\libopenblas.dll
 - cmd: IF %GTEST%==true xcopy /s /i C:\cache\syzygy syzygy
 - cmd: IF %GTEST%==true meson test --print-errorlogs
-- cmd: cd ..
+- cmd: cd C:\projects\lc0
 on_finish:
-- cmd: cd build
+- cmd: IF %GTEST%==true cd C:\projects\lc0\build
 - cmd: IF %GTEST%==true for %%a in (*.xml) do curl -F file=@%%a https://ci.appveyor.com/api/testresults/junit/%APPVEYOR_JOB_ID%
-- cmd: cd ..
+- cmd: cd C:\projects\lc0
