@@ -46,11 +46,13 @@ const OptionId kLogFileId{"logfile", "LogFile",
                           "Write log to that file. Special value <stderr> to "
                           "output the log to the console.",
                           'l'};
+#ifdef USE_SYZYGY
 const OptionId kSyzygyTablebaseId{
     "syzygy-paths", "SyzygyPath",
     "List of Syzygy tablebase directories, list entries separated by system "
     "separator (\";\" for Windows, \":\" for Linux).",
     's'};
+#endif
 const OptionId kPonderId{"ponder", "Ponder",
                          "This option is ignored. Here to please chess GUIs."};
 const OptionId kUciChess960{
@@ -93,7 +95,9 @@ void EngineController::PopulateOptions(OptionsParser* options) {
   options->Add<IntOption>(kNNCacheSizeId, 0, 999999999) = 200000;
   SearchParams::Populate(options);
 
+#ifdef USE_SYZYGY
   options->Add<StringOption>(kSyzygyTablebaseId);
+#endif
   // Add "Ponder" option to signal to GUIs that we support pondering.
   // This option is currently not used by lc0 in any way.
   options->Add<BoolOption>(kPonderId) = true;
@@ -114,7 +118,7 @@ void EngineController::ResetMoveTimer() {
 // Updates values from Uci options.
 void EngineController::UpdateFromUciOptions() {
   SharedLock lock(busy_mutex_);
-
+#ifdef USE_SYZYGY
   // Syzygy tablebases.
   std::string tb_paths = options_.Get<std::string>(kSyzygyTablebaseId);
   if (!tb_paths.empty() && tb_paths != tb_paths_) {
@@ -127,7 +131,9 @@ void EngineController::UpdateFromUciOptions() {
       tb_paths_ = tb_paths;
     }
   }
-
+#else
+  syzygy_tb_ = nullptr;
+#endif
   // Network.
   const auto network_configuration =
       NetworkFactory::BackendConfiguration(options_);

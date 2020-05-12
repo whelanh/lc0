@@ -149,7 +149,6 @@ files += [
   'src/selfplay/game.cc',
   'src/selfplay/loop.cc',
   'src/selfplay/tournament.cc',
-  'src/syzygy/syzygy.cc',
   'src/utils/commandline.cc',
   'src/utils/configfile.cc',
   'src/utils/esc_codes.cc',
@@ -161,9 +160,16 @@ files += [
   'src/utils/string.cc',
   'src/utils/weights_adapter.cc',
 ]
+
 includes += include_directories('src')
 
 deps += dependency('threads')
+
+if get_option('syzygy')
+  files += 'src/syzygy/syzygy.cc'
+  add_project_arguments('-DUSE_SYZYGY', language : 'cpp')
+endif
+
 
 #############################################################################
 ## Platform specific files

@@ -56,6 +56,7 @@ MoveList MakeRootMoveFilter(const MoveList& searchmoves,
   if (!searchmoves.empty()) return searchmoves;
   const auto& board = history.Last().GetBoard();
   MoveList root_moves;
+#ifdef USE_SYZYGY
   if (!syzygy_tb || !board.castlings().no_legal_castle() ||
       (board.ours() | board.theirs()).count() > syzygy_tb->max_cardinality()) {
     return root_moves;
@@ -66,6 +67,7 @@ MoveList MakeRootMoveFilter(const MoveList& searchmoves,
       syzygy_tb->root_probe_wdl(history.Last(), &root_moves)) {
     tb_hits->fetch_add(1, std::memory_order_acq_rel);
   }
+#endif
   return root_moves;
 }
 
@@ -1200,7 +1202,7 @@ void SearchWorker::ExtendNode(Node* node) {
       node->MakeTerminal(GameResult::DRAW);
       return;
     }
-
+#ifdef USE_SYZYGY
     // Neither by-position or by-rule termination, but maybe it's a TB position.
     if (search_->syzygy_tb_ && board.castlings().no_legal_castle() &&
         history_.Last().GetRule50Ply() == 0 &&
@@ -1232,6 +1234,7 @@ void SearchWorker::ExtendNode(Node* node) {
         return;
       }
     }
+#endif
   }
 
   // Add legal moves as edges of this node.

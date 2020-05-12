@@ -188,10 +188,12 @@ const OptionId SearchParams::kStickyEndgamesId{
     "example, if at least one move results in checkmate, then the position "
     "should stick as checkmated. Similarly, if all moves are drawn or "
     "checkmated, the position should stick as drawn or checkmate."};
+#ifdef USE_SYZYGY
 const OptionId SearchParams::kSyzygyFastPlayId{
     "syzygy-fast-play", "SyzygyFastPlay",
     "With DTZ tablebase files, only allow the network pick from winning moves "
     "that have shortest DTZ to play faster (but not necessarily optimally)."};
+#endif
 const OptionId SearchParams::kMultiPvId{
     "multipv", "MultiPV",
     "Number of game play lines (principal variations) to show in UCI info "
@@ -296,7 +298,9 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<BoolOption>(kOutOfOrderEvalId) = true;
   options->Add<FloatOption>(kMaxOutOfOrderEvalsId, 0.0f, 100.0f) = 1.0f;
   options->Add<BoolOption>(kStickyEndgamesId) = true;
+#ifdef USE_SYZYGY
   options->Add<BoolOption>(kSyzygyFastPlayId) = true;
+#endif
   options->Add<IntOption>(kMultiPvId, 1, 500) = 1;
   options->Add<BoolOption>(kPerPvCountersId) = false;
   std::vector<std::string> score_type = {"centipawn",
@@ -372,7 +376,11 @@ SearchParams::SearchParams(const OptionsDict& options)
       kMaxCollisionVisits(options.Get<int>(kMaxCollisionVisitsId)),
       kOutOfOrderEval(options.Get<bool>(kOutOfOrderEvalId)),
       kStickyEndgames(options.Get<bool>(kStickyEndgamesId)),
+#ifdef USE_SYZYGY
       kSyzygyFastPlay(options.Get<bool>(kSyzygyFastPlayId)),
+#else
+      kSyzygyFastPlay(false),
+#endif
       kHistoryFill(EncodeHistoryFill(options.Get<std::string>(kHistoryFillId))),
       kMiniBatchSize(options.Get<int>(kMiniBatchSizeId)),
       kMovesLeftMaxEffect(options.Get<float>(kMovesLeftMaxEffectId)),
