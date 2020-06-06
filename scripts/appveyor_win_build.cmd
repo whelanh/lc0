@@ -10,7 +10,7 @@ IF %NAME%==cpu-dnnl copy C:\cache\dnnl_win_1.1.1_cpu_vcomp\bin\dnnl.dll
 IF %PGO%==true (
   IF %OPENCL%==true copy C:\cache\opencl-nug.0.777.77\build\native\bin\OpenCL.dll
   IF %CUDA%==true copy "%CUDA_PATH%"\bin\*.dll
-  IF %CUDA%==true copy %PKG_FOLDER%\cuda\bin\cudnn64_7.dll
+  IF %CUDA%==true copy %PKG_FOLDER%\cuda\bin\cudnn64_8.dll
   lc0 benchmark --num-positions=1 --weights=c:\cache\591226.pb.gz --backend=random --movetime=10000
 )
 cd ..
