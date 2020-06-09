@@ -383,9 +383,15 @@ if get_option('build_backends')
   ## cuDNN
   ## ~~~~~
   cudnn_libdirs = get_option('cudnn_libdirs')
-  cu_blas = cc.find_library('cublas', dirs: cudnn_libdirs, required: false)
-  cu_dnn = cc.find_library('cudnn', dirs: cudnn_libdirs, required: false)
-  cu_dart = cc.find_library('cudart', dirs: cudnn_libdirs, required: false)
+  if get_option('default_library') != 'static'
+    cu_blas = cc.find_library('cublas', dirs: cudnn_libdirs, required: false)
+    cu_dnn = cc.find_library('cudnn', dirs: cudnn_libdirs, required: false)
+    cu_dart = cc.find_library('cudart', dirs: cudnn_libdirs, required: false)
+  else
+    cu_blas = cc.find_library('cublas_static', dirs: cudnn_libdirs, required: false)
+    cu_dnn = cc.find_library('cudnn_static', dirs: cudnn_libdirs, required: false)
+    cu_dart = cc.find_library('cudart_static', dirs: cudnn_libdirs, required: false)
+  endif
   nvcc = find_program('nvcc', '/usr/local/cuda/bin/nvcc', '/opt/cuda/bin/nvcc',
                       required: false)
 
@@ -407,6 +413,13 @@ if get_option('build_backends')
 
   if get_option('cudnn') and cu_blas.found() and cu_dnn.found() and cu_dart.found() and nvcc.found()
     deps += [cu_blas, cu_dnn, cu_dart]
+    if get_option('default_library') == 'static'
+      if cc.get_id() != 'msvc'
+        deps += cc.find_library('dl', required: false)
+        deps += cc.find_library('rt', required: false)
+      endif
+      deps += cc.find_library('culibos', dirs: cudnn_libdirs, required: true)
+    endif
     foreach d : get_option('cudnn_include')
       if run_command('scripts/checkdir.py', d).returncode() == 0
         includes += include_directories(d)
