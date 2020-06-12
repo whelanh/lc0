@@ -9,7 +9,7 @@ IF %NAME%==cpu-openblas 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\
 IF %NAME%==cpu-dnnl 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\dnnl_win_1.1.1_cpu_vcomp\bin\dnnl.dll
 IF %OPENCL%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\opencl-nug.0.777.77\build\native\bin\OpenCL.dll
 IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip "%CUDA_PATH%\bin\cudart64_110.dll" "%CUDA_PATH%\bin\cublas64_11.dll" "%CUDA_PATH%\bin\cublasLt64_11.dll"
-IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip "%PKG_FOLDER%\cuda\bin\cudnn64_8.dll" "%PKG_FOLDER%\cuda\bin\cudnn_ops_infer64_8.dll" "%PKG_FOLDER%\cuda\bin\cudnn_cnn_infer64_8.dll"
+IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip "%PKG_FOLDER%\cuda\bin\cudnn64_7.dll"
 IF %NAME%==cpu-dnnl copy "%PKG_FOLDER%\dnnl_win_1.1.1_cpu_vcomp\LICENSE" dist\DNNL-LICENSE
 IF %NAME%==cpu-dnnl 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\DNNL-LICENSE
 IF %OPENCL%==true type scripts\check_opencl.bat |more /P > dist\check_opencl.bat
