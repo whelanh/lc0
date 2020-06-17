@@ -503,12 +503,20 @@ endif
 #############################################################################
 ## Workarounds
 #############################################################################
-if not cc.has_header('filesystem')
-  code = '''#include <experimental/filesystem>
-    int main() {return std::experimental::filesystem::exists(".");}'''
-  # Need more here
-  if cc.links(code, args : '-lstdc++fs', name : '<experimental/filesystem> test')
-    add_project_link_arguments(['-lstdc++fs'], language : 'cpp')
+if cc.get_id() != 'msvc'
+  code = '''
+    #if __has_include(<filesystem>)
+    #include <filesystem>
+    int main() {return std::filesystem::exists(".");}
+    #else
+    #include <experimental/filesystem>
+    int main() {return std::experimental::filesystem::exists(".");}
+    #endif
+  '''
+  if not cc.links(code, name : 'plain <filesystem> test')
+    if cc.links(code, args : '-lstdc++fs', name : '<filesystem> test with -lstdc++fs')
+      add_project_link_arguments(['-lstdc++fs'], language : 'cpp')
+    endif
   endif
 endif
 
