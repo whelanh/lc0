@@ -501,6 +501,19 @@ endif
 
 
 #############################################################################
+## Workarounds
+#############################################################################
+if not cc.has_header('filesystem')
+  code = '''#include <experimental/filesystem>
+    int main() {return std::experimental::filesystem::exists(".");}'''
+  # Need more here
+  if cc.links(code, args : '-lstdc++fs', name : '<experimental/filesystem> test')
+    add_project_link_arguments(['-lstdc++fs'], language : 'cpp')
+  endif
+endif
+
+
+#############################################################################
 ## Main Executable
 #############################################################################
 
