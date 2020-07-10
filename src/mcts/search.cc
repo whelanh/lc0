@@ -52,7 +52,12 @@ const int kUciInfoMinimumFrequencyMs = 5000;
 MoveList MakeRootMoveFilter(const MoveList& searchmoves,
                             SyzygyTablebase* syzygy_tb,
                             const PositionHistory& history, bool fast_play,
-                            std::atomic<int>* tb_hits) {
+#ifdef THREADS
+                            std::atomic<int>* tb_hits
+#else
+                            int* tb_hits
+#endif
+                            ) {
   // Search moves overrides tablebase.
   if (!searchmoves.empty()) return searchmoves;
   const auto& board = history.Last().GetBoard();
@@ -65,7 +70,12 @@ MoveList MakeRootMoveFilter(const MoveList& searchmoves,
           history.Last(), fast_play || history.DidRepeatSinceLastZeroingMove(),
           &root_moves) ||
       syzygy_tb->root_probe_wdl(history.Last(), &root_moves)) {
+#ifdef THREADS
     tb_hits->fetch_add(1, std::memory_order_acq_rel);
+#else
+    (*tb_hits)++;
+#endif
+
   }
   return root_moves;
 }
@@ -159,10 +169,12 @@ Search::Search(const NodeTree& tree, Network* network,
           MakeRootMoveFilter(searchmoves_, syzygy_tb_, played_history_,
                              params_.GetSyzygyFastPlay(), &tb_hits_)),
       uci_responder_(std::move(uci_responder)) {
+#ifdef THREADS
   if (params_.GetMaxConcurrentSearchers() != 0) {
     pending_searchers_.store(params_.GetMaxConcurrentSearchers(),
                              std::memory_order_release);
   }
+#endif
 }
 
 namespace {
@@ -217,7 +229,11 @@ void Search::SendUciInfo() REQUIRES(nodes_mutex_) {
       common_info.nps = total_playouts_ * 1000 / time_since_first_batch_ms;
     }
   }
+#ifdef THREADS
   common_info.tb_hits = tb_hits_.load(std::memory_order_acquire);
+#else
+  common_info.tb_hits = tb_hits_;
+#endif
 
   int multipv = 0;
   const auto default_q = -root_node_->GetQ(-draw_score);
@@ -281,8 +297,10 @@ void Search::SendUciInfo() REQUIRES(nodes_mutex_) {
 // Decides whether anything important changed in stats and new info should be
 // shown to a user.
 void Search::MaybeOutputInfo() {
+#ifdef THREADS
   SharedMutex::Lock lock(nodes_mutex_);
   Mutex::Lock counters_lock(counters_mutex_);
+#endif
   if (!bestmove_is_sent_ && current_best_edge_ &&
       (current_best_edge_.edge() != last_outputted_info_edge_ ||
        last_outputted_uci_info_.depth !=
@@ -295,7 +313,13 @@ void Search::MaybeOutputInfo() {
     if (params_.GetLogLiveStats()) {
       SendMovesStats();
     }
-    if (stop_.load(std::memory_order_acquire) && !ok_to_respond_bestmove_) {
+    if (
+#ifdef THREADS
+        stop_.load(std::memory_order_acquire) &&
+#else
+        stop_ &&
+#endif
+        !ok_to_respond_bestmove_) {
       std::vector<ThinkingInfo> info(1);
       info.back().comment =
           "WARNING: Search has reached limit and does not make any progress.";
@@ -499,20 +523,33 @@ NNCacheLock Search::GetCachedNNEval(const Node* node) const {
 void Search::MaybeTriggerStop(const IterationStats& stats,
                               StoppersHints* hints) {
   hints->Reset();
+#ifdef THREADS
   SharedMutex::Lock nodes_lock(nodes_mutex_);
   Mutex::Lock lock(counters_mutex_);
+#endif
   // Already responded bestmove, nothing to do here.
   if (bestmove_is_sent_) return;
   // Don't stop when the root node is not yet expanded.
   if (total_playouts_ + initial_visits_ == 0) return;
 
-  if (!stop_.load(std::memory_order_acquire) || !ok_to_respond_bestmove_) {
+  if (
+#ifdef THREADS
+      !stop_.load(std::memory_order_acquire) ||
+#else
+      !stop_ ||
+#endif
+      !ok_to_respond_bestmove_) {
     if (stopper_->ShouldStop(stats, hints)) FireStopInternal();
   }
 
   // If we are the first to see that stop is needed.
-  if (stop_.load(std::memory_order_acquire) && ok_to_respond_bestmove_ &&
-      !bestmove_is_sent_) {
+  if (
+#ifdef THREADS
+      stop_.load(std::memory_order_acquire) &&
+#else
+      stop_ &&
+#endif
+      ok_to_respond_bestmove_ && !bestmove_is_sent_) {
     SendUciInfo();
     EnsureBestMoveKnown();
     SendMovesStats();
@@ -533,8 +570,10 @@ void Search::MaybeTriggerStop(const IterationStats& stats,
 // settings. This differs from GetBestMove, which does obey any temperature
 // settings. So, somethimes, they may return results of different moves.
 Search::BestEval Search::GetBestEval() const {
+#ifdef THREADS
   SharedMutex::SharedLock lock(nodes_mutex_);
   Mutex::Lock counters_lock(counters_mutex_);
+#endif
   float parent_wl = -root_node_->GetWL();
   float parent_d = root_node_->GetD();
   float parent_m = root_node_->GetM();
@@ -545,20 +584,26 @@ Search::BestEval Search::GetBestEval() const {
 }
 
 std::pair<Move, Move> Search::GetBestMove() {
+#ifdef THREADS
   SharedMutex::Lock lock(nodes_mutex_);
   Mutex::Lock counters_lock(counters_mutex_);
+#endif
   EnsureBestMoveKnown();
   return {final_bestmove_, final_pondermove_};
 }
 
 std::int64_t Search::GetTotalPlayouts() const {
+#ifdef THREADS
   SharedMutex::SharedLock lock(nodes_mutex_);
+#endif
   return total_playouts_;
 }
 
 void Search::ResetBestMove() {
+#ifdef THREADS
   SharedMutex::Lock nodes_lock(nodes_mutex_);
   Mutex::Lock lock(counters_mutex_);
+#endif
   bool old_sent = bestmove_is_sent_;
   bestmove_is_sent_ = false;
   EnsureBestMoveKnown();
@@ -767,6 +812,7 @@ EdgeAndNode Search::GetBestRootChildWithTemperature(float temperature) const {
 }
 
 void Search::StartThreads(size_t how_many) {
+#ifdef THREADS
   Mutex::Lock lock(threads_mutex_);
   // First thread is a watchdog thread.
   if (threads_.size() == 0) {
@@ -784,6 +830,27 @@ void Search::StartThreads(size_t how_many) {
                  std::chrono::steady_clock::now() - start_time_)
                  .count()
           << "ms already passed.";
+#else
+  (void)how_many;
+  SearchWorker worker(this, params_, 0);
+  StoppersHints hints;
+  IterationStats stats;
+  try {
+    // A very early stop may arrive before this point, so the test is at the
+    // end to ensure at least one iteration runs before exiting.
+    do {
+      worker.ExecuteOneIteration();
+      hints.Reset();
+      PopulateCommonIterationStats(&stats);
+      MaybeTriggerStop(stats, &hints);
+      MaybeOutputInfo();
+    } while (IsSearchActive());
+  } catch (std::exception& e) {
+    std::cerr << "Unhandled exception in worker thread: " << e.what()
+              << std::endl;
+    abort();
+  }
+#endif
 }
 
 void Search::RunBlocking(size_t threads) {
@@ -792,13 +859,19 @@ void Search::RunBlocking(size_t threads) {
 }
 
 bool Search::IsSearchActive() const {
+#ifdef THREADS
   return !stop_.load(std::memory_order_acquire);
+#else
+  return !stop_;
+#endif
 }
 
 void Search::PopulateCommonIterationStats(IterationStats* stats) {
   stats->time_since_movestart = GetTimeSinceStart();
 
+#ifdef THREADS
   SharedMutex::SharedLock nodes_lock(nodes_mutex_);
+#endif
   stats->time_since_first_batch = GetTimeSinceFirstBatch();
   if (!nps_start_time_ && total_playouts_ > 0) {
     nps_start_time_ = std::chrono::steady_clock::now();
@@ -842,6 +915,7 @@ void Search::PopulateCommonIterationStats(IterationStats* stats) {
 }
 
 void Search::WatchdogThread() {
+#ifdef THREADS
   LOGFILE << "Start a watchdog thread.";
   StoppersHints hints;
   IterationStats stats;
@@ -873,36 +947,52 @@ void Search::WatchdogThread() {
         [this]() { return stop_.load(std::memory_order_acquire); });
   }
   LOGFILE << "End a watchdog thread.";
+#endif
 }
 
 void Search::FireStopInternal() {
+#ifdef THREADS
   stop_.store(true, std::memory_order_release);
   watchdog_cv_.notify_all();
+#else
+  stop_ = true;
+#endif
 }
 
 void Search::Stop() {
+#ifdef THREADS
   Mutex::Lock lock(counters_mutex_);
+#endif
   ok_to_respond_bestmove_ = true;
   FireStopInternal();
   LOGFILE << "Stopping search due to `stop` uci command.";
 }
 
 void Search::Abort() {
+#ifdef THREADS
   Mutex::Lock lock(counters_mutex_);
   if (!stop_.load(std::memory_order_acquire) ||
       (!bestmove_is_sent_ && !ok_to_respond_bestmove_)) {
     bestmove_is_sent_ = true;
     FireStopInternal();
   }
+#else
+  if (!stop_ || (!bestmove_is_sent_ && !ok_to_respond_bestmove_)) {
+    bestmove_is_sent_ = true;
+    FireStopInternal();
+  }
+#endif
   LOGFILE << "Aborting search, if it is still active.";
 }
 
 void Search::Wait() {
+#ifdef THREADS
   Mutex::Lock lock(threads_mutex_);
   while (!threads_.empty()) {
     threads_.back().join();
     threads_.pop_back();
   }
+#endif
 }
 
 void Search::CancelSharedCollisions() REQUIRES(nodes_mutex_) {
@@ -920,7 +1010,9 @@ Search::~Search() {
   Abort();
   Wait();
   {
+#ifdef THREADS
     SharedMutex::Lock lock(nodes_mutex_);
+#endif
     CancelSharedCollisions();
   }
   LOGFILE << "Search destroyed.";
@@ -934,6 +1026,7 @@ void SearchWorker::ExecuteOneIteration() {
   // 1. Initialize internal structures.
   InitializeIteration(search_->network_->NewComputation());
 
+#ifdef THREADS
   if (params_.GetMaxConcurrentSearchers() != 0) {
     while (true) {
       // If search is stop, we've not gathered or done anything and we don't
@@ -955,6 +1048,7 @@ void SearchWorker::ExecuteOneIteration() {
       // idea.
     }
   }
+#endif
 
   // 2. Gather minibatch.
   GatherMinibatch();
@@ -965,9 +1059,11 @@ void SearchWorker::ExecuteOneIteration() {
   // 3. Prefetch into cache.
   MaybePrefetchIntoCache();
 
+#ifdef THREADS
   if (params_.GetMaxConcurrentSearchers() != 0) {
     search_->pending_searchers_.fetch_add(1, std::memory_order_acq_rel);
   }
+#endif
 
   // 4. Run NN computation.
   RunNNComputation();
@@ -1035,7 +1131,11 @@ void SearchWorker::GatherMinibatch() {
     if (picked_node.IsCollision()) {
       if (--collision_events_left <= 0) return;
       if ((collisions_left -= picked_node.multivisit) <= 0) return;
+#ifdef THREADS
       if (search_->stop_.load(std::memory_order_acquire)) return;
+#else
+      if (search_->stop_) return;
+#endif
       continue;
     }
     ++minibatch_size;
@@ -1062,8 +1162,10 @@ void SearchWorker::GatherMinibatch() {
       // Perform out of order eval for the last entry in minibatch_.
       FetchSingleNodeResult(&picked_node, computation_->GetBatchSize() - 1);
       {
+#ifdef THREADS
         // Nodes mutex for doing node updates.
         SharedMutex::Lock lock(search_->nodes_mutex_);
+#endif
         DoBackupUpdateSingleNode(picked_node);
       }
 
@@ -1076,7 +1178,11 @@ void SearchWorker::GatherMinibatch() {
       ++number_out_of_order_;
     }
     // Check for stop at the end so we have at least one node.
+#ifdef THREADS
     if (search_->stop_.load(std::memory_order_acquire)) return;
+#else
+    if (search_->stop_) return;
+#endif
   }
 }
 
@@ -1108,7 +1214,9 @@ SearchWorker::NodeToProcess SearchWorker::PickNodeToExtend(
     precached_node_ = std::make_unique<Node>(nullptr, 0);
   }
 
+#ifdef THREADS
   SharedMutex::Lock lock(search_->nodes_mutex_);
+#endif
 
   // Fetch the current best root node visits for possible smart pruning.
   const int64_t best_node_n = search_->current_best_edge_.GetN();
@@ -1249,7 +1357,9 @@ void SearchWorker::ExtendNode(Node* node) {
   // Need a lock to walk parents of leaf in case MakeSolid is concurrently
   // adjusting parent chain.
   {
+#ifdef THREADS
     SharedMutex::SharedLock lock(search_->nodes_mutex_);
+#endif
     Node* cur = node;
     while (cur != search_->root_node_) {
       Node* prev = cur->GetParent();
@@ -1311,7 +1421,9 @@ void SearchWorker::ExtendNode(Node* node) {
         float m = 0.0f;
         // Need a lock to access parent, in case MakeSolid is in progress.
         {
+#ifdef THREADS
           SharedMutex::SharedLock lock(search_->nodes_mutex_);
+#endif
           auto parent = node->GetParent();
           if (parent) {
             m = std::max(0.0f, parent->GetM() - 1.0f);
@@ -1327,7 +1439,11 @@ void SearchWorker::ExtendNode(Node* node) {
         } else {  // Cursed wins and blessed losses count as draws.
           node->MakeTerminal(GameResult::DRAW, m, Node::Terminal::Tablebase);
         }
+#ifdef THREADS
         search_->tb_hits_.fetch_add(1, std::memory_order_acq_rel);
+#else
+        (search_->tb_hits_)++;
+#endif
         return;
       }
     }
@@ -1390,7 +1506,9 @@ bool SearchWorker::AddNodeToComputation(Node* node, bool add_if_cached,
 
 // 2b. Copy collisions into shared collisions.
 void SearchWorker::CollectCollisions() {
+#ifdef THREADS
   SharedMutex::Lock lock(search_->nodes_mutex_);
+#endif
 
   for (const NodeToProcess& node_to_process : minibatch_) {
     if (node_to_process.IsCollision()) {
@@ -1406,11 +1524,17 @@ void SearchWorker::MaybePrefetchIntoCache() {
   // TODO(mooskagh) Remove prefetch into cache if node collisions work well.
   // If there are requests to NN, but the batch is not full, try to prefetch
   // nodes which are likely useful in future.
+#ifdef THREADS
   if (search_->stop_.load(std::memory_order_acquire)) return;
+#else
+  if (search_->stop_) return;
+#endif
   if (computation_->GetCacheMisses() > 0 &&
       computation_->GetCacheMisses() < params_.GetMaxPrefetchBatch()) {
     history_.Trim(search_->played_history_.GetLength());
+#ifdef THREADS
     SharedMutex::SharedLock lock(search_->nodes_mutex_);
+#endif
     PrefetchIntoCache(
         search_->root_node_,
         params_.GetMaxPrefetchBatch() - computation_->GetCacheMisses(), false);
@@ -1463,7 +1587,11 @@ int SearchWorker::PrefetchIntoCache(Node* node, int budget, bool is_odd_depth) {
   int budget_to_spend = budget;  // Initialize for the case where there's only
                                  // one child.
   for (size_t i = 0; i < scores.size(); ++i) {
+#ifdef THREADS
     if (search_->stop_.load(std::memory_order_acquire)) break;
+#else
+    if (search_->stop_) break;
+#endif
     if (budget <= 0) break;
 
     // Sort next chunk of a vector. 3 at a time. Most of the time it's fine.
@@ -1577,8 +1705,10 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
 // 6. Propagate the new nodes' information to all their parents in the tree.
 // ~~~~~~~~~~~~~~
 void SearchWorker::DoBackupUpdate() {
+#ifdef THREADS
   // Nodes mutex for doing node updates.
   SharedMutex::Lock lock(search_->nodes_mutex_);
+#endif
 
   bool work_done = number_out_of_order_ > 0;
   for (const NodeToProcess& node_to_process : minibatch_) {

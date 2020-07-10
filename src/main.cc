@@ -55,11 +55,14 @@ int main(int argc, const char** argv) {
     CommandLine::RegisterMode("benchmark", "Quick benchmark");
     CommandLine::RegisterMode("backendbench", "Quick benchmark of backend only");
 
+#ifdef THREADS
     if (CommandLine::ConsumeCommand("selfplay")) {
       // Selfplay mode.
       SelfPlayLoop loop;
       loop.RunLoop();
-    } else if (CommandLine::ConsumeCommand("benchmark")) {
+    } else
+#endif
+    if (CommandLine::ConsumeCommand("benchmark")) {
       // Benchmark mode.
       Benchmark benchmark;
       benchmark.Run();

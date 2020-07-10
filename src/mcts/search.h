@@ -44,6 +44,13 @@
 #include "utils/mutex.h"
 #include "utils/numa.h"
 
+#ifndef THREADS
+#undef GUARDED_BY
+#define GUARDED_BY(x)
+#undef REQUIRES
+#define REQUIRES(x)
+#endif
+
 namespace lczero {
 
 class Search {
@@ -142,11 +149,15 @@ class Search {
   // Ensure that all shared collisions are cancelled and clear them out.
   void CancelSharedCollisions();
 
+#ifdef THREADS
   mutable Mutex counters_mutex_ ACQUIRED_AFTER(nodes_mutex_);
   // Tells all threads to stop.
   std::atomic<bool> stop_{false};
   // Condition variable used to watch stop_ variable.
   std::condition_variable watchdog_cv_;
+#else
+  bool stop_ = false;
+#endif
   // Tells whether it's ok to respond bestmove when limits are reached.
   // If false (e.g. during ponder or `go infinite`) the search stops but nothing
   // is responded until `stop` uci command.
@@ -160,8 +171,10 @@ class Search {
   Move final_pondermove_ GUARDED_BY(counters_mutex_);
   std::unique_ptr<SearchStopper> stopper_ GUARDED_BY(counters_mutex_);
 
+#ifdef THREADS
   Mutex threads_mutex_;
   std::vector<std::thread> threads_ GUARDED_BY(threads_mutex_);
+#endif
 
   Node* root_node_;
   NNCache* cache_;
@@ -175,10 +188,16 @@ class Search {
   const std::chrono::steady_clock::time_point start_time_;
   const int64_t initial_visits_;
   // tb_hits_ must be initialized before root_move_filter_.
+#ifdef THREADS
   std::atomic<int> tb_hits_{0};
+#else
+  int tb_hits_ = 0;
+#endif
   const MoveList root_move_filter_;
 
+#ifdef THREADS
   mutable SharedMutex nodes_mutex_;
+#endif
   EdgeAndNode current_best_edge_ GUARDED_BY(nodes_mutex_);
   Edge* last_outputted_info_edge_ GUARDED_BY(nodes_mutex_) = nullptr;
   ThinkingInfo last_outputted_uci_info_ GUARDED_BY(nodes_mutex_);
@@ -190,7 +209,9 @@ class Search {
   uint64_t cum_depth_ GUARDED_BY(nodes_mutex_) = 0;
   std::optional<std::chrono::steady_clock::time_point> nps_start_time_;
 
+#ifdef THREADS
   std::atomic<int> pending_searchers_{0};
+#endif
 
   std::vector<std::pair<Node*, int>> shared_collisions_
       GUARDED_BY(nodes_mutex_);
