@@ -49,8 +49,8 @@ install:
 - cmd: IF %ISPC%==true set PATH=C:\cache\ispc-v1.13.0-windows\bin;%PATH%
 - cmd: set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0"
 - cmd: IF %CUDA%==true IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile http://developer.download.nvidia.com/compute/cuda/11.0.1/network_installers/cuda_11.0.1_win10_network.exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_11.0.1_win10_network.exe -s nvcc_11.0 cublas_dev_11.0 cublas_11.0 cudart_11.0
+- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile http://developer.download.nvidia.com/compute/cuda/11.0.2/network_installers/cuda_11.0.2_win10_network.exe
+- cmd: IF DEFINED CUDA_INSTALL cuda_11.0.2_win10_network.exe -s nvcc_11.0 cublas_dev_11.0 cublas_11.0 cudart_11.0 documentation_11.0
 - cmd: IF %CUDA%==true IF NOT EXIST C:\cache\cuda set CUDA_INSTALL=1
 - cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.6.5/cudnn-10.2-windows10-x64-v7.6.5.32.zip
 - cmd: IF DEFINED CUDA_INSTALL 7z x cudnn-10.2-windows10-x64-v7.6.5.32.zip -oC:\cache -y
@@ -78,7 +78,7 @@ install:
 - cmd: IF %GTEST%==true IF NOT EXIST KQvKQ.rtbz curl --remote-name-all https://tablebase.lichess.ovh/tables/standard/3-4-5/K{P,N,R,B,Q}vK{P,N,R,B,Q}.rtb{w,z}
 - cmd: cd C:\projects\lc0
 cache:
-  - C:\cache -> appveyor.yml
+  - C:\cache
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0'
   - C:\projects\lc0\subprojects\packagecache
   - C:\ndk\android-ndk-r19c\toolchains\llvm\prebuilt\windows-x86_64
