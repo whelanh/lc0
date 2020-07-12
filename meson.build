@@ -444,7 +444,7 @@ if get_option('build_backends')
       )
 	 files += cuda_files
     files += cuda_gen.process(cuda_files_nvcc_common)
-    files += cuda_gen.process(cuda_files_nvcc_fp16, extra_args: ['-arch=compute_60', '-code=sm_60'])
+    files += cuda_gen.process(cuda_files_nvcc_fp16, extra_args: ['-arch=compute_53', '-code=sm_53'])
     has_backends = true
   endif
   
