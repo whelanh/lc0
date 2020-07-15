@@ -58,8 +58,10 @@ void ChainedSearchStopper::OnSearchDone(const IterationStats& stats) {
 
 bool VisitsStopper::ShouldStop(const IterationStats& stats,
                                StoppersHints* hints) {
-  hints->UpdateEstimatedRemainingRemainingPlayouts(nodes_limit_ -
-                                                   stats.total_nodes);
+  if (populate_remaining_playouts_) {
+    hints->UpdateEstimatedRemainingRemainingPlayouts(nodes_limit_ -
+                                                     stats.total_nodes);
+  }
   if (stats.total_nodes >= nodes_limit_) {
     LOGFILE << "Stopped search: Reached visits limit: " << stats.total_nodes
             << ">=" << nodes_limit_;
@@ -74,8 +76,10 @@ bool VisitsStopper::ShouldStop(const IterationStats& stats,
 
 bool PlayoutsStopper::ShouldStop(const IterationStats& stats,
                                  StoppersHints* hints) {
-  hints->UpdateEstimatedRemainingRemainingPlayouts(nodes_limit_ -
-                                                   stats.nodes_since_movestart);
+  if (populate_remaining_playouts_) {
+    hints->UpdateEstimatedRemainingRemainingPlayouts(
+        nodes_limit_ - stats.nodes_since_movestart);
+  }
   if (stats.nodes_since_movestart >= nodes_limit_) {
     LOGFILE << "Stopped search: Reached playouts limit: "
             << stats.nodes_since_movestart << ">=" << nodes_limit_;
@@ -97,10 +101,12 @@ const size_t kAvgCacheItemSize =
         MemoryWatchingStopper::kAvgMovesPerPosition;
 }  // namespace
 
-MemoryWatchingStopper::MemoryWatchingStopper(int cache_size, int ram_limit_mb)
+MemoryWatchingStopper::MemoryWatchingStopper(int cache_size, int ram_limit_mb,
+                                             bool populate_remaining_playouts)
     : VisitsStopper(
           (ram_limit_mb * 1000000LL - cache_size * kAvgCacheItemSize) /
-          kAvgNodeSize) {
+              kAvgNodeSize,
+          populate_remaining_playouts) {
   LOGFILE << "RAM limit " << ram_limit_mb << "MB. Cache takes "
           << cache_size * kAvgCacheItemSize / 1000000
           << "MB. Remaining memory is enough for " << GetVisitsLimit()
@@ -177,8 +183,10 @@ const int kSmartPruningToleranceMs = 200;
 const int kSmartPruningToleranceNodes = 300;
 }  // namespace
 
-SmartPruningStopper::SmartPruningStopper(float smart_pruning_factor)
-    : smart_pruning_factor_(smart_pruning_factor) {}
+SmartPruningStopper::SmartPruningStopper(float smart_pruning_factor,
+                                         int64_t minimum_batches)
+    : smart_pruning_factor_(smart_pruning_factor),
+      minimum_batches_(minimum_batches) {}
 
 bool SmartPruningStopper::ShouldStop(const IterationStats& stats,
                                      StoppersHints* hints) {
@@ -188,10 +196,15 @@ bool SmartPruningStopper::ShouldStop(const IterationStats& stats,
     LOGFILE << "Only one possible move. Moving immediately.";
     return true;
   }
+  if (stats.win_found) {
+    LOGFILE << "Terminal win found, stopping search.";
+    return true;
+  }
   if (stats.nodes_since_movestart > 0 && !first_eval_time_) {
     first_eval_time_ = stats.time_since_movestart;
     return false;
   }
+  if (!first_eval_time_) return false;
   if (stats.edge_n.size() == 0) return false;
   if (stats.time_since_movestart <
       *first_eval_time_ + kSmartPruningToleranceMs) {
@@ -200,7 +213,9 @@ bool SmartPruningStopper::ShouldStop(const IterationStats& stats,
 
   const auto nodes = stats.nodes_since_movestart + kSmartPruningToleranceNodes;
   const auto time = stats.time_since_movestart - *first_eval_time_;
-  const auto nps = 1000LL * nodes / time + 1;
+  // If nps is populated by someone who knows better, use it. Otherwise use the
+  // value calculated here.
+  const auto nps = hints->GetEstimatedNps().value_or(1000LL * nodes / time + 1);
 
   const double remaining_time_s = hints->GetEstimatedRemainingTimeMs() / 1000.0;
   const auto remaining_playouts =
@@ -210,6 +225,7 @@ bool SmartPruningStopper::ShouldStop(const IterationStats& stats,
   // May overflow if (nps/smart_pruning_factor) > 180 000 000, but that's not
   // very realistic.
   hints->UpdateEstimatedRemainingRemainingPlayouts(remaining_playouts);
+  if (stats.batches_since_movestart < minimum_batches_) return false;
 
   uint32_t largest_n = 0;
   uint32_t second_largest_n = 0;
@@ -226,7 +242,8 @@ bool SmartPruningStopper::ShouldStop(const IterationStats& stats,
     LOGFILE << remaining_playouts << " playouts remaining. Best move has "
             << largest_n << " visits, second best -- " << second_largest_n
             << ". Difference is " << (largest_n - second_largest_n)
-            << ", so stopping the search.";
+            << ", so stopping the search after "
+            << stats.batches_since_movestart << " batches.";
 
     return true;
   }
