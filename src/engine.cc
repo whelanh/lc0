@@ -316,6 +316,7 @@ void EngineLoop::RunLoop() {
 
 void EngineLoop::CmdUci() {
   SendId();
+  SendResponse("option name UCI_Query type button");
   for (const auto& option : options_.ListOptionsUci()) {
     SendResponse(option);
   }
@@ -329,6 +330,11 @@ void EngineLoop::CmdIsReady() {
 
 void EngineLoop::CmdSetOption(const std::string& name, const std::string& value,
                               const std::string& context) {
+  if (name=="UCI_Query") {
+    SendResponse("info string uci3 supported");
+    SendResponse("info string queryok");
+    return;
+  }
   options_.SetUciOption(name, value, context);
   // Set the log filename for the case it was set in UCI option.
   Logging::Get().SetFilename(
@@ -349,5 +355,12 @@ void EngineLoop::CmdGo(const GoParams& params) { engine_.Go(params); }
 void EngineLoop::CmdPonderHit() { engine_.PonderHit(); }
 
 void EngineLoop::CmdStop() { engine_.Stop(); }
+
+void EngineLoop::CmdUci3() {
+  SendResponse("option name SyzygyPath type path default <empty>");
+  SendResponse("option name WeightsFile type file default *.pb.gz");
+  SendResponse("option name LogFile type file default <empty>");
+  SendResponse("uci3ok");
+}
 
 }  // namespace lczero

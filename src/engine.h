@@ -129,6 +129,7 @@ class EngineLoop : public UciLoop {
   void CmdGo(const GoParams& params) override;
   void CmdPonderHit() override;
   void CmdStop() override;
+  void CmdUci3() override;
 
  private:
   OptionsParser options_;

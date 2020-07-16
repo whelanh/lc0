@@ -60,6 +60,7 @@ const std::unordered_map<std::string, std::unordered_set<std::string>>
         {{"ponderhit"}, {}},
         {{"quit"}, {}},
         {{"xyzzy"}, {}},
+        {{"uci3"}, {}},
 };
 
 std::pair<std::string, std::unordered_map<std::string, std::string>>
@@ -203,6 +204,8 @@ bool UciLoop::DispatchCommand(
     CmdStart();
   } else if (command == "xyzzy") {
     SendResponse("Nothing happens.");
+  } else if (command == "uci3") {
+    CmdUci3();
   } else if (command == "quit") {
     return false;
   } else {
