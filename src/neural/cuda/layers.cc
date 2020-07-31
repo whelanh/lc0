@@ -884,6 +884,10 @@ void FusedWinogradConvSELayer<DataType>::Eval(
     OutputTransform<DataType, false, true, true, true>(
         N, C, 0, output, transformed_output, input2, biases_, nullptr, nullptr,
         nullptr, nullptr);
+  else if (!has_se_ && !use_relu_ && use_bias_ && !skip_add_)
+    OutputTransform<DataType, false, false, true, false>(
+        N, C, 0, output, transformed_output, nullptr, biases_, nullptr, nullptr,
+        nullptr, nullptr);
   else
     throw Exception("unsupported network type!");
 }
