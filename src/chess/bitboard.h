@@ -98,7 +98,16 @@ class BitBoard {
 
   // Counts the number of set bits in the BitBoard.
   int count() const {
-#if defined(NO_POPCNT)
+#if defined(NO_POPCNT) && !defined(_WIN64) && !defined(__x86_64__)
+    std::uint32_t x = board_ >> 32;
+    std::uint32_t y = board_ & 0xFFFFFFFF;
+    x -= (x >> 1) & 0x55555555;
+    x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+    y -= (y >> 1) & 0x55555555;
+    y = (y & 0x33333333) + ((y >> 2) & 0x33333333);
+    x = (x + (x >> 4) + y + (y >> 4)) & 0x0F0F0F0F;
+    return (x * 0x01010101) >> 24;
+#elif defined(NO_POPCNT)
     std::uint64_t x = board_;
     x -= (x >> 1) & 0x5555555555555555;
     x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
@@ -117,11 +126,22 @@ class BitBoard {
   // May be slower for more than 4 set bits, but still correct.
   // Useful when counting bits in a Q, R, N or B BitBoard.
   int count_few() const {
-#if defined(NO_POPCNT)
-    std::uint64_t x = board_;
+#if defined(NO_POPCNT) && !defined(_WIN64) && !defined(__x86_64__)
+    std::uint32_t x = board_ >> 32;
+    std::uint32_t y = board_ & 0xFFFFFFFF;
     int count;
     for (count = 0; x != 0; ++count) {
       // Clear the rightmost set bit.
+      x &= x - 1;
+    }
+    for ( ; y != 0; ++count) {
+      y &= y - 1;
+    }
+    return count;
+#elif defined(NO_POPCNT)
+    std::uint64_t x = board_;
+    int count;
+    for (count = 0; x != 0; ++count) {
       x &= x - 1;
     }
     return count;

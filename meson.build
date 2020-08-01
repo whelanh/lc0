@@ -278,26 +278,24 @@ if get_option('build_backends')
         outputnames = [ '@BASENAME@.obj']
         if not ispc_native_only
           outputnames += ['@BASENAME@_sse2.obj', '@BASENAME@_sse4.obj',
-                          '@BASENAME@_avx.obj', '@BASENAME@_avx11.obj',
-                          '@BASENAME@_avx2.obj' ]
+                          '@BASENAME@_avx.obj',  '@BASENAME@_avx2.obj' ]
         endif
       else
         ispc_extra_args += ['--pic']
         outputnames = [ '@BASENAME@.o']
         if not ispc_native_only
           outputnames += ['@BASENAME@_sse2.o', '@BASENAME@_sse4.o', 
-                           '@BASENAME@_avx.o', '@BASENAME@_avx11.o',
-                           '@BASENAME@_avx2.o' ]
+                           '@BASENAME@_avx.o', '@BASENAME@_avx2.o' ]
         endif
       endif
       if ispc_native_only
         ispc_target = 'host'
       else
-        ispc_target = 'sse2-i32x8,sse4-i32x8,avx1-i32x8,avx1.1-i32x8,avx2-i32x8'
+        ispc_target = 'sse2-i32x8,sse4-i32x8,avx1-i32x8,avx2-i32x8'
       endif
       iscp_gen = generator(ispc,
         output: [ '@BASENAME@_ispc.h', outputnames ],
-        arguments: [ '-O2', '--wno-perf', '--arch=x86-64',
+        arguments: [ '-O2', '--wno-perf', '--arch=x86',
                      '--target=' + ispc_target,
                      '@INPUT@', '-o', '@OUTPUT1@' ,'-h', '@OUTPUT0@' ]
                      + ispc_extra_args
