@@ -39,7 +39,7 @@ cache:
   - C:\ndk\android-ndk-r19c\toolchains\llvm\prebuilt\windows-x86_64
 before_build:
 - cmd: git submodule update --init --recursive
-- cmd: meson build --backend vs2017 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=true -Ddx=false -Dispc_native_only=false -Dpopcnt=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\dist32\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\dist32\lib" -Dopencl_include="%PKG_FOLDER%\OpenCL" -Dopencl_libdirs="%PKG_FOLDER%\OpenCL" -Ddefault_library=static -Dprotobuf_include="%PKG_FOLDER%\protobuf\include" -Dprotobuf_libdir="%PKG_FOLDER%\protobuf\lib" 
+- cmd: meson build --backend vs2017 --buildtype release -Dgtest=%GTEST% -Dopencl=%OPENCL% -Dblas=true -Ddx=false -Dispc_native_only=false -Dpopcnt=false -Dopenblas_include="%PKG_FOLDER%\OpenBLAS\dist32\include" -Dopenblas_libdirs="%PKG_FOLDER%\OpenBLAS\dist32\lib" -Dopencl_include="%PKG_FOLDER%\OpenCL" -Dopencl_libdirs="%PKG_FOLDER%\OpenCL" -Ddefault_library=static 
 build_script:
 - cmd: msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=true /p:Platform=win32 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 after_build:
