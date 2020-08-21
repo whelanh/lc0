@@ -1,6 +1,6 @@
 SET PGO=false
 IF %APPVEYOR_REPO_TAG%==true IF %DX%==false SET PGO=true
-IF %PGO%==false msbuild "C:\projects\lc0\build\lc0.sln" /m /p:Configuration=Debug /p:WholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+IF %PGO%==false msbuild "C:\projects\lc0\build\lc0.sln" /m /p:Configuration=Debug /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 IF EXIST build\lc0.pdb del build\lc0.pdb
 IF %PGO%==true msbuild "C:\projects\lc0\build\lc0.sln" /m /p:WholeProgramOptimization=PGInstrument /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 IF ERRORLEVEL 1 EXIT
