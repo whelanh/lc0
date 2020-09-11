@@ -39,6 +39,7 @@
 #include "neural/shared/policy_map.h"
 #include "utils/bititer.h"
 #include "utils/exception.h"
+#include "utils/fastmath.h"
 
 //#define DEBUG_RAW_NPS
 
@@ -658,9 +659,9 @@ class CudaNetwork : public Network {
 
     if (wdl_) {
       for (int i = 0; i < batchSize; i++) {
-        float w = std::exp(io->op_value_mem_[3 * i + 0]);
-        float d = std::exp(io->op_value_mem_[3 * i + 1]);
-        float l = std::exp(io->op_value_mem_[3 * i + 2]);
+        float w = FastExp(io->op_value_mem_[3 * i + 0]);
+        float d = FastExp(io->op_value_mem_[3 * i + 1]);
+        float l = FastExp(io->op_value_mem_[3 * i + 2]);
         float sum = w + d + l;
         w /= sum;
         l /= sum;
