@@ -353,7 +353,7 @@ class CudaNetwork : public Network {
 
     // Input.
     {
-#if 1
+#if 0
       auto inputConv = std::make_unique<ConvLayer<DataType>>(
           false, kNumFilters, 8, 8, 3, kNumInputPlanes, true, true);
 #else
@@ -411,7 +411,7 @@ class CudaNetwork : public Network {
       auto pol_channels = weights.policy.biases.size();
 
       // No relu
-#if 1
+#if 0
       auto conv2 = std::make_unique<ConvLayer<DataType>>(
           getLastLayer(), pol_channels, 8, 8, 3, kNumFilters, false, true);
 #else
