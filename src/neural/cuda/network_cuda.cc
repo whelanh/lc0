@@ -429,14 +429,14 @@ class CudaNetwork : public Network {
 
       network_.emplace_back(std::move(policymap));
     } else {
-#if 1
+#if 0
       auto convPol = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.policy.biases.size(), 8, 8, 1, kNumFilters, true,
           true);
 #else
-      auto convPol = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+      auto convPol = std::make_unique<Conv1Layer<DataType>>(
           resi_last_, weights.policy.biases.size(), 8, 8, kNumFilters, true,
-          true, false, false, 0, use_gemm_ex);
+          true, use_gemm_ex);
 #endif
       convPol->LoadWeights(&weights.policy.weights[0],
                            &weights.policy.biases[0], scratch_mem_);
@@ -452,14 +452,14 @@ class CudaNetwork : public Network {
 
     // Value head.
     {
-#if 1
+#if 0
       auto convVal = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.value.biases.size(), 8, 8, 1, kNumFilters, true,
           true);
 #else
-      auto convVal = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+      auto convVal = std::make_unique<Conv1Layer<DataType>>(
           resi_last_, weights.value.biases.size(), 8, 8, kNumFilters, true,
-          true, false, false, 0, use_gemm_ex);
+          true, use_gemm_ex);
 #endif
       convVal->LoadWeights(&weights.value.weights[0], &weights.value.biases[0],
                            scratch_mem_);
@@ -489,14 +489,14 @@ class CudaNetwork : public Network {
                    pblczero::NetworkFormat::MOVES_LEFT_V1) &&
                   options.GetOrDefault<bool>("mlh", true);
     if (moves_left_) {
-#if 1
+#if 0
       auto convMov = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.moves_left.biases.size(), 8, 8, 1, kNumFilters,
           true, true);
 #else
-      auto convMov = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+      auto convMov = std::make_unique<Conv1Layer<DataType>>(
           resi_last_, weights.moves_left.biases.size(), 8, 8, kNumFilters,
-          true, true, false, false, 0, use_gemm_ex);
+          true, true, use_gemm_ex);
 #endif
       convMov->LoadWeights(&weights.moves_left.weights[0],
                            &weights.moves_left.biases[0], scratch_mem_);
