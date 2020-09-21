@@ -752,26 +752,27 @@ void FusedWinogradConvSELayer<DataType>::LoadWeights(float* pfilter,
                                                      float* pBias,
                                                      void* scratch) {
   const size_t weight_size = sizeof(float) * c_input_ * C * 3 * 3;
-  const size_t blas_size = sizeof(float) * C;
+  const size_t bias_size = sizeof(float) * C;
 
   // Store untransformed weights in scratch.
-  const DataType* weights = (DataType*)scratch + weight_size + blas_size;
+  float* t_weights = (float*)scratch + weight_size;
 
   // first copy from CPU memory to scratch space in GPU memory
   // and then do the type conversion using a kernel
   assert(scratch);
   ReportCUDAErrors(
       cudaMemcpy(scratch, pfilter, weight_size, cudaMemcpyHostToDevice));
-  copyTypeConverted((DataType*)weights, (float*)scratch, C * c_input_ * 3 * 3);
+
+  // run winograd transform kernel for the filter
+  FilterTransform(C, c_input_, t_weights, (float*)scratch);
+  copyTypeConverted((DataType*)transformed_weights_, t_weights,
+                    4 * C * c_input_ * 3 * 3);
 
   if (pBias) {
     ReportCUDAErrors(
-        cudaMemcpy(scratch, pBias, blas_size, cudaMemcpyHostToDevice));
+        cudaMemcpy(scratch, pBias, bias_size, cudaMemcpyHostToDevice));
     copyTypeConverted((DataType*)biases_, (float*)scratch, C);
   }
-
-  // run winograd transform kernel for the filter
-  FilterTransform(C, c_input_, transformed_weights_, weights);
 }
 
 // TODO: Do this on the GPU to improve network load time!
