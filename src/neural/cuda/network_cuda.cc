@@ -344,7 +344,7 @@ class CudaNetwork : public Network {
         (size_t)(max_batch_size_ * kNumFilters * 64 * (36.0 / 16.0));
     scratch_size_ = std::max(scratch_size_, 2 * transformed_tensor_size);
 
-//    scratch_size_ *= sizeof(DataType);
+    scratch_size_ *= sizeof(DataType);
 
     ReportCUDAErrors(cudaMalloc(&scratch_mem_, scratch_size_));
 #ifdef DEBUG_RAW_NPS
