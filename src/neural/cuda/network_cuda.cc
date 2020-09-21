@@ -411,7 +411,7 @@ class CudaNetwork : public Network {
       auto pol_channels = weights.policy.biases.size();
 
       // No relu
-#if 0
+#if 1
       auto conv2 = std::make_unique<ConvLayer<DataType>>(
           getLastLayer(), pol_channels, 8, 8, 3, kNumFilters, false, true);
 #else
@@ -429,7 +429,7 @@ class CudaNetwork : public Network {
 
       network_.emplace_back(std::move(policymap));
     } else {
-#if 1
+#if 0
       auto convPol = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.policy.biases.size(), 8, 8, 1, kNumFilters, true,
           true);
