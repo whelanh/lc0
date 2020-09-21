@@ -353,7 +353,7 @@ class CudaNetwork : public Network {
 
     // Input.
     {
-#if 1
+#if 0
       auto inputConv = std::make_unique<ConvLayer<DataType>>(
           false, kNumFilters, 8, 8, 3, kNumInputPlanes, true, true);
 #else
