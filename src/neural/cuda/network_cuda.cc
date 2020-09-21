@@ -353,7 +353,7 @@ class CudaNetwork : public Network {
 
     // Input.
     {
-#if 1
+#if 0
       auto inputConv = std::make_unique<ConvLayer<DataType>>(
           false, kNumFilters, 8, 8, 3, kNumInputPlanes, true, true);
 #else
@@ -396,7 +396,7 @@ class CudaNetwork : public Network {
 
     // Policy head.
     if (conv_policy_) {
-#if 1
+#if 0
       auto conv1 = std::make_unique<ConvLayer<DataType>>(
           resi_last_, kNumFilters, 8, 8, 3, kNumFilters, true, true);
 #else
@@ -411,7 +411,7 @@ class CudaNetwork : public Network {
       auto pol_channels = weights.policy.biases.size();
 
       // No relu
-#if 1
+#if 0
       auto conv2 = std::make_unique<ConvLayer<DataType>>(
           getLastLayer(), pol_channels, 8, 8, 3, kNumFilters, false, true);
 #else
@@ -429,7 +429,7 @@ class CudaNetwork : public Network {
 
       network_.emplace_back(std::move(policymap));
     } else {
-#if 1
+#if 0
       auto convPol = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.policy.biases.size(), 8, 8, 1, kNumFilters, true,
           true);
@@ -452,7 +452,7 @@ class CudaNetwork : public Network {
 
     // Value head.
     {
-#if 1
+#if 0
       auto convVal = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.value.biases.size(), 8, 8, 1, kNumFilters, true,
           true);
@@ -489,7 +489,7 @@ class CudaNetwork : public Network {
                    pblczero::NetworkFormat::MOVES_LEFT_V1) &&
                   options.GetOrDefault<bool>("mlh", true);
     if (moves_left_) {
-#if 1
+#if 0
       auto convMov = std::make_unique<ConvLayer<DataType>>(
           resi_last_, weights.moves_left.biases.size(), 8, 8, 1, kNumFilters,
           true, true);
