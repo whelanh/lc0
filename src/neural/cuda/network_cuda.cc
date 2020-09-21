@@ -336,13 +336,15 @@ class CudaNetwork : public Network {
     if (max_weight_size < 3 * residual_single_layer_weight_size)
       max_weight_size = 3 * residual_single_layer_weight_size;
 
-    if (scratch_size_ < max_weight_size) scratch_size_ = max_weight_size;
+    scratch_size_ = max_weight_size;
 
     // Need additional space for transformed input/outputs which are 36/16
     // times size (4x4 block transformed into 6x6).
     const size_t transformed_tensor_size =
         (size_t)(max_batch_size_ * kNumFilters * 64 * (36.0 / 16.0));
     scratch_size_ = std::max(scratch_size_, 2 * transformed_tensor_size);
+
+//    scratch_size_ *= sizeof(DataType);
 
     ReportCUDAErrors(cudaMalloc(&scratch_mem_, scratch_size_));
 #ifdef DEBUG_RAW_NPS
