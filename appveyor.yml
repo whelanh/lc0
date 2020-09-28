@@ -51,7 +51,7 @@ install:
 - cmd: IF %CUDA%==true IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
 - cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/cuda/11.1.0/network_installers/cuda_11.1.0_win10_network.exe
 - cmd: IF DEFINED CUDA_INSTALL cuda_11.1.0_win10_network.exe -s nvcc_11.1 cublas_dev_11.1 cublas_11.1 cudart_11.1 documentation_11.1
-- cmd: dir %CUDA_PATH%\bin
+- cmd: dir "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\bin"
 - cmd: IF %CUDA%==true IF NOT EXIST C:\cache\cuda set CUDA_INSTALL=1
 - cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile http://developer.download.nvidia.com/compute/redist/cudnn/v7.6.5/cudnn-10.2-windows10-x64-v7.6.5.32.zip
 - cmd: IF DEFINED CUDA_INSTALL 7z x cudnn-10.2-windows10-x64-v7.6.5.32.zip -oC:\cache -y
