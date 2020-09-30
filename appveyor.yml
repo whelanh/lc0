@@ -111,8 +111,8 @@ artifacts:
     name: lc0-android-arm64-v8a
   - path: armeabi-v7a/lc0
     name: lc0-android-armeabi-v7a
-  - path: /lc0*.zip/
-    name: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME)-zip
+#  - path: /lc0*.zip/
+#    name: lc0-$(APPVEYOR_REPO_TAG_NAME)-windows-$(NAME)-zip
   - path: build/lc0.pdb
     name: lc0-debug-symbols
   - path: /lc0*.apk/
