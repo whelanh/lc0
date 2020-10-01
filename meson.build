@@ -385,7 +385,7 @@ if get_option('build_backends')
   ## ~~~~~
   cudnn_libdirs = get_option('cudnn_libdirs')
   cu_blas = cc.find_library('cublas', dirs: cudnn_libdirs, required: false)
-  cu_dnn = cc.find_library('cudnn', dirs: cudnn_libdirs, required: false)
+  cu_dnn = cc.find_library('cudnn_ops_infer', dirs: cudnn_libdirs, required: false)
   cu_dart = cc.find_library('cudart', dirs: cudnn_libdirs, required: false)
   nvcc = find_program('nvcc', '/usr/local/cuda/bin/nvcc', '/opt/cuda/bin/nvcc',
                       required: false)

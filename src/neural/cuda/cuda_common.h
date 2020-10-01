@@ -32,7 +32,8 @@
 #include "utils/exception.h"
 
 #ifdef USE_CUDNN
-#include <cudnn.h>
+#include "cudnn_ops_infer.h"
+
 #else
 typedef void* cudnnHandle_t;
 #endif
