@@ -211,7 +211,9 @@ class SearchWorker {
         params_(params),
         moves_left_support_(search_->network_->GetCapabilities().moves_left !=
                             pblczero::NetworkFormat::MOVES_LEFT_NONE) {
-    Numa::BindThread(id);
+    // Increase the id in order to bind one less thread to the first grtoup.
+    // Seems to be better in some tests.
+    Numa::BindThread(id + 1);
   }
 
   // Runs iterations while needed.
