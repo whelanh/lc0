@@ -186,7 +186,7 @@ class DnnlNetwork : public Network {
       auto inputConv = std::make_unique<ConvLayer>(nullptr, numFilters_, 8, 8,
                                                    3, kNumInputPlanes, true);
       inputConv->LoadWeights(&weights.input.weights[0],
-                             &weights.input.biases[0], eng_);
+                             &weights.input.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(inputConv));
     }
 
@@ -195,7 +195,7 @@ class DnnlNetwork : public Network {
       auto conv1 = std::make_unique<ConvLayer>(getLastLayer(), numFilters_, 8,
                                                8, 3, numFilters_, true);
       conv1->LoadWeights(&weights.residual[block].conv1.weights[0],
-                         &weights.residual[block].conv1.biases[0], eng_);
+                         &weights.residual[block].conv1.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(conv1));
 
       // Relu of second convolution and skip connection is handled by SELayer.
@@ -204,7 +204,7 @@ class DnnlNetwork : public Network {
       auto conv2 = std::make_unique<ConvLayer>(
           getLastLayer(), numFilters_, 8, 8, 3, numFilters_, !has_se, !has_se);
       conv2->LoadWeights(&weights.residual[block].conv2.weights[0],
-                         &weights.residual[block].conv2.biases[0], eng_);
+                         &weights.residual[block].conv2.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(conv2));
 
       if (has_se) {
@@ -213,7 +213,7 @@ class DnnlNetwork : public Network {
         se->LoadWeights(&weights.residual[block].se.w1[0],
                         &weights.residual[block].se.b1[0],
                         &weights.residual[block].se.w2[0],
-                        &weights.residual[block].se.b2[0], eng_);
+                        &weights.residual[block].se.b2[0], eng_, eng_stream_);
         network_.emplace_back(std::move(se));
       }
     }
@@ -225,25 +225,25 @@ class DnnlNetwork : public Network {
       auto conv1 = std::make_unique<ConvLayer>(resi_last_, numFilters_, 8, 8, 3,
                                                numFilters_, true);
       conv1->LoadWeights(&weights.policy1.weights[0],
-                         &weights.policy1.biases[0], eng_);
+                         &weights.policy1.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(conv1));
 
       // No relu
       auto conv2 = std::make_unique<ConvLayer>(getLastLayer(), pol_channels_, 8,
                                                8, 3, numFilters_, false);
       conv2->LoadWeights(&weights.policy.weights[0], &weights.policy.biases[0],
-                         eng_);
+                         eng_, eng_stream_);
       network_.emplace_back(std::move(conv2));
     } else {
       auto convPol = std::make_unique<ConvLayer>(resi_last_, pol_channels_, 8,
                                                  8, 1, numFilters_, true);
       convPol->LoadWeights(&weights.policy.weights[0],
-                           &weights.policy.biases[0], eng_);
+                           &weights.policy.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(convPol));
 
       auto FCPol = std::make_unique<FCLayer>(getLastLayer(), kNumOutputPolicy,
                                              1, 1, false);
-      FCPol->LoadWeights(&weights.ip_pol_w[0], &weights.ip_pol_b[0], eng_);
+      FCPol->LoadWeights(&weights.ip_pol_w[0], &weights.ip_pol_b[0], eng_, eng_stream_);
       network_.emplace_back(std::move(FCPol));
     }
     policy_out_ = getLastLayer();
@@ -256,12 +256,12 @@ class DnnlNetwork : public Network {
       auto convVal = std::make_unique<ConvLayer>(
           resi_last_, value_input_planes_, 8, 8, 1, numFilters_, true);
       convVal->LoadWeights(&weights.value.weights[0], &weights.value.biases[0],
-                           eng_);
+                           eng_, eng_stream_);
       network_.emplace_back(std::move(convVal));
 
       auto FCVal1 = std::make_unique<FCLayer>(getLastLayer(), value_channels_,
                                               1, 1, true);
-      FCVal1->LoadWeights(&weights.ip1_val_w[0], &weights.ip1_val_b[0], eng_);
+      FCVal1->LoadWeights(&weights.ip1_val_w[0], &weights.ip1_val_b[0], eng_, eng_stream_);
       network_.emplace_back(std::move(FCVal1));
 
       wdl_ = file.format().network_format().value() ==
@@ -270,7 +270,7 @@ class DnnlNetwork : public Network {
 
       auto FCVal2 = std::make_unique<FCLayer>(getLastLayer(), wdl_ ? 3 : 1, 1,
                                               1, false, fc2_tanh);
-      FCVal2->LoadWeights(&weights.ip2_val_w[0], &weights.ip2_val_b[0], eng_);
+      FCVal2->LoadWeights(&weights.ip2_val_w[0], &weights.ip2_val_b[0], eng_, eng_stream_);
       network_.emplace_back(std::move(FCVal2));
     }
     value_out_ = getLastLayer();
@@ -286,16 +286,16 @@ class DnnlNetwork : public Network {
       auto convMov = std::make_unique<ConvLayer>(
           resi_last_, moves_input_planes_, 8, 8, 1, numFilters_, true);
       convMov->LoadWeights(&weights.moves_left.weights[0],
-                           &weights.moves_left.biases[0], eng_);
+                           &weights.moves_left.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(convMov));
 
       auto FCMov1 = std::make_unique<FCLayer>(getLastLayer(), moves_channels_,
                                               1, 1, true);
-      FCMov1->LoadWeights(&weights.ip1_mov_w[0], &weights.ip1_mov_b[0], eng_);
+      FCMov1->LoadWeights(&weights.ip1_mov_w[0], &weights.ip1_mov_b[0], eng_, eng_stream_);
       network_.emplace_back(std::move(FCMov1));
 
       auto FCMov2 = std::make_unique<FCLayer>(getLastLayer(), 1, 1, 1, true);
-      FCMov2->LoadWeights(&weights.ip2_mov_w[0], &weights.ip2_mov_b[0], eng_);
+      FCMov2->LoadWeights(&weights.ip2_mov_w[0], &weights.ip2_mov_b[0], eng_, eng_stream_);
       network_.emplace_back(std::move(FCMov2));
     }
     moves_left_out_ = getLastLayer();

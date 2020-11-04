@@ -71,7 +71,7 @@ class ConvLayer : public BaseLayer {
   ConvLayer(BaseLayer* ip, int C, int H, int W, int size, int Cin,
             bool relu = false, bool skip = false);
 
-  void LoadWeights(float* pfilter, float* pBias, dnnl::engine& eng);
+  void LoadWeights(float* pfilter, float* pBias, dnnl::engine& eng, dnnl::stream& stream);
 
   // If there is a skip connection the output doubles as an input.
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
@@ -100,7 +100,7 @@ class FCLayer : public BaseLayer {
  public:
   FCLayer(BaseLayer* ip, int C, int H, int W, bool relu, bool tanh = false);
 
-  void LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng);
+  void LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng, dnnl::stream& stream);
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
@@ -128,7 +128,7 @@ class SELayer : public BaseLayer {
   SELayer(BaseLayer* ip, int numFc1Out);
 
   void LoadWeights(float* w1, float* b1, float* w2, float* b2,
-                   dnnl::engine& eng);
+                   dnnl::engine& eng, dnnl::stream& stream);
 
   // Initially output holds the skip connection. Both input and output are
   // assumed to be the same memory format.
