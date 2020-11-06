@@ -52,10 +52,17 @@ ConvLayer::ConvLayer(BaseLayer* ip, int C, int H, int W, int filter, int Cin,
       use_skip_(skip) {}
 
 void ConvLayer::LoadWeights(float* pfilter, float* pBias, dnnl::engine& eng, dnnl::stream& stream) {
+  dnnl::engine cpu_eng;
+  if(eng.get_kind() == dnnl::engine::kind::cpu) {
+    cpu_eng = eng;
+  } else {
+    cpu_eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
+  }
+
   auto t_filter_md = dnnl::memory::desc({C, c_input_, filter_size_, filter_size_},
                                       dnnl::memory::data_type::f32,
                                       dnnl::memory::format_tag::oihw);
-  auto t_filter_mem = dnnl::memory(t_filter_md, eng, pfilter);
+  auto t_filter_mem = dnnl::memory(t_filter_md, cpu_eng, pfilter);
   auto filter_md = dnnl::memory::desc({C, c_input_, filter_size_, filter_size_},
                                       data_type_,
                                       dnnl::memory::format_tag::oihw);
@@ -64,7 +71,7 @@ void ConvLayer::LoadWeights(float* pfilter, float* pBias, dnnl::engine& eng, dnn
 
   auto t_bias_md = dnnl::memory::desc({C}, dnnl::memory::data_type::f32,
                                     dnnl::memory::format_tag::a);
-  auto t_bias_mem = dnnl::memory(t_bias_md, eng, pBias);
+  auto t_bias_mem = dnnl::memory(t_bias_md, cpu_eng, pBias);
   auto bias_md = dnnl::memory::desc({C}, data_type_,
                                     dnnl::memory::format_tag::a);
   bias_mem = dnnl::memory(bias_md, eng);
@@ -149,10 +156,17 @@ SELayer::SELayer(BaseLayer* ip, int fc1Outputs)
 
 void SELayer::LoadWeights(float* w1, float* b1, float* w2, float* b2,
                           dnnl::engine& eng, dnnl::stream& stream) {
+  dnnl::engine cpu_eng;
+  if(eng.get_kind() == dnnl::engine::kind::cpu) {
+    cpu_eng = eng;
+  } else {
+    cpu_eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
+  }
+
   auto t_filter_md =
       dnnl::memory::desc({numFc1Out_, C}, dnnl::memory::data_type::f32,
                          dnnl::memory::format_tag::ab);
-  auto t_filter_mem = dnnl::memory(t_filter_md, eng, w1);
+  auto t_filter_mem = dnnl::memory(t_filter_md, cpu_eng, w1);
   auto filter_md =
       dnnl::memory::desc({numFc1Out_, C}, data_type_,
                          dnnl::memory::format_tag::ab);
@@ -161,7 +175,7 @@ void SELayer::LoadWeights(float* w1, float* b1, float* w2, float* b2,
 
   auto t_bias_md = dnnl::memory::desc({numFc1Out_}, dnnl::memory::data_type::f32,
                                     dnnl::memory::format_tag::a);
-  auto t_bias_mem = dnnl::memory(t_bias_md, eng, b1);
+  auto t_bias_mem = dnnl::memory(t_bias_md, cpu_eng, b1);
   auto bias_md = dnnl::memory::desc({numFc1Out_}, data_type_,
                                     dnnl::memory::format_tag::a);
   bias_mem = dnnl::memory(bias_md, eng);
@@ -170,7 +184,7 @@ void SELayer::LoadWeights(float* w1, float* b1, float* w2, float* b2,
   auto t_filter2a_md =
       dnnl::memory::desc({C, numFc1Out_}, dnnl::memory::data_type::f32,
                          dnnl::memory::format_tag::ab);
-  auto t_filter2a_mem = dnnl::memory(t_filter2a_md, eng, w2);
+  auto t_filter2a_mem = dnnl::memory(t_filter2a_md, cpu_eng, w2);
   auto filter2a_md =
       dnnl::memory::desc({C, numFc1Out_}, data_type_,
                          dnnl::memory::format_tag::ab);
@@ -180,7 +194,7 @@ void SELayer::LoadWeights(float* w1, float* b1, float* w2, float* b2,
   auto t_filter2b_md =
       dnnl::memory::desc({C, numFc1Out_}, dnnl::memory::data_type::f32,
                          dnnl::memory::format_tag::ab);
-  auto t_filter2b_mem = dnnl::memory(t_filter2b_md, eng, w2 + C * numFc1Out_);
+  auto t_filter2b_mem = dnnl::memory(t_filter2b_md, cpu_eng, w2 + C * numFc1Out_);
   auto filter2b_md =
       dnnl::memory::desc({C, numFc1Out_}, data_type_,
                          dnnl::memory::format_tag::ab);
@@ -189,7 +203,7 @@ void SELayer::LoadWeights(float* w1, float* b1, float* w2, float* b2,
 
   auto t_bias2a_md = dnnl::memory::desc({C}, dnnl::memory::data_type::f32,
                                     dnnl::memory::format_tag::a);
-  auto t_bias2a_mem = dnnl::memory(t_bias2a_md, eng, b2);
+  auto t_bias2a_mem = dnnl::memory(t_bias2a_md, cpu_eng, b2);
   auto bias2a_md = dnnl::memory::desc({C}, data_type_,
                                       dnnl::memory::format_tag::a);
   bias2a_mem = dnnl::memory(bias2a_md, eng);
@@ -197,7 +211,7 @@ void SELayer::LoadWeights(float* w1, float* b1, float* w2, float* b2,
 
   auto t_bias2b_md = dnnl::memory::desc({C}, dnnl::memory::data_type::f32,
                                     dnnl::memory::format_tag::a);
-  auto t_bias2b_mem = dnnl::memory(t_bias2b_md, eng, b2 + C);
+  auto t_bias2b_mem = dnnl::memory(t_bias2b_md, cpu_eng, b2 + C);
   auto bias2b_md = dnnl::memory::desc({C}, data_type_,
                                       dnnl::memory::format_tag::a);
   bias2b_mem = dnnl::memory(bias2b_md, eng);
@@ -397,13 +411,20 @@ FCLayer::FCLayer(BaseLayer* ip, int C, int H, int W, bool relu, bool tanh)
     : BaseLayer(C, H, W, ip), use_relu_(relu), use_tanh_(tanh) {}
 
 void FCLayer::LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng, dnnl::stream& stream) {
+  dnnl::engine cpu_eng;
+  if(eng.get_kind() == dnnl::engine::kind::cpu) {
+    cpu_eng = eng;
+  } else {
+    cpu_eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
+  }
+
   const int num_outputs = C * H * W;
   const int num_inputs = input_->GetC() * input_->GetH() * input_->GetW();
 
   auto t_filter_md = dnnl::memory::desc({num_outputs, num_inputs},
                                       dnnl::memory::data_type::f32,
                                       dnnl::memory::format_tag::ab);
-  auto t_filter_mem = dnnl::memory(t_filter_md, eng, cpuWeight);
+  auto t_filter_mem = dnnl::memory(t_filter_md, cpu_eng, cpuWeight);
   auto filter_md = dnnl::memory::desc({num_outputs, num_inputs},
                                       data_type_,
                                       dnnl::memory::format_tag::ab);
@@ -412,7 +433,7 @@ void FCLayer::LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng, d
 
   auto t_bias_md = dnnl::memory::desc({num_outputs}, dnnl::memory::data_type::f32,
                                     dnnl::memory::format_tag::a);
-  auto t_bias_mem = dnnl::memory(t_bias_md, eng, cpuBias);
+  auto t_bias_mem = dnnl::memory(t_bias_md, cpu_eng, cpuBias);
   auto bias_md = dnnl::memory::desc({num_outputs}, data_type_,
                                     dnnl::memory::format_tag::a);
   bias_mem = dnnl::memory(bias_md, eng);

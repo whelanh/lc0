@@ -158,18 +158,27 @@ class DnnlNetwork : public Network {
 
     max_batch_size_ = options.GetOrDefault<int>("max_batch", 1024);
 
-    auto data_type = dnnl::memory::data_type::f32;
-    if (options.GetOrDefault<bool>("fp16", false)) {
-      data_type = dnnl::memory::data_type::bf16;
-    }
-
 #if DNNL_VERSION_MAJOR * 100 + DNNL_VERSION_MINOR >= 105
     dnnl::set_primitive_cache_capacity(
         options.GetOrDefault<int>("jit_cache", 1024));
 #endif
 
-    eng_ = dnnl::engine(dnnl::engine::kind::cpu, 0);
+    if (!options.IsDefault<int>("gpu")) {
+      eng_ = dnnl::engine(dnnl::engine::kind::gpu, options.Get<int>("gpu"));
+    } else {
+      eng_ = dnnl::engine(dnnl::engine::kind::cpu, 0);
+    }
     eng_stream_ = dnnl::stream(eng_);
+
+
+    auto data_type = dnnl::memory::data_type::f32;
+    if (options.GetOrDefault<bool>("fp16", false)) {
+      if (eng_.get_kind() != dnnl::engine::kind::cpu) {
+        data_type = dnnl::memory::data_type::bf16;
+      } else {
+        data_type = dnnl::memory::data_type::f16;
+      }
+    }
 
     // Default layout is nchw.
     const int kNumInputPlanes = kInputPlanes;
@@ -315,10 +324,17 @@ class DnnlNetwork : public Network {
     uint64_t* ipDataMasks = io->input_masks_mem_;
     float* ipDataValues = io->input_val_mem_;
 
+    dnnl::engine cpu_eng;
+    if(eng_.get_kind() == dnnl::engine::kind::cpu) {
+      cpu_eng = eng_;
+    } else {
+      cpu_eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
+    }
+
     auto input_desc = dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
                                          dnnl::memory::data_type::f32,
                                          dnnl::memory::format_tag::nchw);
-    dnnl::memory input_mem = dnnl::memory(input_desc, eng_);
+    dnnl::memory input_mem = dnnl::memory(input_desc, cpu_eng);
 
     float* buffer = (float*)input_mem.get_data_handle();
     for (int j = 0; j < batchSize * kInputPlanes; j++) {
@@ -326,6 +342,13 @@ class DnnlNetwork : public Network {
       const uint64_t mask = ipDataMasks[j];
       for (auto i = 0; i < 64; i++)
         *(buffer++) = (mask & (((uint64_t)1) << i)) != 0 ? value : 0;
+    }
+
+    // Move input to the gpu.
+    if(eng_.get_kind() != dnnl::engine::kind::cpu) {
+      auto tmp = dnnl::memory(input_desc, eng_);
+      dnnl::reorder(input_mem, tmp).execute(eng_stream_, input_mem, tmp);
+      input_mem = tmp;
     }
 
     dnnl::memory::desc opPol_desc;
@@ -450,20 +473,21 @@ class DnnlNetwork : public Network {
       network_[l++]->Eval(batchSize, opMov_mem, tmp2_mem, eng_, eng_stream_);
     }
 
-    if (opPol_desc != opPol_mem.get_desc()) {
-      auto tmp = dnnl::memory(opPol_desc, eng_);
+    // Convert output data to nchw and if on gpu move them to the cpu.
+    if (opPol_desc != opPol_mem.get_desc() || eng_.get_kind() != dnnl::engine::kind::cpu) {
+      auto tmp = dnnl::memory(opPol_desc, cpu_eng);
       dnnl::reorder(opPol_mem, tmp).execute(eng_stream_, opPol_mem, tmp);
       opPol_mem = tmp;
     }
 
-    if (opVal_desc != opVal_mem.get_desc()) {
-      auto tmp = dnnl::memory(opVal_desc, eng_);
+    if (opVal_desc != opVal_mem.get_desc() || eng_.get_kind() != dnnl::engine::kind::cpu) {
+      auto tmp = dnnl::memory(opVal_desc, cpu_eng);
       dnnl::reorder(opVal_mem, tmp).execute(eng_stream_, opVal_mem, tmp);
       opVal_mem = tmp;
     }
 
-    if (moves_left_ && opMov_desc != opMov_mem.get_desc()) {
-      auto tmp = dnnl::memory(opMov_desc, eng_);
+    if (moves_left_ && (opMov_desc != opMov_mem.get_desc() || eng_.get_kind() != dnnl::engine::kind::cpu)) {
+      auto tmp = dnnl::memory(opMov_desc, cpu_eng);
       dnnl::reorder(opMov_mem, tmp).execute(eng_stream_, opMov_mem, tmp);
       opMov_mem = tmp;
     }
