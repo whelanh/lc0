@@ -26,8 +26,6 @@
 */
 #pragma once
 
-#include <cstddef>
-
 #include "utils/exception.h"
 
 #include "dnnl.hpp"
@@ -47,7 +45,7 @@ class BaseLayer {
   BaseLayer(int c, int h, int w, BaseLayer* ip);
   virtual ~BaseLayer() = default;
   size_t GetOutputSize(int N) const { return sizeof(float) * N * C * H * W; }
-
+  void SetDataType(dnnl::memory::data_type type) { data_type_ = type; }
   virtual void Eval(int N, dnnl::memory& output, dnnl::memory& input,
                     dnnl::engine& eng, dnnl::stream& stream) = 0;
 
@@ -57,16 +55,10 @@ class BaseLayer {
   int C;  // Output tensor dimensions.
   int H;
   int W;
+  dnnl::memory::data_type data_type_;
 };
 
 class ConvLayer : public BaseLayer {
-  using BaseLayer::C;
-  using BaseLayer::H;
-  using BaseLayer::W;
-  using BaseLayer::GetC;
-  using BaseLayer::GetH;
-  using BaseLayer::GetW;
-
  public:
   ConvLayer(BaseLayer* ip, int C, int H, int W, int size, int Cin,
             bool relu = false, bool skip = false);
@@ -114,6 +106,7 @@ class FCLayer : public BaseLayer {
   // Cache previous primitive in case the batch size is the same.
   int last_batch_ = 0;
   dnnl::inner_product_forward fc_;
+  dnnl::memory scratchpad_mem;
   // Cached values to change in/out tensors for best performance.
   dnnl::memory::desc in_md;
   dnnl::memory::desc out_md;
@@ -153,6 +146,12 @@ class SELayer : public BaseLayer {
   dnnl::inner_product_forward fc2b_;
   dnnl::binary mul_;
   dnnl::binary add_;
+  dnnl::memory pooling_scratchpad_mem;
+  dnnl::memory fc_scratchpad_mem;
+  dnnl::memory fc2a_scratchpad_mem;
+  dnnl::memory fc2b_scratchpad_mem;
+  dnnl::memory mul_scratchpad_mem;
+  dnnl::memory add_scratchpad_mem;
   // Cached values to change tensors for best performance.
   dnnl::memory::desc pool_out_md;
   dnnl::memory::desc fc1_in_md;

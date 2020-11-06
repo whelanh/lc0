@@ -158,6 +158,11 @@ class DnnlNetwork : public Network {
 
     max_batch_size_ = options.GetOrDefault<int>("max_batch", 1024);
 
+    auto data_type = dnnl::memory::data_type::f32;
+    if (options.GetOrDefault<bool>("fp16", false)) {
+      data_type = dnnl::memory::data_type::bf16;
+    }
+
 #if DNNL_VERSION_MAJOR * 100 + DNNL_VERSION_MINOR >= 105
     dnnl::set_primitive_cache_capacity(
         options.GetOrDefault<int>("jit_cache", 1024));
@@ -185,6 +190,8 @@ class DnnlNetwork : public Network {
     {
       auto inputConv = std::make_unique<ConvLayer>(nullptr, numFilters_, 8, 8,
                                                    3, kNumInputPlanes, true);
+      // Set the data type first, the following layers will pick it up.
+      inputConv->SetDataType(data_type);
       inputConv->LoadWeights(&weights.input.weights[0],
                              &weights.input.biases[0], eng_, eng_stream_);
       network_.emplace_back(std::move(inputConv));
