@@ -173,7 +173,7 @@ class DnnlNetwork : public Network {
 
     auto data_type = dnnl::memory::data_type::f32;
     if (options.GetOrDefault<bool>("fp16", false)) {
-      if (eng_.get_kind() != dnnl::engine::kind::cpu) {
+      if (eng_.get_kind() == dnnl::engine::kind::cpu) {
         data_type = dnnl::memory::data_type::bf16;
       } else {
         data_type = dnnl::memory::data_type::f16;
