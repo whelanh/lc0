@@ -351,6 +351,7 @@ class DnnlNetwork : public Network {
       input_mem = tmp;
     }
 
+    // Output descriptors.
     dnnl::memory::desc opPol_desc;
     if (conv_policy_) {
       opPol_desc = dnnl::memory::desc({batchSize, pol_channels_, 8, 8},
@@ -361,28 +362,19 @@ class DnnlNetwork : public Network {
                                       dnnl::memory::data_type::f32,
                                       dnnl::memory::format_tag::nchw);
     }
-    dnnl::memory opPol_mem = dnnl::memory(opPol_desc, eng_);
-
     auto opVal_desc = dnnl::memory::desc({batchSize, wdl_ ? 3 : 1, 1, 1},
                                          dnnl::memory::data_type::f32,
                                          dnnl::memory::format_tag::nchw);
-    dnnl::memory opVal_mem = dnnl::memory(opVal_desc, eng_);
-
     auto opMov_desc =
         dnnl::memory::desc({batchSize, 1, 1, 1}, dnnl::memory::data_type::f32,
                            dnnl::memory::format_tag::nchw);
+    // Output memory.
+    dnnl::memory opPol_mem;
+    dnnl::memory opVal_mem;
     dnnl::memory opMov_mem;
-    if (moves_left_) {
-      opMov_mem = dnnl::memory(opMov_desc, eng_);
-    }
 
+    // Intermediate tensors.
     dnnl::memory tensor_mem[3];
-    auto tensor_desc = dnnl::memory::desc({batchSize, numFilters_, 8, 8},
-                                          dnnl::memory::data_type::f32,
-                                          dnnl::memory::format_tag::nchw);
-    for (auto i = 0; i < 3; i++) {
-      tensor_mem[i] = dnnl::memory(tensor_desc, eng_);
-    }
 
     int l = 0;
     // Input.
@@ -417,11 +409,7 @@ class DnnlNetwork : public Network {
       network_[l++]->Eval(batchSize, opPol_mem, tensor_mem[0], eng_,
                           eng_stream_);  // policy conv2
     } else {
-      auto policy_desc = dnnl::memory::desc({batchSize, pol_channels_, 8, 8},
-                                            dnnl::memory::data_type::f32,
-                                            dnnl::memory::format_tag::nchw);
-      dnnl::memory policy_mem = dnnl::memory(policy_desc, eng_);
-
+      dnnl::memory policy_mem;
       network_[l++]->Eval(batchSize, policy_mem, tensor_mem[2], eng_,
                           eng_stream_);  // pol conv
 
@@ -431,16 +419,8 @@ class DnnlNetwork : public Network {
 
     // value head
     {
-      auto tmp1_desc = dnnl::memory::desc(
-          {batchSize, value_input_planes_, 8, 8}, dnnl::memory::data_type::f32,
-          dnnl::memory::format_tag::nchw);
-      dnnl::memory tmp1_mem = dnnl::memory(tmp1_desc, eng_);
-
-      auto tmp2_desc = dnnl::memory::desc({batchSize, value_channels_, 1, 1},
-                                          dnnl::memory::data_type::f32,
-                                          dnnl::memory::format_tag::nchw);
-      dnnl::memory tmp2_mem = dnnl::memory(tmp2_desc, eng_);
-
+      dnnl::memory tmp1_mem;
+      dnnl::memory tmp2_mem;
       network_[l++]->Eval(batchSize, tmp1_mem, tensor_mem[2], eng_,
                           eng_stream_);  // value conv
 
@@ -452,17 +432,9 @@ class DnnlNetwork : public Network {
     }
 
     if (moves_left_) {
-      auto tmp1_desc = dnnl::memory::desc(
-          {batchSize, moves_input_planes_, 8, 8}, dnnl::memory::data_type::f32,
-          dnnl::memory::format_tag::nchw);
-      dnnl::memory tmp1_mem = dnnl::memory(tmp1_desc, eng_);
-
-      auto tmp2_desc = dnnl::memory::desc({batchSize, moves_channels_, 1, 1},
-                                          dnnl::memory::data_type::f32,
-                                          dnnl::memory::format_tag::nchw);
-      dnnl::memory tmp2_mem = dnnl::memory(tmp2_desc, eng_);
-
       // Moves left head
+      dnnl::memory tmp1_mem;
+      dnnl::memory tmp2_mem;
       network_[l++]->Eval(batchSize, tmp1_mem, tensor_mem[2], eng_,
                           eng_stream_);  // moves conv
 

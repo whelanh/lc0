@@ -133,7 +133,7 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     input = tmp;
   }
 
-  if (out_md != output.get_desc()) {
+  if (!output || out_md != output.get_desc()) {
     if (use_skip_) {
       auto tmp = dnnl::memory(out_md, eng);
       dnnl::reorder(output, tmp).execute(stream, output, tmp);
@@ -494,7 +494,7 @@ void FCLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     input = tmp;
   }
 
-  if (out_md != output.get_desc()) {
+  if (!output || out_md != output.get_desc()) {
     output = dnnl::memory(out_md, eng);
   }
 
