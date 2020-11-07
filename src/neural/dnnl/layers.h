@@ -63,7 +63,8 @@ class ConvLayer : public BaseLayer {
   ConvLayer(BaseLayer* ip, int C, int H, int W, int size, int Cin,
             bool relu = false, bool skip = false);
 
-  void LoadWeights(float* pfilter, float* pBias, dnnl::engine& eng, dnnl::stream& stream);
+  void LoadWeights(float* pfilter, float* pBias, dnnl::engine& eng,
+                   dnnl::stream& stream);
 
   // If there is a skip connection the output doubles as an input.
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
@@ -75,7 +76,7 @@ class ConvLayer : public BaseLayer {
   const bool use_relu_;
   const bool use_skip_;
 
-  dnnl::memory filter_mem;  // The original weights.
+  dnnl::memory filter_mem;       // The original weights.
   dnnl::memory conv_filter_mem;  // Transformed weights (maybe for Winograd).
   dnnl::memory bias_mem;
 
@@ -92,7 +93,8 @@ class FCLayer : public BaseLayer {
  public:
   FCLayer(BaseLayer* ip, int C, int H, int W, bool relu, bool tanh = false);
 
-  void LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng, dnnl::stream& stream);
+  void LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng,
+                   dnnl::stream& stream);
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
