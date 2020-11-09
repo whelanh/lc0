@@ -158,6 +158,8 @@ class DnnlNetwork : public Network {
 
     max_batch_size_ = options.GetOrDefault<int>("max_batch", 1024);
 
+    batch_size_ = options.GetOrDefault<int>("batch", 64);
+
 #if DNNL_VERSION_MAJOR * 100 + DNNL_VERSION_MINOR >= 105
     dnnl::set_primitive_cache_capacity(
         options.GetOrDefault<int>("jit_cache", 1024));
@@ -323,7 +325,7 @@ class DnnlNetwork : public Network {
     moves_left_out_ = getLastLayer();
   }
 
-  void forwardEval(InputsOutputs* io, int batchSize) {
+  void forwardEval(InputsOutputs* io, int inputBatchSize) {
     std::lock_guard<std::mutex> lock(lock_);
 
     // Expand packed planes to full planes.
@@ -337,18 +339,33 @@ class DnnlNetwork : public Network {
       cpu_eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
     }
 
+    int batchSize = batch_size_;
+    if (batchSize <= 0) {
+      // Use just one batch of variable size.
+      batchSize = inputBatchSize;
+    }
+
+  // Break input batch in smaller batches.
+  for (int start = 0; start < inputBatchSize; start += batchSize) {
+    int currentBatchSize = inputBatchSize - start;
+    if (currentBatchSize > batchSize) {
+      currentBatchSize = batchSize;
+    }
+
     auto input_desc = dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
                                          dnnl::memory::data_type::f32,
                                          dnnl::memory::format_tag::nchw);
     dnnl::memory input_mem = dnnl::memory(input_desc, cpu_eng);
 
     float* buffer = (float*)input_mem.get_data_handle();
-    for (int j = 0; j < batchSize * kInputPlanes; j++) {
-      const float value = ipDataValues[j];
-      const uint64_t mask = ipDataMasks[j];
+    for (int j = 0; j < currentBatchSize * kInputPlanes; j++) {
+      const float value = ipDataValues[j + start * kInputPlanes];
+      const uint64_t mask = ipDataMasks[j + start * kInputPlanes];
       for (auto i = 0; i < 64; i++)
         *(buffer++) = (mask & (((uint64_t)1) << i)) != 0 ? value : 0;
     }
+    // Clear remaining buffer (if any).
+    memset(buffer, 0, (batchSize - currentBatchSize) * kInputPlanes * 64 * sizeof(float));
 
     // Move input to the gpu.
     if (eng_.get_kind() != dnnl::engine::kind::cpu) {
@@ -479,7 +496,7 @@ class DnnlNetwork : public Network {
     if (wdl_) {
       // Value softmax done cpu side.
       float* opVal = (float*)opVal_mem.get_data_handle();
-      for (int i = 0; i < batchSize; i++) {
+      for (int i = 0; i < currentBatchSize; i++) {
         float w = std::exp(opVal[3 * i + 0]);
         float d = std::exp(opVal[3 * i + 1]);
         float l = std::exp(opVal[3 * i + 2]);
@@ -487,35 +504,36 @@ class DnnlNetwork : public Network {
         w /= sum;
         l /= sum;
         d = 1.0f - w - l;
-        io->op_value_mem_[3 * i + 0] = w;
-        io->op_value_mem_[3 * i + 1] = d;
-        io->op_value_mem_[3 * i + 2] = l;
+        io->op_value_mem_[3 * (i + start) + 0] = w;
+        io->op_value_mem_[3 * (i + start) + 1] = d;
+        io->op_value_mem_[3 * (i + start) + 2] = l;
       }
     } else {
-      memcpy(io->op_value_mem_, opVal_mem.get_data_handle(),
-             batchSize * sizeof(float));
+      memcpy(io->op_value_mem_ + start, opVal_mem.get_data_handle(),
+             currentBatchSize * sizeof(float));
     }
 
     if (conv_policy_) {
       float* opPol = (float*)opPol_mem.get_data_handle();
-      for (int batch = 0; batch < batchSize; batch++) {
+      for (int batch = 0; batch < currentBatchSize; batch++) {
         for (int i = 0; i < 73 * 8 * 8; i++) {
           auto j = kConvPolicyMap[i];
           if (j >= 0) {
-            io->op_policy_mem_[batch * kNumOutputPolicy + j] =
+            io->op_policy_mem_[(batch + start) * kNumOutputPolicy + j] =
                 opPol[batch * pol_channels_ * 64 + i];
           }
         }
       }
     } else {
-      memcpy(io->op_policy_mem_, opPol_mem.get_data_handle(),
-             batchSize * kNumOutputPolicy * sizeof(float));
+      memcpy(io->op_policy_mem_ + start * kNumOutputPolicy, opPol_mem.get_data_handle(),
+             currentBatchSize * kNumOutputPolicy * sizeof(float));
     }
 
     if (moves_left_) {
-      memcpy(io->op_moves_left_mem_, opMov_mem.get_data_handle(),
-             batchSize * sizeof(float));
+      memcpy(io->op_moves_left_mem_ + start, opMov_mem.get_data_handle(),
+             currentBatchSize * sizeof(float));
     }
+  }
   }
 
   const NetworkCapabilities& GetCapabilities() const override {
@@ -549,6 +567,7 @@ class DnnlNetwork : public Network {
   dnnl::engine eng_;
   dnnl::stream eng_stream_;
   int max_batch_size_;
+  int batch_size_;
   bool wdl_;
   bool moves_left_;
 
