@@ -419,20 +419,24 @@ class DnnlNetwork : public Network {
       // Residual block.
       for (int block = 0; block < numBlocks_; block++) {
         network_[l++]->Eval(batchSize, tensor_mem[0], tensor_mem[2], eng_,
-                            eng_stream_);  // conv1
+                            eng_stream_,
+                            block > 0 ? network_[1].get() : nullptr);  // conv1
 
         // For SE Resnet, skip connection is added after SE.
         if (has_se_) {
-          network_[l++]->Eval(batchSize, tensor_mem[1], tensor_mem[0], eng_,
-                              eng_stream_);  // conv2
+          network_[l++]->Eval(
+              batchSize, tensor_mem[1], tensor_mem[0], eng_, eng_stream_,
+              block > 0 ? network_[2].get() : nullptr);  // conv2
         } else {
-          network_[l++]->Eval(batchSize, tensor_mem[2], tensor_mem[0], eng_,
-                              eng_stream_);  // conv2
+          network_[l++]->Eval(
+              batchSize, tensor_mem[2], tensor_mem[0], eng_, eng_stream_,
+              block > 0 ? network_[2].get() : nullptr);  // conv2
         }
 
         if (has_se_) {
-          network_[l++]->Eval(batchSize, tensor_mem[2], tensor_mem[1], eng_,
-                              eng_stream_);  // SE layer
+          network_[l++]->Eval(
+              batchSize, tensor_mem[2], tensor_mem[1], eng_, eng_stream_,
+              block > 0 ? network_[3].get() : nullptr);  // SE layer
         }
       }
 

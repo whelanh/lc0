@@ -47,7 +47,8 @@ class BaseLayer {
   size_t GetOutputSize(int N) const { return sizeof(float) * N * C * H * W; }
   void SetDataType(dnnl::memory::data_type type) { data_type_ = type; }
   virtual void Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                    dnnl::engine& eng, dnnl::stream& stream) = 0;
+                    dnnl::engine& eng, dnnl::stream& stream,
+                    BaseLayer* prev = nullptr) = 0;
 
  protected:
   BaseLayer* input_;
@@ -68,7 +69,7 @@ class ConvLayer : public BaseLayer {
 
   // If there is a skip connection the output doubles as an input.
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
-            dnnl::stream& stream) override;
+            dnnl::stream& stream, BaseLayer* prev = nullptr) override;
 
  private:
   const int c_input_;
@@ -98,7 +99,7 @@ class FCLayer : public BaseLayer {
   void LoadWeights(float* cpuWeight, float* cpuBias, dnnl::engine& eng,
                    dnnl::stream& stream);
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
-            dnnl::stream& stream) override;
+            dnnl::stream& stream, BaseLayer* prev = nullptr) override;
 
  private:
   const bool use_relu_;
@@ -131,7 +132,7 @@ class SELayer : public BaseLayer {
   // Initially output holds the skip connection. Both input and output are
   // assumed to be the same memory format.
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
-            dnnl::stream& stream) override;
+            dnnl::stream& stream, BaseLayer* prev = nullptr) override;
 
  private:
   dnnl::memory filter_mem;
