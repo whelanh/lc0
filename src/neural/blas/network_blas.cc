@@ -207,8 +207,10 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
   std::vector<float> res_buffer3(largest_batch_size * output_channels *
                                  kSquares);
 
-  WinogradConvolution3<use_eigen> convolve3(largest_batch_size, max_channels,
-                                            max_output_channels);
+  WinogradConvolution3<use_eigen> convolve3;
+
+  std::vector<float> V_(largest_batch_size * max_channels * 256);
+  std::vector<float> M_(largest_batch_size * max_output_channels * 256);
 
   size_t max_head_planes =
       std::max(num_policy_input_planes,
@@ -229,8 +231,11 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
 
     // Input convolution
 
-    convolve3.Forward(batch_size, kInputPlanes, output_channels, conv_in,
-                      weights_.input.weights.data(), conv_out);
+//    convolve3.Forward(batch_size, kInputPlanes, output_channels, conv_in,
+//                      weights_.input.weights.data(), conv_out, &V_[0], &M_[0]);
+  convolve3.TransformIn(batch_size, conv_in, &V_[0], kInputPlanes);
+  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.input.weights.data(), kInputPlanes, output_channels);
+  convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
 
     BiasResidualRelu(batch_size, output_channels, conv_out,
                      weights_.input.biases.data());
@@ -244,8 +249,11 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
 
       std::swap(conv_out, conv_in);
 
-      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
-                        conv1.weights.data(), conv_out);
+//      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
+//                        conv1.weights.data(), conv_out, &V_[0], &M_[0]);
+  convolve3.TransformIn(batch_size, conv_in, &V_[0], output_channels);
+  convolve3.Sgemm(batch_size, &V_[0], &M_[0], conv1.weights.data(), output_channels, output_channels);
+  convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
 
       BiasResidualRelu(batch_size, output_channels, &conv_out[0],
                        conv1.biases.data());
@@ -253,8 +261,11 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
       std::swap(conv_in, res);
       std::swap(conv_out, conv_in);
 
-      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
-                        conv2.weights.data(), conv_out);
+//      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
+//                        conv2.weights.data(), conv_out, &V_[0], &M_[0]);
+  convolve3.TransformIn(batch_size, conv_in, &V_[0], output_channels);
+  convolve3.Sgemm(batch_size, &V_[0], &M_[0], conv2.weights.data(), output_channels, output_channels);
+  convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
 
       if (residual.has_se) {
         // No relu if followed by SE-unit and residual is added later
@@ -275,15 +286,21 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
 
     if (conv_policy_) {
       // Need to preserve conv_out which is used for value head
-      convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
-                        weights_.policy1.weights.data(), res);
+//      convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
+//                        weights_.policy1.weights.data(), res, &V_[0], &M_[0]);
+  convolve3.TransformIn(batch_size, conv_out, &V_[0], output_channels);
+  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.policy1.weights.data(), output_channels, output_channels);
+  convolve3.TransformOut(batch_size, &M_[0], res, output_channels);
 
       BiasResidualRelu(batch_size, output_channels, &res[0],
                        weights_.policy1.biases.data());
 
-      convolve3.Forward(batch_size, output_channels, num_policy_input_planes,
-                        res, weights_.policy.weights.data(),
-                        head_buffer.data());
+//      convolve3.Forward(batch_size, output_channels, num_policy_input_planes,
+//                        res, weights_.policy.weights.data(),
+//                        head_buffer.data(), &V_[0], &M_[0]);
+  convolve3.TransformIn(batch_size, res, &V_[0], output_channels);
+  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.policy.weights.data(), output_channels, output_channels);
+  convolve3.TransformOut(batch_size, &M_[0], head_buffer.data(), num_policy_input_planes);
 
       BiasResidualRelu(batch_size, num_policy_input_planes,
                        &head_buffer.data()[0], weights_.policy.biases.data(),
