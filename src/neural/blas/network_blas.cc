@@ -299,7 +299,7 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
 //                        res, weights_.policy.weights.data(),
 //                        head_buffer.data(), &V_[0], &M_[0]);
   convolve3.TransformIn(batch_size, res, &V_[0], output_channels);
-  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.policy.weights.data(), output_channels, output_channels);
+  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.policy.weights.data(), output_channels, num_policy_input_planes);
   convolve3.TransformOut(batch_size, &M_[0], head_buffer.data(), num_policy_input_planes);
 
       BiasResidualRelu(batch_size, num_policy_input_planes,
