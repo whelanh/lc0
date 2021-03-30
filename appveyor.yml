@@ -27,5 +27,5 @@ build_script:
 - cmd: cd C:\projects\lc0
 artifacts:
   - path: lc0.exe
-    name: lc0-$(NAME)
+    name: lc0
 
