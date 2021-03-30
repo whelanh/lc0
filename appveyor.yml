@@ -18,7 +18,7 @@ cache:
   - C:\projects\lc0\subprojects\packagecache
 before_build:
 - cmd: git submodule update --init --recursive
-- cmd: (echo.#define DEFAULT_MINIBATCH_SIZE 1 & echo.#define DEFAULT_MAX_PREFETCH 0) > params_override.h
+- cmd: echo.#define DEFAULT_MINIBATCH_SIZE 1 & echo.#define DEFAULT_MAX_PREFETCH 0 > params_override.h
 - cmd: meson build --buildtype release -Dgtest=false -Dblas=true -Dispc_native_only=false -Dpopcnt=true -Ddefault_library=static
 build_script:
 - cmd: cd C:\projects\lc0\build
