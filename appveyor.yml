@@ -10,7 +10,7 @@ install:
 - cmd: set PATH=C:\cache\ispc-v1.13.0-windows\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson==0.55.3
-- cmd: set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%PATH%;
+- cmd: set PATH=%PATH%;C:\msys64\mingw64\bin;C:\msys64\usr\bin
 - cmd: set PATH=%PATH%;"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja"
 - cmd: cd C:\projects\lc0
 cache:
