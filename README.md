@@ -1,5 +1,12 @@
-[![CircleCI](https://circleci.com/gh/LeelaChessZero/lc0.svg?style=shield)](https://circleci.com/gh/LeelaChessZero/lc0)
-[![AppVeyor](https://ci.appveyor.com/api/projects/status/3245b83otdee7oj7?svg=true)](https://ci.appveyor.com/project/leelachesszero/lc0)
+# LcFiSh
+
+LcFiSh is a UCI-compliant chess engine designed to play chess via neural network utilising NNUE technology, built by combining lc0 and [cfish](https://github.com/syzygy1/Cfish). All lc0 modes are avaialble, e.g. the regular backends are avaialbe with `lc0 uci` but the default is to use an NNUE net.
+
+As the NNUE code greatly benefits from the latest processor features the `arch` build option was added to specify the processor architecture, as in the following example:
+`CXX=g++-9 CC=gcc-9 ./build.sh -Darch=x86-64-avx512-vnni`
+Use `meson configure` to see the accepted values.
+
+Unlike lc0 no additional permisisons are given over the standard GPL version 3 license.
 
 # Lc0
 
@@ -224,18 +231,4 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
-
-### Additional permission under GNU GPL version 3 section 7
-
-_The source files of Lc0 with the exception of the BLAS and OpenCL
-backends (all files in the `blas` and `opencl` sub-directories) have
-the following additional permission, as allowed under GNU GPL version 3
-section 7:_
-
-If you modify this Program, or any covered work, by linking or
-combining it with NVIDIA Corporation's libraries from the NVIDIA CUDA
-Toolkit and the NVIDIA CUDA Deep Neural Network library (or a
-modified version of those libraries), containing parts covered by the
-terms of the respective license agreement, the licensors of this
-Program grant you additional permission to convey the resulting work.
 

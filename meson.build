@@ -14,9 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
 
-project('lc0', 'cpp',
+project('lcfish', ['c', 'cpp'],
         default_options : ['cpp_std=c++17', 'b_ndebug=if-release', 'warning_level=3', 'b_lto=true', 'b_vscrt=mt'],
-        meson_version: '>=0.52')
+        meson_version: '>=0.55')
 
 cc = meson.get_compiler('cpp')
 
@@ -173,8 +173,23 @@ files += [
   'src/utils/random.cc',
   'src/utils/string.cc',
   'src/utils/weights_adapter.cc',
+  'src/cfish/cfish.cc',
+  'src/cfish/cfish_main.c'
 ]
 includes += include_directories('src')
+
+add_global_arguments(['-DNNUE', '-DNNUE_EMBEDDED', '-DNNUE_PURE'], language : 'c')
+if host_machine.system() == 'windows' and cc.get_id() == 'gcc'
+  add_global_link_arguments(['-static'], language : 'cpp')
+endif
+deps += subproject('cfish', default_options: 'arch=' + get_option('arch')).get_variable('cfish_dep')
+if host_machine.system() == 'windows'
+  run_command('xcopy', 'nn.bin', meson.current_build_dir())
+else
+  run_command('cp', 'nn.bin', meson.current_build_dir())
+endif
+
+
 
 deps += dependency('threads')
 
@@ -553,7 +568,7 @@ endif
       dirs: ['/usr/local/lib'], required: false)
   endif
 
-  deps += cc.find_library('libatomic', required: false)
+  deps += cc.find_library('atomic', required: false)
 
   if get_option('malloc') != ''
     deps += cc.find_library(get_option('malloc'), required: true)
@@ -575,7 +590,7 @@ if get_option('embed')
   add_project_arguments('-DEMBED', language : 'cpp')
 endif
 
-executable('lc0', 'src/main.cc',
+executable('lcfish', 'src/main.cc',
   files, include_directories: includes, dependencies: deps, install: true)
 
 #############################################################################

@@ -152,3 +152,10 @@ option('cc_cuda',
        type: 'string',
        value: '',
        description: 'Build for a specific cuda CC, e.g. -Dcc_cuda=35 for CC 3.5')
+
+option('arch',
+       type : 'combo',
+       choices : ['none', 'x86-64-avx512-vnni', 'x86-64-avx512', 'x86-64-vnni',
+                  'x86-64-bmi2', 'x86-64-avx2', 'x86-64-avx', 'x86-64-modern'],
+       value : 'none')
+

@@ -27,6 +27,7 @@
 
 #include "benchmark/benchmark.h"
 #include "benchmark/backendbench.h"
+#include "cfish/cfish.h"
 #include "chess/board.h"
 #include "engine.h"
 #include "selfplay/loop.h"
@@ -40,9 +41,9 @@ int main(int argc, const char** argv) {
   using namespace lczero;
   EscCodes::Init();
   LOGFILE << "Lc0 started.";
-  CERR << EscCodes::Bold() << EscCodes::Red() << "       _";
-  CERR << "|   _ | |";
-  CERR << "|_ |_ |_|" << EscCodes::Reset() << " v" << GetVersionStr()
+  CERR << EscCodes::Bold() << EscCodes::Red() << "       _     _     ";
+  CERR << "|   _ |_    |_ |_ ";
+  CERR << "|_ |_ |  |   _|| |" << EscCodes::Reset() << " v" << GetVersionStr()
        << " built " << __DATE__;
 
   try {
@@ -51,7 +52,8 @@ int main(int argc, const char** argv) {
     InitializeMagicBitboards();
 
     CommandLine::Init(argc, argv);
-    CommandLine::RegisterMode("uci", "(default) Act as UCI engine");
+    CommandLine::RegisterMode("cfish", "(default) Use the cfish UCI engine");
+    CommandLine::RegisterMode("uci", "Act as UCI engine");
     CommandLine::RegisterMode("selfplay", "Play games with itself");
     CommandLine::RegisterMode("benchmark", "Quick benchmark");
     CommandLine::RegisterMode("backendbench", "Quick benchmark of backend only");
@@ -68,12 +70,15 @@ int main(int argc, const char** argv) {
       // Backend Benchmark mode.
       BackendBenchmark benchmark;
       benchmark.Run();
-    } else {
-      // Consuming optional "uci" mode.
-      CommandLine::ConsumeCommand("uci");
+    } else if (CommandLine::ConsumeCommand("uci")) {
       // Ordinary UCI engine.
       EngineLoop loop;
       loop.RunLoop();
+    } else {
+      // Consuming optional "cfish" mode.
+      CommandLine::ConsumeCommand("cfish");
+      Cfish cfish;
+      cfish.Run();
     }
   } catch (std::exception& e) {
     std::cerr << "Unhandled exception: " << e.what() << std::endl;

@@ -1,0 +1,7 @@
+[wrap-git]
+directory = cfish
+
+url = https://github.com/syzygy1/Cfish
+revision = head
+
+patch_directory = cfish
