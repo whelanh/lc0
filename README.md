@@ -1,6 +1,6 @@
 # LcFiSh
 
-LcFiSh is a UCI-compliant chess engine designed to play chess via neural network utilising NNUE technology, built by combining lc0 and [cfish](https://github.com/syzygy1/Cfish). All lc0 modes are avaialble, e.g. the regular backends are avaialbe with `lc0 uci` but the default is to use an NNUE net.
+LcFiSh is a UCI-compliant chess engine designed to play chess via neural network utilising NNUE technology, built by combining lc0 and [cfish](https://github.com/syzygy1/Cfish). All lc0 modes are available, e.g. the regular backends are availabe with `lc0 uci` but the default is to use an NNUE net.
 
 As the NNUE code greatly benefits from the latest processor features the `arch` build option was added to specify the processor architecture, as in the following example:
 `CXX=g++-9 CC=gcc-9 ./build.sh -Darch=x86-64-avx512-vnni`
