@@ -24,7 +24,7 @@ install:
 - cmd: cd C:\projects\lc0
 cache:
   - C:\cache
-  - C:\projects\lc0\subprojects\packagecache
+  - C:\projects\lc0\subprojects\packagecache <- appveyor.yml
 before_build:
 - cmd: git submodule update --init --recursive
 - cmd: meson build --buildtype release -Dgtest=false -Ddx=false -Dblas=true -Dispc_native_only=false -Dpopcnt=true -Ddefault_library=static -Darch=%ARCH%

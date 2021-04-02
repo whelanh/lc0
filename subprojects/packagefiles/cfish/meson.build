@@ -7,7 +7,7 @@ cfish_src = [
   'src/numa.c', 'src/settings.c', 'src/polybook.c'
 ]
 
-run_command('sed', '-i', 's/DefaultEvalFile.*/DefaultEvalFile "nn.bin"/', 'src/evaluate.h')
+run_command('sed', '-i', '-e', 's/DefaultEvalFile.*/DefaultEvalFile "nn.bin"/', 'src/evaluate.h')
 
 pext = false
 avx = false
