@@ -6,6 +6,7 @@ image:
 clone_folder: c:\projects\lc0
 environment:
   matrix:
+  - ARCH: none
   - ARCH: x86-64-avx512-vnni
   - ARCH: x86-64-avx512
   - ARCH: x86-64-vnni
