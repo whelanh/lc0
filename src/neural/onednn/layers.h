@@ -89,6 +89,10 @@ class ConvLayer : public BaseLayer {
   // Cached values to change in/out tensors for best performance.
   dnnl::memory::desc in_md;
   dnnl::memory::desc out_md;
+  // For separate ReLU to allow forcing Winograd convolution.
+  dnnl::eltwise_forward relu_;
+  dnnl::memory relu_scratchpad_mem;
+  dnnl::memory::desc conv_md;
 };
 
 class FCLayer : public BaseLayer {

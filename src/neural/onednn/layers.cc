@@ -67,6 +67,8 @@ void ConvLayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1,
 
 void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
                      dnnl::engine& eng, dnnl::stream& stream) {
+  bool ext_relu = use_relu_ && !use_skip_;
+
   if (last_batch_ != N) {
     auto t_in_md = dnnl::memory::desc({N, c_input_, H, W}, data_type_,
                                       dnnl::memory::format_tag::any);
@@ -84,10 +86,11 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
         t_in_md, t_filter_md, bias_mem.get_desc(), t_out_md, {1, 1},
         {padding, padding}, {padding, padding});
     dnnl::post_ops conv_ops;
+
     if (use_skip_) {
       conv_ops.append_sum();
     }
-    if (use_relu_) {
+    if (use_relu_ && !ext_relu) {
       conv_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
     }
     dnnl::primitive_attr conv_attr;
@@ -99,7 +102,6 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     scratchpad_mem = dnnl::memory(conv_pd.scratchpad_desc(), eng);
 
     in_md = conv_pd.src_desc();
-    out_md = conv_pd.dst_desc();
     if (!conv_filter_mem ||
         conv_pd.weights_desc() != conv_filter_mem.get_desc()) {
       // This may be a transformation for Winograd convolution, so keep the
@@ -112,6 +114,25 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     auto in_reorder_pd =
         dnnl::reorder::primitive_desc(eng, input.get_desc(), eng, in_md);
     in_reorder_ = dnnl::reorder(in_reorder_pd);
+
+    if (ext_relu) {
+      conv_md = conv_pd.dst_desc();
+
+      auto relu_d = dnnl::eltwise_forward::desc(
+          dnnl::prop_kind::forward_inference, dnnl::algorithm::eltwise_relu,
+          conv_pd.dst_desc(), 0.f, 0.f);
+      dnnl::primitive_attr relu_attr;
+      relu_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+      auto relu_pd =
+          dnnl::eltwise_forward::primitive_desc(relu_d, relu_attr, eng);
+      relu_scratchpad_mem = dnnl::memory(relu_pd.scratchpad_desc(), eng);
+      relu_ = dnnl::eltwise_forward(relu_pd);
+
+      out_md = relu_pd.dst_desc();
+
+    } else {
+      out_md = conv_pd.dst_desc();
+    }
 
     if (use_skip_) {
       auto skip_reorder_pd =
@@ -138,11 +159,24 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     }
   }
 
-  conv_.execute(stream, {{DNNL_ARG_SRC, input},
-                         {DNNL_ARG_WEIGHTS, conv_filter_mem},
-                         {DNNL_ARG_BIAS, bias_mem},
-                         {DNNL_ARG_DST, output},
-                         {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
+  if (ext_relu) {
+    dnnl::memory conv_output = dnnl::memory(conv_md, eng);
+    conv_.execute(stream, {{DNNL_ARG_SRC, input},
+                           {DNNL_ARG_WEIGHTS, conv_filter_mem},
+                           {DNNL_ARG_BIAS, bias_mem},
+                           {DNNL_ARG_DST, conv_output},
+                           {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
+
+    relu_.execute(stream, {{DNNL_ARG_SRC, conv_output},
+                           {DNNL_ARG_DST, output},
+                           {DNNL_ARG_SCRATCHPAD, relu_scratchpad_mem}});
+  } else {
+    conv_.execute(stream, {{DNNL_ARG_SRC, input},
+                           {DNNL_ARG_WEIGHTS, conv_filter_mem},
+                           {DNNL_ARG_BIAS, bias_mem},
+                           {DNNL_ARG_DST, output},
+                           {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
+  }
 }
 
 SELayer::SELayer(BaseLayer* ip, int fc1Outputs)
@@ -256,7 +290,8 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
         pool_out_md, 0.f, 0.f);
     dnnl::primitive_attr sigmoid_attr;
     sigmoid_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    auto sigmoid_pd = dnnl::eltwise_forward::primitive_desc(sigmoid_d, eng);
+    auto sigmoid_pd =
+        dnnl::eltwise_forward::primitive_desc(sigmoid_d, sigmoid_attr, eng);
     sigmoid_scratchpad_mem = dnnl::memory(sigmoid_pd.scratchpad_desc(), eng);
     sigmoid_ = dnnl::eltwise_forward(sigmoid_pd);
 
