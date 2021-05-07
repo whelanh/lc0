@@ -480,6 +480,7 @@ int idx = steps_ - 1;
       }
 else {
   idx = (currentBatchSize - 1) / batch_size_;
+  batchSize = (idx+1) * batch_size_;
 }
 
       auto input_desc = dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
