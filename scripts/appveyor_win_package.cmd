@@ -4,6 +4,12 @@ appveyor DownloadFile "https://ci.appveyor.com/api/projects/LeelaChessZero/lczer
 type COPYING |more /P > dist\COPYING
 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\COPYING
 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip c:\cache\%NET%.pb.gz
+type C:\cache\mimalloc-2.0.1\readme.md |more /P > dist\mimalloc-readme.md
+type C:\cache\mimalloc-2.0.1\LICENSE |more /P > dist\mimalloc-LICENSE
+7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\mimalloc-2.0.1\out\msvc-x64\Release\mimalloc-override.dll
+7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\mimalloc-2.0.1\out\msvc-x64\Release\mimalloc-redirect.dll
+7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\mimalloc-readme.md
+7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\mimalloc-LICENSE
 IF %CUDA%==true copy lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%-nodll.zip
 IF %NAME%==cpu-openblas 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\OpenBLAS\dist64\bin\libopenblas.dll
 IF %NAME%==cpu-dnnl 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip C:\cache\dnnl_win_1.5.0_cpu_vcomp\bin\dnnl.dll
