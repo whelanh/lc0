@@ -47,6 +47,8 @@ class BaseLayer {
   size_t GetOutputSize(int N) const { return sizeof(float) * N * C * H * W; }
   void SetDataType(dnnl::memory::data_type type) { data_type_ = type; }
   void SetConvolutionType(dnnl::algorithm type) { convolution_type_ = type; }
+  virtual void Init(int N, dnnl::memory& output, dnnl::memory& input,
+                    dnnl::engine& eng, dnnl::stream& stream) = 0;
   virtual void Eval(int N, dnnl::memory& output, dnnl::memory& input,
                     dnnl::engine& eng, dnnl::stream& stream) = 0;
 
@@ -69,6 +71,8 @@ class ConvLayer : public BaseLayer {
                    dnnl::stream& stream);
 
   // If there is a skip connection the output doubles as an input.
+  void Init(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+            dnnl::stream& stream) override;
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
@@ -99,6 +103,8 @@ class FCLayer : public BaseLayer {
 
   void LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::engine& eng,
                    dnnl::stream& stream);
+  void Init(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+            dnnl::stream& stream) override;
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
@@ -132,6 +138,8 @@ class SELayer : public BaseLayer {
 
   // Initially output holds the skip connection. Both input and output are
   // assumed to be the same memory format.
+  void Init(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+            dnnl::stream& stream) override;
   void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
             dnnl::stream& stream) override;
 

@@ -462,11 +462,90 @@ class OnednnNetwork : public Network {
       // Initialize layers if batch size fixed.
       if (options.GetOrDefault<bool>("init", true) && batch_size_ > 0) {
         int batchSize = (idx + 1) * batch_size_;
-        InputsOutputs io(batchSize, wdl_, moves_left_);
-        memset(io.input_masks_mem_, 0,
-               batchSize * kInputPlanes * sizeof(uint64_t));
-        memset(io.input_val_mem_, 0, batchSize * kInputPlanes * sizeof(float));
-        forwardEval(&io, batchSize);
+
+        auto input_desc = dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
+                                             dnnl::memory::data_type::f32,
+                                             dnnl::memory::format_tag::nchw);
+        dnnl::memory input_mem = dnnl::memory(input_desc, eng_);
+
+        // Output memory.
+        dnnl::memory opPol_mem;
+        dnnl::memory opVal_mem;
+        dnnl::memory opMov_mem;
+
+        // Intermediate tensors.
+        dnnl::memory tensor_mem[3];
+
+        int l = 0;
+
+        // Input.
+        layers_[idx][l++]->Init(batchSize, tensor_mem[2], input_mem, eng_,
+                                eng_stream_);  // input conv
+
+        // Residual block.
+        for (int block = 0; block < numBlocks_; block++) {
+          layers_[idx][l++]->Init(batchSize, tensor_mem[0], tensor_mem[2], eng_,
+                                  eng_stream_);  // conv1
+
+          // For SE Resnet, skip connection is added after SE.
+          if (has_se_) {
+            layers_[idx][l++]->Init(batchSize, tensor_mem[1], tensor_mem[0],
+                                    eng_, eng_stream_);  // conv2
+          } else {
+            layers_[idx][l++]->Init(batchSize, tensor_mem[2], tensor_mem[0],
+                                    eng_, eng_stream_);  // conv2
+          }
+
+          if (has_se_) {
+            layers_[idx][l++]->Init(batchSize, tensor_mem[2], tensor_mem[1],
+                                    eng_, eng_stream_);  // SE layer
+          }
+        }
+
+        // Policy head.
+        if (conv_policy_) {
+          layers_[idx][l++]->Init(batchSize, tensor_mem[0], tensor_mem[2], eng_,
+                                  eng_stream_);  // policy conv1
+
+          layers_[idx][l++]->Init(batchSize, opPol_mem, tensor_mem[0], eng_,
+                                  eng_stream_);  // policy conv2
+        } else {
+          dnnl::memory policy_mem;
+          layers_[idx][l++]->Init(batchSize, policy_mem, tensor_mem[2], eng_,
+                                  eng_stream_);  // pol conv
+
+          layers_[idx][l++]->Init(batchSize, opPol_mem, policy_mem, eng_,
+                                  eng_stream_);  // pol FC  // POLICY
+        }
+
+        // value head
+        {
+          dnnl::memory tmp1_mem;
+          dnnl::memory tmp2_mem;
+          layers_[idx][l++]->Init(batchSize, tmp1_mem, tensor_mem[2], eng_,
+                                  eng_stream_);  // value conv
+
+          layers_[idx][l++]->Init(batchSize, tmp2_mem, tmp1_mem, eng_,
+                                  eng_stream_);  // value FC1
+
+          layers_[idx][l++]->Init(batchSize, opVal_mem, tmp2_mem, eng_,
+                                  eng_stream_);  // value FC2    // VALUE
+        }
+
+        if (moves_left_) {
+          // Moves left head
+          dnnl::memory tmp1_mem;
+          dnnl::memory tmp2_mem;
+          layers_[idx][l++]->Init(batchSize, tmp1_mem, tensor_mem[2], eng_,
+                                  eng_stream_);  // moves conv
+
+          layers_[idx][l++]->Init(batchSize, tmp2_mem, tmp1_mem, eng_,
+                                  eng_stream_);  // moves FC1
+
+          // Moves left FC2
+          layers_[idx][l++]->Init(batchSize, opMov_mem, tmp2_mem, eng_,
+                                  eng_stream_);
+        }
       }
     }
   }

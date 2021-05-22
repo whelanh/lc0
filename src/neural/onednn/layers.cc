@@ -67,63 +67,77 @@ void ConvLayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1,
   dnnl::reorder(b1, bias_mem).execute(stream, b1, bias_mem);
 }
 
+void ConvLayer::Init(int N, dnnl::memory& output, dnnl::memory& input,
+                     dnnl::engine& eng, dnnl::stream& stream) {
+  auto t_in_md = dnnl::memory::desc({N, c_input_, H, W}, data_type_,
+                                    dnnl::memory::format_tag::any);
+
+  auto t_filter_md =
+      dnnl::memory::desc({C, c_input_, filter_size_, filter_size_}, data_type_,
+                         dnnl::memory::format_tag::any);
+
+  auto t_out_md = dnnl::memory::desc({N, C, H, W}, data_type_,
+                                     dnnl::memory::format_tag::any);
+
+  const int padding = filter_size_ / 2;
+  auto conv_d = dnnl::convolution_forward::desc(
+      dnnl::prop_kind::forward_inference,
+      filter_size_ == 3 ? convolution_type_ : dnnl::algorithm::convolution_auto,
+      t_in_md, t_filter_md, bias_mem.get_desc(), t_out_md, {1, 1},
+      {padding, padding}, {padding, padding});
+  dnnl::post_ops conv_ops;
+  if (use_skip_) {
+    conv_ops.append_sum();
+  }
+  if (use_relu_) {
+    conv_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
+  }
+  dnnl::primitive_attr conv_attr;
+  conv_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  conv_attr.set_post_ops(conv_ops);
+  auto conv_pd =
+      dnnl::convolution_forward::primitive_desc(conv_d, conv_attr, eng);
+  conv_ = dnnl::convolution_forward(conv_pd);
+  scratchpad_mem = dnnl::memory(conv_pd.scratchpad_desc(), eng);
+
+  in_md = conv_pd.src_desc();
+  out_md = conv_pd.dst_desc();
+  if (!conv_filter_mem ||
+      conv_pd.weights_desc() != conv_filter_mem.get_desc()) {
+    // This may be a transformation for Winograd convolution, so keep the
+    // original weights.
+    conv_filter_mem = dnnl::memory(conv_pd.weights_desc(), eng);
+    dnnl::reorder(filter_mem, conv_filter_mem)
+        .execute(stream, filter_mem, conv_filter_mem);
+  }
+
+  auto in_reorder_pd =
+      dnnl::reorder::primitive_desc(eng, input.get_desc(), eng, in_md);
+  in_reorder_ = dnnl::reorder(in_reorder_pd);
+
+  if (use_skip_) {
+    auto skip_reorder_pd =
+        dnnl::reorder::primitive_desc(eng, output.get_desc(), eng, out_md);
+    skip_reorder_ = dnnl::reorder(skip_reorder_pd);
+  }
+
+  last_batch_ = N;
+
+  if (!output || out_md != output.get_desc()) {
+    if (use_skip_) {
+      auto tmp = dnnl::memory(out_md, eng);
+      skip_reorder_.execute(stream, output, tmp);
+      output = tmp;
+    } else {
+      output = dnnl::memory(out_md, eng);
+    }
+  }
+}
+
 void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
                      dnnl::engine& eng, dnnl::stream& stream) {
   if (last_batch_ != N) {
-    auto t_in_md = dnnl::memory::desc({N, c_input_, H, W}, data_type_,
-                                      dnnl::memory::format_tag::any);
-
-    auto t_filter_md =
-        dnnl::memory::desc({C, c_input_, filter_size_, filter_size_},
-                           data_type_, dnnl::memory::format_tag::any);
-
-    auto t_out_md = dnnl::memory::desc({N, C, H, W}, data_type_,
-                                       dnnl::memory::format_tag::any);
-
-    const int padding = filter_size_ / 2;
-    auto conv_d = dnnl::convolution_forward::desc(
-        dnnl::prop_kind::forward_inference,
-        filter_size_ == 3 ? convolution_type_
-                          : dnnl::algorithm::convolution_auto,
-        t_in_md, t_filter_md, bias_mem.get_desc(), t_out_md, {1, 1},
-        {padding, padding}, {padding, padding});
-    dnnl::post_ops conv_ops;
-    if (use_skip_) {
-      conv_ops.append_sum();
-    }
-    if (use_relu_) {
-      conv_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
-    }
-    dnnl::primitive_attr conv_attr;
-    conv_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    conv_attr.set_post_ops(conv_ops);
-    auto conv_pd =
-        dnnl::convolution_forward::primitive_desc(conv_d, conv_attr, eng);
-    conv_ = dnnl::convolution_forward(conv_pd);
-    scratchpad_mem = dnnl::memory(conv_pd.scratchpad_desc(), eng);
-
-    in_md = conv_pd.src_desc();
-    out_md = conv_pd.dst_desc();
-    if (!conv_filter_mem ||
-        conv_pd.weights_desc() != conv_filter_mem.get_desc()) {
-      // This may be a transformation for Winograd convolution, so keep the
-      // original weights.
-      conv_filter_mem = dnnl::memory(conv_pd.weights_desc(), eng);
-      dnnl::reorder(filter_mem, conv_filter_mem)
-          .execute(stream, filter_mem, conv_filter_mem);
-    }
-
-    auto in_reorder_pd =
-        dnnl::reorder::primitive_desc(eng, input.get_desc(), eng, in_md);
-    in_reorder_ = dnnl::reorder(in_reorder_pd);
-
-    if (use_skip_) {
-      auto skip_reorder_pd =
-          dnnl::reorder::primitive_desc(eng, output.get_desc(), eng, out_md);
-      skip_reorder_ = dnnl::reorder(skip_reorder_pd);
-    }
-
-    last_batch_ = N;
+    Init(N, output, input, eng, stream);
   }
 
   if (in_md != input.get_desc()) {
@@ -179,137 +193,140 @@ void SELayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::memory& w2,
   dnnl::reorder(b2, bias2_mem).execute(stream, b2, bias2_mem);
 }
 
+void SELayer::Init(int N, dnnl::memory& output, dnnl::memory& input,
+                   dnnl::engine& eng, dnnl::stream& stream) {
+  // Also the broadcast input memory format for the binary primitives.
+  auto t_pool_out_md = dnnl::memory::desc({N, C, 1, 1}, data_type_,
+                                          dnnl::memory::format_tag::any);
+
+  // Also the output memory format for the fc2 inner products.
+  auto t_fc1_in_md =
+      dnnl::memory::desc({N, C}, data_type_, dnnl::memory::format_tag::any);
+
+  auto t_fc1_out_md = dnnl::memory::desc({N, numFc1Out_}, data_type_,
+                                         dnnl::memory::format_tag::any);
+
+  auto t_filter_md = dnnl::memory::desc({numFc1Out_, C}, data_type_,
+                                        dnnl::memory::format_tag::any);
+
+  auto t_filter2_md = dnnl::memory::desc({2 * C, numFc1Out_}, data_type_,
+                                         dnnl::memory::format_tag::any);
+
+  auto t_fc2_out_md =
+      dnnl::memory::desc({N, 2 * C}, data_type_, dnnl::memory::format_tag::any);
+
+  auto pooling_d = dnnl::pooling_forward::desc(
+      dnnl::prop_kind::forward_inference, dnnl::algorithm::pooling_avg,
+      input.get_desc(), t_pool_out_md, {1, 1}, {H, W}, {0, 0}, {0, 0});
+  dnnl::primitive_attr pooling_attr;
+  pooling_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  auto pooling_pd =
+      dnnl::pooling_forward::primitive_desc(pooling_d, pooling_attr, eng);
+  pooling_scratchpad_mem = dnnl::memory(pooling_pd.scratchpad_desc(), eng);
+  pooling_ = dnnl::pooling_forward(pooling_pd);
+
+  // This is also the optimized memory format descriptor for the binary
+  // primitives.
+  pool_out_md = pooling_pd.dst_desc();
+
+  auto fc_d = dnnl::inner_product_forward::desc(
+      dnnl::prop_kind::forward_inference, t_fc1_in_md, t_filter_md,
+      bias_mem.get_desc(), t_fc1_out_md);
+  dnnl::post_ops fc_ops;
+  fc_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
+  dnnl::primitive_attr fc_attr;
+  fc_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  fc_attr.set_post_ops(fc_ops);
+  auto fc_pd = dnnl::inner_product_forward::primitive_desc(fc_d, fc_attr, eng);
+  fc_scratchpad_mem = dnnl::memory(fc_pd.scratchpad_desc(), eng);
+  fc_ = dnnl::inner_product_forward(fc_pd);
+
+  fc1_in_md = fc_pd.src_desc().reshape({N, C, 1, 1});
+  fc1_out_md = fc_pd.dst_desc();
+  if (fc_pd.weights_desc() != filter_mem.get_desc()) {
+    auto tmp = dnnl::memory(fc_pd.weights_desc(), eng);
+    dnnl::reorder(filter_mem, tmp).execute(stream, filter_mem, tmp);
+    filter_mem = tmp;
+  }
+
+  auto fc2_d = dnnl::inner_product_forward::desc(
+      dnnl::prop_kind::forward_inference, fc1_out_md, t_filter2_md,
+      bias2_mem.get_desc(), t_fc2_out_md);
+  dnnl::primitive_attr fc2_attr;
+  fc2_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  auto fc2_pd =
+      dnnl::inner_product_forward::primitive_desc(fc2_d, fc2_attr, eng);
+  fc2_scratchpad_mem = dnnl::memory(fc2_pd.scratchpad_desc(), eng);
+  fc2_ = dnnl::inner_product_forward(fc2_pd);
+
+  if (fc2_pd.weights_desc() != filter2_mem.get_desc()) {
+    auto tmp = dnnl::memory(fc2_pd.weights_desc(), eng);
+    dnnl::reorder(filter2_mem, tmp).execute(stream, filter2_mem, tmp);
+    filter2_mem = tmp;
+  }
+
+  fc2_out_md = fc2_pd.dst_desc();
+
+  auto sigmoid_d = dnnl::eltwise_forward::desc(
+      dnnl::prop_kind::forward_inference, dnnl::algorithm::eltwise_logistic,
+      pool_out_md, 0.f, 0.f);
+  dnnl::primitive_attr sigmoid_attr;
+  sigmoid_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  auto sigmoid_pd =
+      dnnl::eltwise_forward::primitive_desc(sigmoid_d, sigmoid_attr, eng);
+  sigmoid_scratchpad_mem = dnnl::memory(sigmoid_pd.scratchpad_desc(), eng);
+  sigmoid_ = dnnl::eltwise_forward(sigmoid_pd);
+
+  auto mul_d = dnnl::binary::desc(dnnl::algorithm::binary_mul, input.get_desc(),
+                                  pool_out_md, output.get_desc());
+  dnnl::post_ops mul_ops;
+  mul_ops.append_sum();
+  if (eng.get_kind() == dnnl::engine::kind::gpu) {
+    // Using binary post-ops is a gain on gpu but a huge loss on cpu.
+    mul_ops.append_binary(dnnl::algorithm::binary_add, pool_out_md);
+    mul_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
+  }
+  dnnl::primitive_attr mul_attr;
+  mul_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  mul_attr.set_post_ops(mul_ops);
+  auto mul_pd = dnnl::binary::primitive_desc(mul_d, mul_attr, eng);
+  mul_scratchpad_mem = dnnl::memory(mul_pd.scratchpad_desc(), eng);
+  mul_ = dnnl::binary(mul_pd);
+
+  if (eng.get_kind() != dnnl::engine::kind::gpu) {
+    auto add_d =
+        dnnl::binary::desc(dnnl::algorithm::binary_add, output.get_desc(),
+                           pool_out_md, output.get_desc());
+    dnnl::post_ops add_ops;
+    add_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
+    dnnl::primitive_attr add_attr;
+    add_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    add_attr.set_post_ops(add_ops);
+    auto add_pd = dnnl::binary::primitive_desc(add_d, add_attr, eng);
+    add_scratchpad_mem = dnnl::memory(add_pd.scratchpad_desc(), eng);
+    add_ = dnnl::binary(add_pd);
+  }
+  auto fc1_reorder_pd =
+      dnnl::reorder::primitive_desc(eng, pool_out_md, eng, fc1_in_md);
+  fc1_reorder_ = dnnl::reorder(fc1_reorder_pd);
+
+  auto mul_reorder_pd = dnnl::reorder::primitive_desc(
+      eng, fc2_out_md.submemory_desc({N, C}, {0, 0}).reshape({N, C, 1, 1}), eng,
+      pool_out_md);
+  mul_reorder_ = dnnl::reorder(mul_reorder_pd);
+
+  auto add_reorder_pd = dnnl::reorder::primitive_desc(
+      eng, fc2_out_md.submemory_desc({N, C}, {0, C}).reshape({N, C, 1, 1}), eng,
+      pool_out_md);
+  add_reorder_ = dnnl::reorder(add_reorder_pd);
+
+  last_batch_ = N;
+}
+
 void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
                    dnnl::engine& eng, dnnl::stream& stream) {
   if (last_batch_ != N) {
-    // Also the broadcast input memory format for the binary primitives.
-    auto t_pool_out_md = dnnl::memory::desc({N, C, 1, 1}, data_type_,
-                                            dnnl::memory::format_tag::any);
-
-    // Also the output memory format for the fc2 inner products.
-    auto t_fc1_in_md =
-        dnnl::memory::desc({N, C}, data_type_, dnnl::memory::format_tag::any);
-
-    auto t_fc1_out_md = dnnl::memory::desc({N, numFc1Out_}, data_type_,
-                                           dnnl::memory::format_tag::any);
-
-    auto t_filter_md = dnnl::memory::desc({numFc1Out_, C}, data_type_,
-                                          dnnl::memory::format_tag::any);
-
-    auto t_filter2_md = dnnl::memory::desc({2 * C, numFc1Out_}, data_type_,
-                                           dnnl::memory::format_tag::any);
-
-    auto t_fc2_out_md = dnnl::memory::desc({N, 2 * C}, data_type_,
-                                           dnnl::memory::format_tag::any);
-
-    auto pooling_d = dnnl::pooling_forward::desc(
-        dnnl::prop_kind::forward_inference, dnnl::algorithm::pooling_avg,
-        input.get_desc(), t_pool_out_md, {1, 1}, {H, W}, {0, 0}, {0, 0});
-    dnnl::primitive_attr pooling_attr;
-    pooling_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    auto pooling_pd =
-        dnnl::pooling_forward::primitive_desc(pooling_d, pooling_attr, eng);
-    pooling_scratchpad_mem = dnnl::memory(pooling_pd.scratchpad_desc(), eng);
-    pooling_ = dnnl::pooling_forward(pooling_pd);
-
-    // This is also the optimized memory format descriptor for the binary
-    // primitives.
-    pool_out_md = pooling_pd.dst_desc();
-
-    auto fc_d = dnnl::inner_product_forward::desc(
-        dnnl::prop_kind::forward_inference, t_fc1_in_md, t_filter_md,
-        bias_mem.get_desc(), t_fc1_out_md);
-    dnnl::post_ops fc_ops;
-    fc_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
-    dnnl::primitive_attr fc_attr;
-    fc_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    fc_attr.set_post_ops(fc_ops);
-    auto fc_pd =
-        dnnl::inner_product_forward::primitive_desc(fc_d, fc_attr, eng);
-    fc_scratchpad_mem = dnnl::memory(fc_pd.scratchpad_desc(), eng);
-    fc_ = dnnl::inner_product_forward(fc_pd);
-
-    fc1_in_md = fc_pd.src_desc().reshape({N, C, 1, 1});
-    fc1_out_md = fc_pd.dst_desc();
-    if (fc_pd.weights_desc() != filter_mem.get_desc()) {
-      auto tmp = dnnl::memory(fc_pd.weights_desc(), eng);
-      dnnl::reorder(filter_mem, tmp).execute(stream, filter_mem, tmp);
-      filter_mem = tmp;
-    }
-
-    auto fc2_d = dnnl::inner_product_forward::desc(
-        dnnl::prop_kind::forward_inference, fc1_out_md, t_filter2_md,
-        bias2_mem.get_desc(), t_fc2_out_md);
-    dnnl::primitive_attr fc2_attr;
-    fc2_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    auto fc2_pd =
-        dnnl::inner_product_forward::primitive_desc(fc2_d, fc2_attr, eng);
-    fc2_scratchpad_mem = dnnl::memory(fc2_pd.scratchpad_desc(), eng);
-    fc2_ = dnnl::inner_product_forward(fc2_pd);
-
-    if (fc2_pd.weights_desc() != filter2_mem.get_desc()) {
-      auto tmp = dnnl::memory(fc2_pd.weights_desc(), eng);
-      dnnl::reorder(filter2_mem, tmp).execute(stream, filter2_mem, tmp);
-      filter2_mem = tmp;
-    }
-
-    fc2_out_md = fc2_pd.dst_desc();
-
-    auto sigmoid_d = dnnl::eltwise_forward::desc(
-        dnnl::prop_kind::forward_inference, dnnl::algorithm::eltwise_logistic,
-        pool_out_md, 0.f, 0.f);
-    dnnl::primitive_attr sigmoid_attr;
-    sigmoid_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    auto sigmoid_pd =
-        dnnl::eltwise_forward::primitive_desc(sigmoid_d, sigmoid_attr, eng);
-    sigmoid_scratchpad_mem = dnnl::memory(sigmoid_pd.scratchpad_desc(), eng);
-    sigmoid_ = dnnl::eltwise_forward(sigmoid_pd);
-
-    auto mul_d =
-        dnnl::binary::desc(dnnl::algorithm::binary_mul, input.get_desc(),
-                           pool_out_md, output.get_desc());
-    dnnl::post_ops mul_ops;
-    mul_ops.append_sum();
-    if (eng.get_kind() == dnnl::engine::kind::gpu) {
-      // Using binary post-ops is a gain on gpu but a huge loss on cpu.
-      mul_ops.append_binary(dnnl::algorithm::binary_add, pool_out_md);
-      mul_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
-    }
-    dnnl::primitive_attr mul_attr;
-    mul_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    mul_attr.set_post_ops(mul_ops);
-    auto mul_pd = dnnl::binary::primitive_desc(mul_d, mul_attr, eng);
-    mul_scratchpad_mem = dnnl::memory(mul_pd.scratchpad_desc(), eng);
-    mul_ = dnnl::binary(mul_pd);
-
-    if (eng.get_kind() != dnnl::engine::kind::gpu) {
-      auto add_d =
-          dnnl::binary::desc(dnnl::algorithm::binary_add, output.get_desc(),
-                             pool_out_md, output.get_desc());
-      dnnl::post_ops add_ops;
-      add_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
-      dnnl::primitive_attr add_attr;
-      add_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-      add_attr.set_post_ops(add_ops);
-      auto add_pd = dnnl::binary::primitive_desc(add_d, add_attr, eng);
-      add_scratchpad_mem = dnnl::memory(add_pd.scratchpad_desc(), eng);
-      add_ = dnnl::binary(add_pd);
-    }
-    auto fc1_reorder_pd =
-        dnnl::reorder::primitive_desc(eng, pool_out_md, eng, fc1_in_md);
-    fc1_reorder_ = dnnl::reorder(fc1_reorder_pd);
-
-    auto mul_reorder_pd = dnnl::reorder::primitive_desc(
-        eng, fc2_out_md.submemory_desc({N, C}, {0, 0}).reshape({N, C, 1, 1}),
-        eng, pool_out_md);
-    mul_reorder_ = dnnl::reorder(mul_reorder_pd);
-
-    auto add_reorder_pd = dnnl::reorder::primitive_desc(
-        eng, fc2_out_md.submemory_desc({N, C}, {0, C}).reshape({N, C, 1, 1}),
-        eng, pool_out_md);
-    add_reorder_ = dnnl::reorder(add_reorder_pd);
-
-    last_batch_ = N;
+    Init(N, output, input, eng, stream);
   }
 
   auto pool_out_mem = dnnl::memory(pool_out_md, eng);
@@ -391,53 +408,61 @@ void FCLayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::engine& eng,
   dnnl::reorder(b1, bias_mem).execute(stream, b1, bias_mem);
 }
 
+void FCLayer::Init(int N, dnnl::memory& output, dnnl::memory& input,
+                   dnnl::engine& eng, dnnl::stream& stream) {
+  const int num_outputs = C * H * W;
+
+  auto t_in_md =
+      dnnl::memory::desc({N, input_->GetC(), input_->GetH(), input_->GetW()},
+                         data_type_, dnnl::memory::format_tag::any);
+
+  auto t_filter_md = dnnl::memory::desc(
+      {num_outputs, input_->GetC(), input_->GetH(), input_->GetW()}, data_type_,
+      dnnl::memory::format_tag::any);
+
+  auto t_out_md = dnnl::memory::desc({N, C, H, W}, data_type_,
+                                     dnnl::memory::format_tag::any);
+
+  auto fc_d = dnnl::inner_product_forward::desc(
+      dnnl::prop_kind::forward_inference, t_in_md, t_filter_md,
+      bias_mem.get_desc(), t_out_md.reshape({N, num_outputs}));
+  dnnl::post_ops fc_ops;
+  if (use_relu_) {
+    fc_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
+  }
+  if (use_tanh_) {
+    fc_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_tanh, 0.0f, 0.0f);
+  }
+  dnnl::primitive_attr fc_attr;
+  fc_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+  fc_attr.set_post_ops(fc_ops);
+  auto fc_pd = dnnl::inner_product_forward::primitive_desc(fc_d, fc_attr, eng);
+  scratchpad_mem = dnnl::memory(fc_pd.scratchpad_desc(), eng);
+  fc_ = dnnl::inner_product_forward(fc_pd);
+
+  in_md = fc_pd.src_desc();
+  out_md = fc_pd.dst_desc().reshape({N, C, H, W});
+  if (fc_pd.weights_desc() != filter_mem.get_desc()) {
+    auto tmp = dnnl::memory(fc_pd.weights_desc(), eng);
+    dnnl::reorder(filter_mem, tmp).execute(stream, filter_mem, tmp);
+    filter_mem = tmp;
+  }
+
+  auto in_reorder_pd =
+      dnnl::reorder::primitive_desc(eng, input.get_desc(), eng, in_md);
+  in_reorder_ = dnnl::reorder(in_reorder_pd);
+
+  last_batch_ = N;
+
+  if (!output || out_md != output.get_desc()) {
+    output = dnnl::memory(out_md, eng);
+  }
+}
+
 void FCLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
                    dnnl::engine& eng, dnnl::stream& stream) {
   if (last_batch_ != N) {
-    const int num_outputs = C * H * W;
-
-    auto t_in_md =
-        dnnl::memory::desc({N, input_->GetC(), input_->GetH(), input_->GetW()},
-                           data_type_, dnnl::memory::format_tag::any);
-
-    auto t_filter_md = dnnl::memory::desc(
-        {num_outputs, input_->GetC(), input_->GetH(), input_->GetW()},
-        data_type_, dnnl::memory::format_tag::any);
-
-    auto t_out_md = dnnl::memory::desc({N, C, H, W}, data_type_,
-                                       dnnl::memory::format_tag::any);
-
-    auto fc_d = dnnl::inner_product_forward::desc(
-        dnnl::prop_kind::forward_inference, t_in_md, t_filter_md,
-        bias_mem.get_desc(), t_out_md.reshape({N, num_outputs}));
-    dnnl::post_ops fc_ops;
-    if (use_relu_) {
-      fc_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
-    }
-    if (use_tanh_) {
-      fc_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_tanh, 0.0f, 0.0f);
-    }
-    dnnl::primitive_attr fc_attr;
-    fc_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-    fc_attr.set_post_ops(fc_ops);
-    auto fc_pd =
-        dnnl::inner_product_forward::primitive_desc(fc_d, fc_attr, eng);
-    scratchpad_mem = dnnl::memory(fc_pd.scratchpad_desc(), eng);
-    fc_ = dnnl::inner_product_forward(fc_pd);
-
-    in_md = fc_pd.src_desc();
-    out_md = fc_pd.dst_desc().reshape({N, C, H, W});
-    if (fc_pd.weights_desc() != filter_mem.get_desc()) {
-      auto tmp = dnnl::memory(fc_pd.weights_desc(), eng);
-      dnnl::reorder(filter_mem, tmp).execute(stream, filter_mem, tmp);
-      filter_mem = tmp;
-    }
-
-    auto in_reorder_pd =
-        dnnl::reorder::primitive_desc(eng, input.get_desc(), eng, in_md);
-    in_reorder_ = dnnl::reorder(in_reorder_pd);
-
-    last_batch_ = N;
+    Init(N, output, input, eng, stream);
   }
 
   if (in_md != input.get_desc()) {
