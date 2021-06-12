@@ -1,6 +1,12 @@
 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\build\lc0.exe
-appveyor DownloadFile "https://ci.appveyor.com/api/projects/LeelaChessZero/lczero-client/artifacts/lc0-training-client.exe?branch=release&pr=false&job=Environment%%3A%%20NAME%%3D.exe%%2C%%20GOOS%%3Dwindows"
-7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip lc0-training-client.exe
+git clone https://github.com/LeelaChessZero/lczero-client.git --branch release --single-branch
+cd lczero-client
+set GOPATH=c:\gopath;%APPVEYOR_BUILD_FOLDER%\lczero-client
+go get -u github.com/Tilps/chess
+go get -u github.com/nightlyone/lockfile
+go build -o lc0-training-client.exe lc0_main.go
+cd ..
+7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip %APPVEYOR_BUILD_FOLDER%\lczero-client\lc0-training-client.exe
 type COPYING |more /P > dist\COPYING
 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\COPYING
 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip c:\cache\%NET%.pb.gz
