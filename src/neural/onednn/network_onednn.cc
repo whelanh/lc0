@@ -25,6 +25,7 @@
   Program grant you additional permission to convey the resulting work.
 */
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -47,7 +48,7 @@ using namespace onednn_backend;
 static constexpr int kNumOutputPolicy = 1858;
 
 struct InputsOutputs {
-  InputsOutputs(int maxBatchSize, bool wdl, bool moves_left) {
+  InputsOutputs(int maxBatchSize, bool wdl, bool moves_left, int steps) {
     input_masks_mem_ =
         (uint64_t*)malloc(maxBatchSize * kInputPlanes * sizeof(uint64_t));
 
@@ -64,6 +65,19 @@ struct InputsOutputs {
       op_moves_left_mem_ = (float*)malloc(maxBatchSize * sizeof(float));
     } else
       op_moves_left_mem_ = nullptr;
+
+    input_mem.resize(steps);
+
+    opPol_mem.resize(steps);
+    opVal_mem.resize(steps);
+    opMov_mem.resize(steps);
+
+    tensor_mem.resize(steps);
+    policy_mem.resize(steps);
+    val_tmp1_mem.resize(steps);
+    val_tmp2_mem.resize(steps);
+    mov_tmp1_mem.resize(steps);
+    mov_tmp2_mem.resize(steps);
   }
   ~InputsOutputs() {
     free(input_masks_mem_);
@@ -81,20 +95,20 @@ struct InputsOutputs {
   float* op_moves_left_mem_;
 
   // Input memory
-  dnnl::memory input_mem;
+  std::vector<dnnl::memory> input_mem;
 
   // Output memory.
-  dnnl::memory opPol_mem;
-  dnnl::memory opVal_mem;
-  dnnl::memory opMov_mem;
+  std::vector<dnnl::memory> opPol_mem;
+  std::vector<dnnl::memory> opVal_mem;
+  std::vector<dnnl::memory> opMov_mem;
 
   // Intermediate tensors.
-  dnnl::memory tensor_mem[3];
-  dnnl::memory policy_mem;
-  dnnl::memory val_tmp1_mem;
-  dnnl::memory val_tmp2_mem;
-  dnnl::memory mov_tmp1_mem;
-  dnnl::memory mov_tmp2_mem;
+  std::vector<std::array<dnnl::memory, 3>> tensor_mem;
+  std::vector<dnnl::memory> policy_mem;
+  std::vector<dnnl::memory> val_tmp1_mem;
+  std::vector<dnnl::memory> val_tmp2_mem;
+  std::vector<dnnl::memory> mov_tmp1_mem;
+  std::vector<dnnl::memory> mov_tmp2_mem;
 };
 
 class OnednnNetwork;
@@ -478,7 +492,7 @@ class OnednnNetwork : public Network {
       // Initialize layers if batch size fixed.
       if (options.GetOrDefault<bool>("init", true) && batch_size_ > 0) {
         int batchSize = (idx + 1) * batch_size_;
-        InputsOutputs io(batchSize, wdl_, moves_left_);
+        InputsOutputs io(batchSize, wdl_, moves_left_, steps_);
         memset(io.input_masks_mem_, 0,
                batchSize * kInputPlanes * sizeof(uint64_t));
         memset(io.input_val_mem_, 0, batchSize * kInputPlanes * sizeof(float));
@@ -491,19 +505,6 @@ class OnednnNetwork : public Network {
     // Expand packed planes to full planes.
     uint64_t* ipDataMasks = io->input_masks_mem_;
     float* ipDataValues = io->input_val_mem_;
-
-    // Output memory.
-    dnnl::memory& opPol_mem = io->opPol_mem;
-    dnnl::memory& opVal_mem = io->opVal_mem;
-    dnnl::memory& opMov_mem = io->opMov_mem;
-
-    // Intermediate tensors.
-    dnnl::memory(&tensor_mem)[3] = io->tensor_mem;
-    dnnl::memory& policy_mem = io->policy_mem;
-    dnnl::memory& val_tmp1_mem = io->val_tmp1_mem;
-    dnnl::memory& val_tmp2_mem = io->val_tmp2_mem;
-    dnnl::memory& mov_tmp1_mem = io->mov_tmp1_mem;
-    dnnl::memory& mov_tmp2_mem = io->mov_tmp2_mem;
 
     int batchSize = steps_ * batch_size_;
     if (batchSize <= 0) {
@@ -541,7 +542,7 @@ class OnednnNetwork : public Network {
 
       // Move input to the gpu.
       if (eng_.get_kind() != dnnl::engine::kind::cpu) {
-        dnnl::memory& tmp = io->input_mem;
+        dnnl::memory& tmp = io->input_mem[idx];
         if (!tmp || tmp.get_desc() != input_desc) {
           tmp = dnnl::memory(input_desc, eng_);
         }
@@ -567,6 +568,19 @@ class OnednnNetwork : public Network {
       auto opMov_desc =
           dnnl::memory::desc({batchSize, 1, 1, 1}, dnnl::memory::data_type::f32,
                              dnnl::memory::format_tag::nchw);
+
+      // Output memory.
+      dnnl::memory& opPol_mem = io->opPol_mem[idx];
+      dnnl::memory& opVal_mem = io->opVal_mem[idx];
+      dnnl::memory& opMov_mem = io->opMov_mem[idx];
+
+      // Intermediate tensors.
+      std::array<dnnl::memory, 3>& tensor_mem = io->tensor_mem[idx];
+      dnnl::memory& policy_mem = io->policy_mem[idx];
+      dnnl::memory& val_tmp1_mem = io->val_tmp1_mem[idx];
+      dnnl::memory& val_tmp2_mem = io->val_tmp2_mem[idx];
+      dnnl::memory& mov_tmp1_mem = io->mov_tmp1_mem[idx];
+      dnnl::memory& mov_tmp2_mem = io->mov_tmp2_mem[idx];
 
       int l = 0;
 
@@ -723,8 +737,8 @@ class OnednnNetwork : public Network {
   std::unique_ptr<InputsOutputs> GetInputsOutputs() {
     std::lock_guard<std::mutex> lock(inputs_outputs_lock_);
     if (free_inputs_outputs_.empty()) {
-      return std::make_unique<InputsOutputs>(max_batch_size_, wdl_,
-                                             moves_left_);
+      return std::make_unique<InputsOutputs>(max_batch_size_, wdl_, moves_left_,
+                                             steps_);
     } else {
       std::unique_ptr<InputsOutputs> resource =
           std::move(free_inputs_outputs_.front());
