@@ -40,6 +40,7 @@
 #include "utils/bititer.h"
 #include "utils/exception.h"
 
+#include <immintrin.h>
 #include <omp.h>
 
 namespace lczero {
@@ -48,16 +49,23 @@ using namespace onednn_backend;
 static constexpr int kNumOutputPolicy = 1858;
 
 struct InputsOutputs {
-  InputsOutputs(int maxBatchSize, bool wdl, bool moves_left, int steps) {
+  InputsOutputs(int maxBatchSize, bool wdl, bool moves_left, int steps,
+                bool f16) {
     input_masks_mem_ =
         (uint64_t*)malloc(maxBatchSize * kInputPlanes * sizeof(uint64_t));
 
     input_val_mem_ =
         (float*)malloc(maxBatchSize * kInputPlanes * sizeof(float));
 
-    op_policy_mem_ =
-        (float*)malloc(maxBatchSize * kNumOutputPolicy * sizeof(float));
-
+    if (f16) {
+      op_policy_mem_s_ =
+          (short*)malloc(maxBatchSize * kNumOutputPolicy * sizeof(short));
+      op_policy_mem_f_ = nullptr;
+    } else {
+      op_policy_mem_f_ =
+          (float*)malloc(maxBatchSize * kNumOutputPolicy * sizeof(float));
+      op_policy_mem_s_ = nullptr;
+    }
     op_value_mem_ =
         (float*)malloc(maxBatchSize * (wdl ? 3 : 1) * sizeof(float));
 
@@ -82,15 +90,15 @@ struct InputsOutputs {
   ~InputsOutputs() {
     free(input_masks_mem_);
     free(input_val_mem_);
-    free(op_policy_mem_);
+    free(op_policy_mem_s_);
+    free(op_policy_mem_f_);
     free(op_value_mem_);
-    if (op_moves_left_mem_) {
-      free(op_moves_left_mem_);
-    }
+    free(op_moves_left_mem_);
   }
   uint64_t* input_masks_mem_;
   float* input_val_mem_;
-  float* op_policy_mem_;
+  short* op_policy_mem_s_;
+  float* op_policy_mem_f_;
   float* op_value_mem_;
   float* op_moves_left_mem_;
 
@@ -115,7 +123,8 @@ class OnednnNetwork;
 
 class OnednnNetworkComputation : public NetworkComputation {
  public:
-  OnednnNetworkComputation(OnednnNetwork* network, bool wdl, bool moves_left);
+  OnednnNetworkComputation(OnednnNetwork* network, bool wdl, bool moves_left,
+                           bool f16);
   ~OnednnNetworkComputation();
 
   void AddInput(InputPlanes&& input) override {
@@ -158,7 +167,15 @@ class OnednnNetworkComputation : public NetworkComputation {
   }
 
   float GetPVal(int sample, int move_id) const override {
-    return inputs_outputs_->op_policy_mem_[sample * kNumOutputPolicy + move_id];
+    if (f16_) {
+      auto t = _mm_cvtsi32_si128(
+          inputs_outputs_
+              ->op_policy_mem_s_[sample * kNumOutputPolicy + move_id]);
+      return _mm_cvtss_f32(_mm_cvtph_ps(t));
+    } else {
+      return inputs_outputs_
+          ->op_policy_mem_f_[sample * kNumOutputPolicy + move_id];
+    }
   }
 
   float GetMVal(int sample) const override {
@@ -174,6 +191,7 @@ class OnednnNetworkComputation : public NetworkComputation {
   int batch_size_;
   bool wdl_;
   bool moves_left_;
+  bool f16_;
 
   OnednnNetwork* network_;
 };
@@ -206,13 +224,13 @@ class OnednnNetwork : public Network {
     }
     eng_stream_ = dnnl::stream(eng_);
 
-    auto data_type = dnnl::memory::data_type::f32;
+    data_type_ = dnnl::memory::data_type::f32;
     if (options.GetOrDefault<bool>(
             "fp16", eng_.get_kind() == dnnl::engine::kind::gpu)) {
       if (eng_.get_kind() == dnnl::engine::kind::cpu) {
-        data_type = dnnl::memory::data_type::bf16;
+        data_type_ = dnnl::memory::data_type::bf16;
       } else {
-        data_type = dnnl::memory::data_type::f16;
+        data_type_ = dnnl::memory::data_type::f16;
       }
     }
 
@@ -232,7 +250,7 @@ class OnednnNetwork : public Network {
     max_batch_size_ = options.GetOrDefault<int>("max_batch", 1024);
 
     batch_size_ = options.GetOrDefault<int>(
-        "batch", data_type == dnnl::memory::data_type::f32 ? 32 : 64);
+        "batch", data_type_ == dnnl::memory::data_type::f32 ? 32 : 64);
 
     steps_ = options.GetOrDefault<int>("steps", 2);
     if (batch_size_ <= 0) {
@@ -262,7 +280,7 @@ class OnednnNetwork : public Network {
         auto inputConv = std::make_unique<ConvLayer>(nullptr, numFilters_, 8, 8,
                                                      3, kInputPlanes, true);
         // Set the data type first, the following layers will pick it up.
-        inputConv->SetDataType(data_type);
+        inputConv->SetDataType(data_type_);
         inputConv->SetConvolutionType(convolution_type);
         auto w_md = dnnl::memory::desc({numFilters_, kInputPlanes, 3, 3},
                                        dnnl::memory::data_type::f32,
@@ -492,7 +510,8 @@ class OnednnNetwork : public Network {
       // Initialize layers if batch size fixed.
       if (options.GetOrDefault<bool>("init", true) && batch_size_ > 0) {
         int batchSize = (idx + 1) * batch_size_;
-        InputsOutputs io(batchSize, wdl_, moves_left_, steps_);
+        InputsOutputs io(batchSize, wdl_, moves_left_, steps_,
+                         data_type_ == dnnl::memory::data_type::f16);
         memset(io.input_masks_mem_, 0,
                batchSize * kInputPlanes * sizeof(uint64_t));
         memset(io.input_val_mem_, 0, batchSize * kInputPlanes * sizeof(float));
@@ -524,22 +543,39 @@ class OnednnNetwork : public Network {
         batchSize = (idx + 1) * batch_size_;
       }
 
-      auto input_desc = dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
-                                           dnnl::memory::data_type::f32,
-                                           dnnl::memory::format_tag::nchw);
+      auto input_desc =
+          dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
+                             data_type_ == dnnl::memory::data_type::f16
+                                 ? dnnl::memory::data_type::f16
+                                 : dnnl::memory::data_type::f32,
+                             dnnl::memory::format_tag::nchw);
       dnnl::memory input_mem = dnnl::memory(input_desc, cpu_eng_);
 
-      float* buffer = (float*)input_mem.get_data_handle();
-      for (int j = 0; j < currentBatchSize * kInputPlanes; j++) {
-        const float value = ipDataValues[j + start * kInputPlanes];
-        const uint64_t mask = ipDataMasks[j + start * kInputPlanes];
-        for (auto i = 0; i < 64; i++)
-          *(buffer++) = (mask & (((uint64_t)1) << i)) != 0 ? value : 0;
+      if (data_type_ == dnnl::memory::data_type::f16) {
+        short* buffer = (short*)input_mem.get_data_handle();
+        for (int j = 0; j < currentBatchSize * kInputPlanes; j++) {
+          auto t = _mm_cvtps_ph(
+              _mm_set_ss(ipDataValues[j + start * kInputPlanes]), 0);
+          const short value = _mm_extract_epi16(t, 0);
+          const uint64_t mask = ipDataMasks[j + start * kInputPlanes];
+          for (auto i = 0; i < 64; i++)
+            *(buffer++) = (mask & (((uint64_t)1) << i)) != 0 ? value : 0;
+        }
+        // Clear remaining buffer (if any).
+        memset(buffer, 0, (batchSize - currentBatchSize) * kInputPlanes * 64 *
+                              sizeof(short));
+      } else {
+        float* buffer = (float*)input_mem.get_data_handle();
+        for (int j = 0; j < currentBatchSize * kInputPlanes; j++) {
+          const float value = ipDataValues[j + start * kInputPlanes];
+          const uint64_t mask = ipDataMasks[j + start * kInputPlanes];
+          for (auto i = 0; i < 64; i++)
+            *(buffer++) = (mask & (((uint64_t)1) << i)) != 0 ? value : 0;
+        }
+        // Clear remaining buffer (if any).
+        memset(buffer, 0, (batchSize - currentBatchSize) * kInputPlanes * 64 *
+                              sizeof(float));
       }
-      // Clear remaining buffer (if any).
-      memset(buffer, 0, (batchSize - currentBatchSize) * kInputPlanes * 64 *
-                            sizeof(float));
-
       // Move input to the gpu.
       if (eng_.get_kind() != dnnl::engine::kind::cpu) {
         dnnl::memory& tmp = io->input_mem[idx];
@@ -554,13 +590,19 @@ class OnednnNetwork : public Network {
       // Output descriptors.
       dnnl::memory::desc opPol_desc;
       if (conv_policy_) {
-        opPol_desc = dnnl::memory::desc({batchSize, pol_channels_, 8, 8},
-                                        dnnl::memory::data_type::f32,
-                                        dnnl::memory::format_tag::nchw);
+        opPol_desc =
+            dnnl::memory::desc({batchSize, pol_channels_, 8, 8},
+                               data_type_ == dnnl::memory::data_type::f16
+                                   ? dnnl::memory::data_type::f16
+                                   : dnnl::memory::data_type::f32,
+                               dnnl::memory::format_tag::nchw);
       } else {
-        opPol_desc = dnnl::memory::desc({batchSize, kNumOutputPolicy, 1, 1},
-                                        dnnl::memory::data_type::f32,
-                                        dnnl::memory::format_tag::nchw);
+        opPol_desc =
+            dnnl::memory::desc({batchSize, kNumOutputPolicy, 1, 1},
+                               data_type_ == dnnl::memory::data_type::f16
+                                   ? dnnl::memory::data_type::f16
+                                   : dnnl::memory::data_type::f32,
+                               dnnl::memory::format_tag::nchw);
       }
       auto opVal_desc = dnnl::memory::desc({batchSize, wdl_ ? 3 : 1, 1, 1},
                                            dnnl::memory::data_type::f32,
@@ -680,6 +722,7 @@ class OnednnNetwork : public Network {
       } else if (moves_left_) {
         opMov_mem_cpu = opMov_mem;
       }
+      eng_stream_.wait();
 
       // Copy memory to output buffers and do final transformations.
       if (wdl_) {
@@ -702,21 +745,40 @@ class OnednnNetwork : public Network {
                currentBatchSize * sizeof(float));
       }
 
-      if (conv_policy_) {
-        float* opPol = (float*)opPol_mem_cpu.get_data_handle();
-        for (int batch = 0; batch < currentBatchSize; batch++) {
-          for (int i = 0; i < 73 * 8 * 8; i++) {
-            auto j = kConvPolicyMap[i];
-            if (j >= 0) {
-              io->op_policy_mem_[(batch + start) * kNumOutputPolicy + j] =
-                  opPol[batch * pol_channels_ * 64 + i];
+      if (data_type_ == dnnl::memory::data_type::f16) {
+        if (conv_policy_) {
+          short* opPol = (short*)opPol_mem_cpu.get_data_handle();
+          for (int batch = 0; batch < currentBatchSize; batch++) {
+            for (int i = 0; i < 73 * 8 * 8; i++) {
+              auto j = kConvPolicyMap[i];
+              if (j >= 0) {
+                io->op_policy_mem_s_[(batch + start) * kNumOutputPolicy + j] =
+                    opPol[batch * pol_channels_ * 64 + i];
+              }
             }
           }
+        } else {
+          memcpy(io->op_policy_mem_s_ + start * kNumOutputPolicy,
+                 opPol_mem_cpu.get_data_handle(),
+                 currentBatchSize * kNumOutputPolicy * sizeof(short));
         }
       } else {
-        memcpy(io->op_policy_mem_ + start * kNumOutputPolicy,
-               opPol_mem_cpu.get_data_handle(),
-               currentBatchSize * kNumOutputPolicy * sizeof(float));
+        if (conv_policy_) {
+          float* opPol = (float*)opPol_mem_cpu.get_data_handle();
+          for (int batch = 0; batch < currentBatchSize; batch++) {
+            for (int i = 0; i < 73 * 8 * 8; i++) {
+              auto j = kConvPolicyMap[i];
+              if (j >= 0) {
+                io->op_policy_mem_f_[(batch + start) * kNumOutputPolicy + j] =
+                    opPol[batch * pol_channels_ * 64 + i];
+              }
+            }
+          }
+        } else {
+          memcpy(io->op_policy_mem_f_ + start * kNumOutputPolicy,
+                 opPol_mem_cpu.get_data_handle(),
+                 currentBatchSize * kNumOutputPolicy * sizeof(float));
+        }
       }
 
       if (moves_left_) {
@@ -731,14 +793,16 @@ class OnednnNetwork : public Network {
   }
 
   std::unique_ptr<NetworkComputation> NewComputation() override {
-    return std::make_unique<OnednnNetworkComputation>(this, wdl_, moves_left_);
+    return std::make_unique<OnednnNetworkComputation>(
+        this, wdl_, moves_left_, data_type_ == dnnl::memory::data_type::f16);
   }
 
   std::unique_ptr<InputsOutputs> GetInputsOutputs() {
     std::lock_guard<std::mutex> lock(inputs_outputs_lock_);
     if (free_inputs_outputs_.empty()) {
-      return std::make_unique<InputsOutputs>(max_batch_size_, wdl_, moves_left_,
-                                             steps_);
+      return std::make_unique<InputsOutputs>(
+          max_batch_size_, wdl_, moves_left_, steps_,
+          data_type_ == dnnl::memory::data_type::f16);
     } else {
       std::unique_ptr<InputsOutputs> resource =
           std::move(free_inputs_outputs_.front());
@@ -762,6 +826,7 @@ class OnednnNetwork : public Network {
   int steps_;
   bool wdl_;
   bool moves_left_;
+  dnnl::memory::data_type data_type_;
 
   std::mutex lock_;
 
@@ -783,8 +848,9 @@ class OnednnNetwork : public Network {
 };
 
 OnednnNetworkComputation::OnednnNetworkComputation(OnednnNetwork* network,
-                                                   bool wdl, bool moves_left)
-    : wdl_(wdl), moves_left_(moves_left), network_(network) {
+                                                   bool wdl, bool moves_left,
+                                                   bool f16)
+    : wdl_(wdl), moves_left_(moves_left), f16_(f16), network_(network) {
   batch_size_ = 0;
   inputs_outputs_ = network_->GetInputsOutputs();
 }
