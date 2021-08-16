@@ -100,8 +100,7 @@ class BlendNetwork : public Network {
     if (parents.size() == 0) {
       backendName1 = options.GetOrDefault<std::string>("backend", backendName1);
       networkName1 = options.GetOrDefault<std::string>("weights", networkName1);
-    }
-    if (parents.size() > 0) {
+    } else {
       backend1_dict = options.GetSubdict(parents[0]);
       backendName1 =
           backend1_dict.GetOrDefault<std::string>("backend", backendName1);
@@ -119,22 +118,22 @@ class BlendNetwork : public Network {
       CERR << "Warning, cannot blend more than two backends";
     }
 
-    CERR << "Policy net set to " << networkName1 << ".";
     if (networkName1 == "<default>") {
       policy_net_ =
           NetworkFactory::Get()->Create(backendName1, weights, backend1_dict);
     } else {
+      CERR << "Policy net set to " << networkName1 << ".";
       std::optional<WeightsFile> weights1;
       weights1 = LoadWeightsFromFile(networkName1);
       policy_net_ =
           NetworkFactory::Get()->Create(backendName1, weights1, backend1_dict);
     }
 
-    CERR << "Working net set to " << networkName2 << ".";
     if (networkName2 == "<default>") {
       work_net_ =
           NetworkFactory::Get()->Create(backendName2, weights, backend2_dict);
     } else {
+      CERR << "Working net set to " << networkName2 << ".";
       std::optional<WeightsFile> weights2;
       weights2 = LoadWeightsFromFile(networkName2);
       work_net_ =
