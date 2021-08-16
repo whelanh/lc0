@@ -166,6 +166,7 @@ files += [
   'src/neural/encoder.cc',
   'src/neural/factory.cc',
   'src/neural/loader.cc',
+  'src/neural/network_blend.cc',
   'src/neural/network_check.cc',
   'src/neural/network_demux.cc',
   'src/neural/network_legacy.cc',
