@@ -32,6 +32,7 @@
 #include "factory.h"
 #include "mcts/stoppers/alphazero.h"
 #include "mcts/stoppers/legacy.h"
+#include "mcts/stoppers/random.h"
 #include "mcts/stoppers/smooth.h"
 #include "mcts/stoppers/stoppers.h"
 #include "utils/exception.h"
@@ -47,7 +48,7 @@ const OptionId kMoveOverheadId{
 const OptionId kTimeManagerId{
     "time-manager", "TimeManager",
     "Name and config of a time manager. "
-    "Possible names are 'legacy', 'smooth' (default) and 'alphazero'."
+    "Possible names are 'legacy', 'random' (default), 'smooth' and 'alphazero'."
     "See https://lc0.org/timemgr for configuration details."};
 }  // namespace
 
@@ -55,7 +56,7 @@ void PopulateTimeManagementOptions(RunType for_what, OptionsParser* options) {
   PopulateCommonStopperOptions(for_what, options);
   if (for_what == RunType::kUci) {
     options->Add<IntOption>(kMoveOverheadId, 0, 100000000) = 200;
-    options->Add<StringOption>(kTimeManagerId) = "smooth";
+    options->Add<StringOption>(kTimeManagerId) = "random";
   }
 }
 
@@ -79,6 +80,9 @@ std::unique_ptr<TimeManager> MakeTimeManager(const OptionsDict& options) {
   } else if (managers[0] == "alphazero") {
     time_manager = MakeAlphazeroTimeManager(move_overhead,
                                             tm_options.GetSubdict("alphazero"));
+  } else if (managers[0] == "random") {
+    time_manager = MakeRandomTimeManager(move_overhead,
+                                         tm_options.GetSubdict("random"));
   } else if (managers[0] == "smooth") {
     time_manager =
         MakeSmoothTimeManager(move_overhead, tm_options.GetSubdict("smooth"));
