@@ -247,7 +247,7 @@ class CheckNetwork : public Network {
     check_frequency_ = kDefaultCheckFrequency;
 
     OptionsDict dict1;
-    std::string backendName1 = "opencl";
+    std::string backendName1 = NetworkFactory::Get()->GetBackendsList()[0];
     OptionsDict& backend1_dict = dict1;
 
     OptionsDict dict2;
