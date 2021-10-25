@@ -160,13 +160,15 @@ Search::Search(const NodeTree& tree, Network* network,
       played_history_(tree.GetPositionHistory()),
       network_(network),
       params_(options),
-      searchmoves_(searchmoves),
       start_time_(start_time),
       initial_visits_(root_node_->GetN()),
       root_move_filter_(MakeRootMoveFilter(
-          searchmoves_, syzygy_tb_, played_history_,
+          searchmoves, syzygy_tb_, played_history_,
           params_.GetSyzygyFastPlay(), &tb_hits_, &root_is_in_dtz_)),
       uci_responder_(std::move(uci_responder)) {
+  if (!root_move_filter_.empty()) {
+    root_node_->ResetEdges();
+  }
   if (params_.GetMaxConcurrentSearchers() != 0) {
     pending_searchers_.store(params_.GetMaxConcurrentSearchers(),
                              std::memory_order_release);
@@ -2164,7 +2166,8 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     ApplyDirichletNoise(node, params_.GetNoiseEpsilon(),
                         params_.GetNoiseAlpha());
   }
-  node->SortEdges(params_.GetPolicyTrim());
+  node->SortEdges();
+  node->TrimEdges(params_.GetPolicyTrim());
 }
 
 // 6. Propagate the new nodes' information to all their parents in the tree.

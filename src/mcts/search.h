@@ -170,7 +170,6 @@ class Search {
 
   Network* const network_;
   const SearchParams params_;
-  const MoveList searchmoves_;
   const std::chrono::steady_clock::time_point start_time_;
   int64_t initial_visits_;
   // root_is_in_dtz_ must be initialized before root_move_filter_.

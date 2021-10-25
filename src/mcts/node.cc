@@ -200,6 +200,7 @@ Node* Node::CreateSingleChildNode(Move move) {
   assert(!child_);
   edges_ = Edge::FromMovelist({move});
   num_edges_ = 1;
+  real_num_edges_ = 1;
   child_ = std::make_unique<Node>(this, 0);
   return child_.get();
 }
@@ -209,6 +210,7 @@ void Node::CreateEdges(const MoveList& moves) {
   assert(!child_);
   edges_ = Edge::FromMovelist(moves);
   num_edges_ = moves.size();
+  real_num_edges_ = num_edges_;
 }
 
 Node::ConstIterator Node::Edges() const {
@@ -246,7 +248,7 @@ std::string Node::DebugString() const {
 }
 
 bool Node::MakeSolid() {
-  if (solid_children_ || num_edges_ == 0 || IsTerminal()) return false;
+  if (solid_children_ || real_num_edges_ == 0 || IsTerminal()) return false;
   // Can only make solid if no immediate leaf childredn are in flight since we
   // allow the search code to hold references to leaf nodes across locks.
   Node* old_child_to_check = child_.get();
@@ -270,8 +272,8 @@ bool Node::MakeSolid() {
     return false;
   }
   std::allocator<Node> alloc;
-  auto* new_children = alloc.allocate(num_edges_);
-  for (int i = 0; i < num_edges_; i++) {
+  auto* new_children = alloc.allocate(real_num_edges_);
+  for (int i = 0; i < real_num_edges_; i++) {
     new (&(new_children[i])) Node(this, i);
   }
   std::unique_ptr<Node> old_child = std::move(child_);
@@ -290,14 +292,13 @@ bool Node::MakeSolid() {
   return true;
 }
 
-void Node::SortEdges(uint8_t policy_trim) {
+void Node::SortEdges() {
   assert(edges_);
   assert(!child_);
   // Sorting on raw p_ is the same as sorting on GetP() as a side effect of
   // the encoding, and its noticeably faster.
   std::sort(edges_.get(), (edges_.get() + num_edges_),
             [](const Edge& a, const Edge& b) { return a.p_ > b.p_; });
-  num_edges_ = std::min(num_edges_, policy_trim);
 }
 
 void Node::MakeTerminal(GameResult result, float plies_left, Terminal type) {
@@ -405,14 +406,15 @@ void Node::UpdateChildrenParents() {
     }
   } else {
     Node* child_array = child_.get();
-    for (int i = 0; i < num_edges_; i++) {
+    for (int i = 0; i < real_num_edges_; i++) {
       child_array[i].parent_ = this;
     }
   }
 }
 
 void Node::ReleaseChildren() {
-  gNodeGc.AddToGcQueue(std::move(child_), solid_children_ ? num_edges_ : 0);
+  gNodeGc.AddToGcQueue(std::move(child_),
+                       solid_children_ ? real_num_edges_ : 0);
 }
 
 void Node::ReleaseChildrenExceptOne(Node* node_to_save) {
@@ -422,7 +424,7 @@ void Node::ReleaseChildrenExceptOne(Node* node_to_save) {
       saved_node = std::make_unique<Node>(this, node_to_save->index_);
       *saved_node = std::move(*node_to_save);
     }
-    gNodeGc.AddToGcQueue(std::move(child_), num_edges_);
+    gNodeGc.AddToGcQueue(std::move(child_), real_num_edges_);
     child_ = std::move(saved_node);
     if (child_) {
       child_->UpdateChildrenParents();
@@ -449,6 +451,7 @@ void Node::ReleaseChildrenExceptOne(Node* node_to_save) {
   }
   if (!child_) {
     num_edges_ = 0;
+    real_num_edges_ = 0;
     edges_.reset();  // Clear edges list.
   }
 }

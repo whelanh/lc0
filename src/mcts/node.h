@@ -253,7 +253,13 @@ class Node {
   // already done. Returns true if the transformation was performed.
   bool MakeSolid();
 
-  void SortEdges(uint8_t policy_trim);
+  void SortEdges();
+
+  void TrimEdges(uint8_t policy_trim) {
+    num_edges_ = std::min(real_num_edges_, policy_trim);
+  };
+
+  void ResetEdges() { num_edges_ = real_num_edges_; }
 
   // Index in parent edges - useful for correlated ordering.
   uint16_t Index() const { return index_; }
@@ -262,11 +268,11 @@ class Node {
     if (solid_children_ && child_) {
       // As a hack, solid_children is actually storing an array in here, release
       // so we can correctly invoke the array delete.
-      for (int i = 0; i < num_edges_; i++) {
+      for (int i = 0; i < real_num_edges_; i++) {
         child_.get()[i].~Node();
       }
       std::allocator<Node> alloc;
-      alloc.deallocate(child_.release(), num_edges_);
+      alloc.deallocate(child_.release(), real_num_edges_);
     }
   }
 
@@ -318,13 +324,15 @@ class Node {
   // to pick in MCTS, and also when selecting the best move.
   uint32_t n_in_flight_ = 0;
 
-  // 2 byte fields.
-  // Index of this node is parent's edge list.
-  uint16_t index_;
-
   // 1 byte fields.
-  // Number of edges in @edges_.
+  // Index of this node is parent's edge list.
+  uint8_t index_;
+
+  // Number of edges in @edges_ to consider.
   uint8_t num_edges_ = 0;
+
+  // Actual number of edges in @edges_.
+  uint8_t real_num_edges_ = 0;
 
   // Bit fields using parts of uint8_t fields initialized in the constructor.
   // Whether or not this node end game (with a winning of either sides or draw).
