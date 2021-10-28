@@ -164,7 +164,7 @@ Ort::SessionOptions GetOptions(OnnxProvider provider) {
   options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
   switch (provider) {
     case OnnxProvider::CUDA:
-      options.AppendExecutionProvider_CUDA({});
+      options.AppendExecutionProvider_TensorRT({});
       break;
     case OnnxProvider::CPU:
       // Doesn't really work. :-( There are two execution providers (CUDA and
@@ -233,7 +233,7 @@ std::unique_ptr<Network> MakeOnnxNetwork(const std::optional<WeightsFile>& w,
   }
 }
 
-REGISTER_NETWORK("onnx-cuda", MakeOnnxNetwork<OnnxProvider::CUDA>, 61)
+REGISTER_NETWORK("onnx-trt", MakeOnnxNetwork<OnnxProvider::CUDA>, 61)
 REGISTER_NETWORK("onnx-cpu", MakeOnnxNetwork<OnnxProvider::CPU>, 62)
 
 }  // namespace
