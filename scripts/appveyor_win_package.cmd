@@ -33,6 +33,6 @@ IF %DX%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\check_
 IF %CUDA%==true copy "%CUDA_PATH%\EULA.txt" dist\CUDA.txt
 IF %CUDA%==true type dist\README-cuda.txt |more /P > dist\README.txt
 IF %CUDA%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\README.txt .\dist\CUDA.txt
-IF %CUDNN%==true copy "%CUDA_PATH%\cuda\NVIDIA_SLA_cuDNN_Support.txt" dist\CUDNN.txt
+IF %CUDNN%==true copy "\cache\cuda\NVIDIA_SLA_cuDNN_Support.txt" dist\CUDNN.txt
 IF %CUDNN%==true 7z a lc0-%APPVEYOR_REPO_TAG_NAME%-windows-%NAME%.zip .\dist\CUDNN.txt
 IF EXIST lc0-%APPVEYOR_REPO_TAG_NAME%-windows-gpu-dx12.zip ren lc0-%APPVEYOR_REPO_TAG_NAME%-windows-gpu-dx12.zip lc0-%APPVEYOR_REPO_TAG_NAME%-windows10-gpu-dx12.zip
