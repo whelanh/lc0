@@ -1616,7 +1616,6 @@ void SearchWorker::PickNodesToExtendTask(Node* node, int base_depth,
         int best_idx = -1;
         float best_without_u = std::numeric_limits<float>::lowest();
         float second_best = std::numeric_limits<float>::lowest();
-        bool can_exit = false;
         best_edge.Reset();
         for (int idx = 0; idx < max_needed; ++idx) {
           if (idx > cache_filled_idx) {
@@ -1665,13 +1664,6 @@ void SearchWorker::PickNodesToExtendTask(Node* node, int base_depth,
           } else if (score > second_best) {
             second_best = score;
             second_best_edge = cur_iters[idx];
-          }
-          if (can_exit) break;
-          if (nstarted == 0) {
-            // One more loop will get 2 unvisited nodes, which is sufficient to
-            // ensure second best is correct. This relies upon the fact that
-            // edges are sorted in policy decreasing order.
-            can_exit = true;
           }
         }
         int new_visits = 0;
@@ -2164,7 +2156,6 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     ApplyDirichletNoise(node, params_.GetNoiseEpsilon(),
                         params_.GetNoiseAlpha());
   }
-  node->SortEdges();
 }
 
 // 6. Propagate the new nodes' information to all their parents in the tree.

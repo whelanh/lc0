@@ -107,7 +107,6 @@ class Edge {
   // Probability that this move will be made, from the policy head of the neural
   // network; compressed to a 16 bit format (5 bits exp, 11 bits significand).
   uint16_t p_ = 0;
-  friend class Node;
 };
 
 struct Eval {
@@ -252,8 +251,6 @@ class Node {
   // Reallocates this nodes children to be in a solid block, if possible and not
   // already done. Returns true if the transformation was performed.
   bool MakeSolid();
-
-  void SortEdges();
 
   // Index in parent edges - useful for correlated ordering.
   uint16_t Index() const { return index_; }
