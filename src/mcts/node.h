@@ -598,31 +598,14 @@ class VisitedNode_Iterator {
   void operator++() {
     if (solid_) {
       while (++current_idx_ != total_count_ &&
-             node_ptr_[current_idx_].GetN() == 0) {
-        if (node_ptr_[current_idx_].GetNInFlight() == 0) {
-          // Once there is not even n in flight, we can skip to the end. This is
-          // due to policy being in sorted order meaning that additional n in
-          // flight are always selected from the front of the section with no n
-          // in flight or visited.
-          current_idx_ = total_count_;
-          break;
-        }
-      }
+             node_ptr_[current_idx_].GetN() == 0)
+        ;
       if (current_idx_ == total_count_) {
         node_ptr_ = nullptr;
       }
     } else {
       do {
         node_ptr_ = node_ptr_->sibling_.get();
-        // If n started is 0, can jump direct to end due to sorted policy
-        // ensuring that each time a new edge becomes best for the first time,
-        // it is always the first of the section at the end that has NStarted of
-        // 0.
-        if (node_ptr_ != nullptr && node_ptr_->GetN() == 0 &&
-            node_ptr_->GetNInFlight() == 0) {
-          node_ptr_ = nullptr;
-          break;
-        }
       } while (node_ptr_ != nullptr && node_ptr_->GetN() == 0);
     }
   }
