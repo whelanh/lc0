@@ -317,7 +317,6 @@ class SearchWorker {
     bool nn_queried = false;
     bool is_cache_hit = false;
     bool is_collision = false;
-    int probability_transform = 0;
 
     // Details only populated in the multigather path.
 
@@ -327,9 +326,8 @@ class SearchWorker {
     // Details that are filled in as we go.
     uint64_t hash;
     NNCacheLock lock;
-    std::vector<uint16_t> probabilities_to_cache;
+    std::vector<Move> moves_to_cache;
     InputPlanes input_planes;
-    mutable int last_idx = 0;
     bool ooo_completed = false;
 
     static NodeToProcess Collision(Node* node, uint16_t depth,
@@ -414,7 +412,7 @@ class SearchWorker {
 
   NodeToProcess PickNodeToExtend(int collision_limit);
   void ExtendNode(Node* node, int depth);
-  bool AddNodeToComputation(Node* node, bool add_if_cached, int* transform_out);
+  bool AddNodeToComputation(Node* node, bool add_if_cached);
   int PrefetchIntoCache(Node* node, int budget, bool is_odd_depth);
   void DoBackupUpdateSingleNode(const NodeToProcess& node_to_process);
   // Returns whether a node's bounds were set based on its children.

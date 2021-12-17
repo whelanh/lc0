@@ -1129,8 +1129,9 @@ void SearchWorker::ExecuteOneIteration() {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void SearchWorker::InitializeIteration(
     std::unique_ptr<NetworkComputation> computation) {
-  computation_ = std::make_unique<CachingComputation>(std::move(computation),
-                                                      search_->cache_);
+  computation_ = std::make_unique<CachingComputation>(
+      std::move(computation), search_->network_->GetCapabilities().input_format,
+      search_->cache_);
   computation_->Reserve(params_.GetMiniBatchSize());
   minibatch_.clear();
   minibatch_.reserve(2 * params_.GetMiniBatchSize());
@@ -1297,7 +1298,7 @@ void SearchWorker::GatherMinibatch2() {
       } else {
         computation_->AddInput(minibatch_[i].hash,
                                std::move(minibatch_[i].input_planes),
-                               std::move(minibatch_[i].probabilities_to_cache));
+                               minibatch_[i].moves_to_cache);
       }
     }
 
@@ -1349,21 +1350,16 @@ void SearchWorker::ProcessPickedTask(int start_idx, int end_idx,
         picked_node.lock = NNCacheLock(search_->cache_, hash);
         picked_node.is_cache_hit = picked_node.lock;
         if (!picked_node.is_cache_hit) {
-          int transform;
-          picked_node.input_planes = EncodePositionForNN(
+          picked_node.input_planes = EncodePositionNoTransform(
               search_->network_->GetCapabilities().input_format, history, 8,
-              params_.GetHistoryFill(), &transform);
-          picked_node.probability_transform = transform;
+              params_.GetHistoryFill());
 
-          std::vector<uint16_t>& moves = picked_node.probabilities_to_cache;
+          std::vector<Move>& moves = picked_node.moves_to_cache;
           // Legal moves are known, use them.
           moves.reserve(node->GetNumEdges());
           for (const auto& edge : node->Edges()) {
-            moves.emplace_back(edge.GetMove().as_nn_index(transform));
+            moves.emplace_back(edge.GetMove());
           }
-        } else {
-          picked_node.probability_transform = TransformForPosition(
-              search_->network_->GetCapabilities().input_format, history);
         }
       }
     }
@@ -1928,53 +1924,33 @@ void SearchWorker::ExtendNode(Node* node, int depth) {
 }
 
 // Returns whether node was already in cache.
-bool SearchWorker::AddNodeToComputation(Node* node, bool add_if_cached,
-                                        int* transform_out) {
+bool SearchWorker::AddNodeToComputation(Node* node, bool add_if_cached) {
   const auto hash = history_.HashLast(params_.GetCacheHistoryLength() + 1);
   // If already in cache, no need to do anything.
   if (add_if_cached) {
     if (computation_->AddInputByHash(hash)) {
-      if (transform_out) {
-        *transform_out = TransformForPosition(
-            search_->network_->GetCapabilities().input_format, history_);
-      }
       return true;
     }
   } else {
     if (search_->cache_->ContainsKey(hash)) {
-      if (transform_out) {
-        *transform_out = TransformForPosition(
-            search_->network_->GetCapabilities().input_format, history_);
-      }
       return true;
     }
   }
-  int transform;
-  auto planes =
-      EncodePositionForNN(search_->network_->GetCapabilities().input_format,
-                          history_, 8, params_.GetHistoryFill(), &transform);
-
-  std::vector<uint16_t> moves;
-
+  auto planes = EncodePositionNoTransform(
+      search_->network_->GetCapabilities().input_format, history_, 8,
+      params_.GetHistoryFill());
+  std::vector<Move> moves;
   if (node && node->HasChildren()) {
     // Legal moves are known, use them.
     moves.reserve(node->GetNumEdges());
     for (const auto& edge : node->Edges()) {
-      moves.emplace_back(edge.GetMove().as_nn_index(transform));
+      moves.emplace_back(edge.GetMove());
     }
   } else {
     // Cache legal moves.
-    const auto& legal_moves =
-        history_.Last().GetBoard().GenerateLegalMoves();
-    moves.reserve(legal_moves.size());
-    for (auto iter = legal_moves.begin(), end = legal_moves.end();
-         iter != end; ++iter) {
-      moves.emplace_back(iter->as_nn_index(transform));
-    }
+    moves = history_.Last().GetBoard().GenerateLegalMoves();
   }
-
   computation_->AddInput(hash, std::move(planes), std::move(moves));
-  if (transform_out) *transform_out = transform;
   return false;
 }
 
@@ -2015,7 +1991,7 @@ int SearchWorker::PrefetchIntoCache(Node* node, int budget, bool is_odd_depth) {
 
   // We are in a leaf, which is not yet being processed.
   if (!node || node->GetNStarted() == 0) {
-    if (AddNodeToComputation(node, false, nullptr)) {
+    if (AddNodeToComputation(node, false)) {
       // Make it return 0 to make it not use the slot, so that the function
       // tries hard to find something to cache even among unpopular moves.
       // In practice that slows things down a lot though, as it's not always

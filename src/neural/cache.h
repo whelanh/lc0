@@ -26,6 +26,7 @@
 */
 #pragma once
 
+#include "chess/board.h"
 #include "neural/network.h"
 #include "utils/cache.h"
 #include "utils/smallarray.h"
@@ -50,6 +51,7 @@ typedef HashKeyedCacheLock<CachedNNRequest> NNCacheLock;
 class CachingComputation {
  public:
   CachingComputation(std::unique_ptr<NetworkComputation> parent,
+                     pblczero::NetworkFormat::InputFormat input_format,
                      NNCache* cache);
 
   // How many inputs are not found in cache and will be forwarded to a wrapped
@@ -65,10 +67,9 @@ class CachingComputation {
   void AddInputByHash(uint64_t hash, NNCacheLock&& lock);
   // Adds a sample to the batch.
   // @hash is a hash to store/lookup it in the cache.
-  // @probabilities_to_cache is which indices of policy head to store.
   void AddInput(uint64_t hash, InputPlanes&& input,
-                std::vector<uint16_t>&& probabilities_to_cache);
-  // Undos last AddInput. If it was a cache miss, the it's actually not removed
+                const std::vector<Move>& moves);
+  // Undos last AddInput. If it was a cache miss, then it's actually not removed
   // from parent's batch.
   void PopLastInputHit();
   // Do the computation.
@@ -98,6 +99,7 @@ class CachingComputation {
   };
 
   std::unique_ptr<NetworkComputation> parent_;
+  pblczero::NetworkFormat::InputFormat input_format_;
   NNCache* cache_;
   std::vector<WorkItem> batch_;
 };
