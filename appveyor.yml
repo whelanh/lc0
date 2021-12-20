@@ -64,6 +64,7 @@ install:
 - cmd: IF DEFINED CUDNN_INSTALL cuda_11.5.1_windows_network.exe -s nvcc_11.5 cublas_dev_11.5 cublas_11.5 cudart_11.5 documentation_11.5
 - cmd: IF DEFINED CUDNN_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/redist/cudnn/v8.3.1/local_installers/11.5/cudnn-windows-x86_64-8.3.1.22_cuda11.5-archive.zip
 - cmd: IF DEFINED CUDNN_INSTALL 7z x cudnn-windows-x86_64-8.3.1.22_cuda11.5-archive.zip -oC:\cache -y
+- cmd: IF DEFINED CUDNN_INSTALL IF EXIST C:\cache\cuda rd /s /q C:\cache\cuda
 - cmd: IF DEFINED CUDNN_INSTALL ren C:\cache\cudnn-windows-x86_64-8.3.1.22_cuda11.5-archive cuda
 - cmd: IF %CUDNN%==false set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5"
 - cmd: IF %CUDA%==true IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
