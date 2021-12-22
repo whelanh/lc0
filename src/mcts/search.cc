@@ -1500,7 +1500,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
           // ensure the outer gather loop gives up.
           bool decremented;
           {
-            Mutex::Lock lock(picking_tasks_mutex_);
+            // Mutex::Lock lock(picking_tasks_mutex_);
             decremented = node->TryStartScoreUpdate();
           }
           if (decremented) {
@@ -1530,7 +1530,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
         continue;
       }
       if (is_root_node) {
-        Mutex::Lock lock(picking_tasks_mutex_);
+        // Mutex::Lock lock(picking_tasks_mutex_);
         // Root node is again special - needs its n in flight updated separately
         // as its not handled on the path to it, since there isn't one.
         node->IncrementNInFlight(cur_limit);
@@ -1558,7 +1558,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
       // node to stay at 64 bytes).
       int max_needed = node->GetNumEdges();
       if (!is_root_node || root_move_filter.empty()) {
-        Mutex::Lock lock(picking_tasks_mutex_);
+        // Mutex::Lock lock(picking_tasks_mutex_);
         max_needed = std::min(max_needed, node->GetNStarted() + cur_limit + 2);
       }
       node->CopyPolicy(max_needed, current_pol.data());
@@ -1573,7 +1573,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
       m_evaluator.SetParent(node);
       float visited_pol = 0.0f;
       {
-        Mutex::Lock lock(picking_tasks_mutex_);
+        // Mutex::Lock lock(picking_tasks_mutex_);
         for (Node* child : node->VisitedNodes()) {
           int index = child->Index();
           visited_pol += current_pol[index];
@@ -1684,7 +1684,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
         cur_limit -= new_visits;
         Node* child_node;
         {
-          Mutex::Lock lock(picking_tasks_mutex_);
+          // Mutex::Lock lock(picking_tasks_mutex_);
           child_node = best_edge.GetOrSpawnNode(/* parent */ node, nullptr);
         }
         full_path.push_back(child_node);
@@ -1696,7 +1696,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
 
         bool decremented;
         {
-          Mutex::Lock lock(picking_tasks_mutex_);
+          // Mutex::Lock lock(picking_tasks_mutex_);
           decremented = child_node->TryStartScoreUpdate();
         }
         if (decremented) {
@@ -1743,7 +1743,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
                     params_.GetMinimumRemainingWorkSizeForPicking()) {
           Node* child_node;
           {
-            Mutex::Lock lock(picking_tasks_mutex_);
+            // Mutex::Lock lock(picking_tasks_mutex_);
             child_node = cur_iters[i].GetOrSpawnNode(/* parent */ node);
           }
           // Don't split if not expanded or terminal.
@@ -1790,7 +1790,7 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
           current_path.back() = idx;
           current_path.push_back(-1);
           {
-            Mutex::Lock lock(picking_tasks_mutex_);
+            // Mutex::Lock lock(picking_tasks_mutex_);
             node = child.GetOrSpawnNode(/* parent */ node, nullptr);
           }
           full_path.push_back(node);
@@ -1817,6 +1817,8 @@ void SearchWorker::PickNodesToExtendTask(const std::vector<Node*>& path,
 NNCacheLock SearchWorker::ExtendNode(const std::vector<Node*>& path, int depth,
                                      const std::vector<Move>& moves_to_node,
                                      PositionHistory* history, uint64_t* hash) {
+  assert(!path.back()->GetLowNode());
+
   // Initialize position sequence with pre-move position.
   history->Trim(search_->played_history_.GetLength());
   for (size_t i = 0; i < moves_to_node.size(); i++) {
