@@ -92,7 +92,7 @@ cache:
   - C:\cache
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0'
   - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1'
-  - C:\projects\lc0\subprojects\packagecache
+  - C:\projects\lc0\subprojects\packagecache <- appveyo.yml
   - C:\ndk\android-ndk-r19c\toolchains\llvm\prebuilt\windows-x86_64
 before_build:
 - cmd: git submodule update --init --recursive
