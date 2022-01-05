@@ -64,7 +64,8 @@ install:
 - cmd: IF %CUDA%==true set PATH=%CUDA_PATH%\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson
-- cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
+- cmd: where /q cl
+- cmd: if errorlevel 1 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
 - cmd: set MIMALLOC_PATH=C:\cache\mimalloc-1.7.1
 - cmd: IF %ANDROID%==false IF NOT EXIST "%MIMALLOC_PATH%" appveyor DownloadFile https://github.com/microsoft/mimalloc/archive/refs/tags/v1.7.1.zip
 - cmd: IF %ANDROID%==false IF NOT EXIST "%MIMALLOC_PATH%" 7z x v1.7.1.zip -oC:\cache\
