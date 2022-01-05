@@ -5,7 +5,7 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: cpu-openblas
+  - NAME: gpu-nvidia-cudnn
 for:
 -
   matrix:
