@@ -60,6 +60,59 @@ const OptionId kSyzygyTablebaseId{
     "List of Syzygy tablebase directories, list entries separated by system "
     "separator (\";\" for Windows, \":\" for Linux).",
     's'};
+
+std::string MoveToSan(const Move move, const ChessBoard& in_board) {
+  auto board = in_board;
+  if (board.flipped()) board.Mirror();
+  auto from = move.from();
+  auto to = board.GetModernMove(move).to();
+
+  if (((board.ours() & board.rooks()).get(to) &&
+       (board.ours() & board.kings()).get(from)) ||
+      ((board.theirs() & board.rooks()).get(to) &&
+       (board.theirs() & board.kings()).get(from))) {
+    if (from.col() < to.col()) return "O-O";
+    return "O-O-O";
+  }
+
+  std::string res;
+  if (board.kings().get(from)) {
+    res = 'K';
+  } else if (board.bishops().get(from)) {
+    res = 'B';
+  } else if (board.queens().get(from)) {
+    res = 'Q';
+  } else if (board.rooks().get(from)) {
+    res = 'R';
+  } else if (board.knights().get(from)) {
+    res = 'N';
+  }
+
+  res += from.as_string();
+  if (((board.ours() | board.theirs()).get(to)) ||
+      ((board.ours() & board.pawns()).get(from) && from.row() == 4 &&
+       board.en_passant().get(7, to.col())) ||
+      ((board.theirs() & board.pawns()).get(from) && from.row() == 3 &&
+       board.en_passant().get(0, to.col()))) {
+    res += 'x';
+  }
+  res += to.as_string();
+
+  auto promotion = move.promotion();
+  switch (promotion) {
+    case Move::Promotion::Queen:
+      return res + "=q";
+    case Move::Promotion::Rook:
+      return res + "=r";
+    case Move::Promotion::Bishop:
+      return res + "=b";
+    case Move::Promotion::Knight:
+      return res + "=n";
+    default:
+      return res;
+  }
+}
+
 }  // namespace
 
 void SelfPlayGame::PopulateUciParams(OptionsParser* options) {
@@ -98,8 +151,8 @@ SelfPlayGame::SelfPlayGame(PlayerOptions white, PlayerOptions black,
 }
 
 void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
-                        SyzygyTablebase* syzygy_tb, const Opening& to_replay,
-                        bool enable_resign) {
+                        SyzygyTablebase* syzygy_tb, const Opening* to_replay,
+                        std::string* out_pgn, bool enable_resign) {
   bool blacks_move = tree_[0]->IsBlackToMove();
 
   // If we are training, verify that input formats are consistent.
@@ -119,6 +172,9 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
       syzygy_tb_ = nullptr;
     }
   }
+
+  std::string movelist;
+
   // Do moves while not end of the game. (And while not abort_)
   while (!abort_) {
     game_result_ = tree_[0]->GetPositionHistory().ComputeGameResult();
@@ -129,10 +185,11 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
       adjudicated_ = true;
       break;
     }
-    if (!to_replay.moves.empty() &&
-        static_cast<int>(to_replay.moves.size()) <=
-            tree_[0]->GetPositionHistory().GetLength() - 1) {
-      game_result_ = to_replay.result;
+    if (to_replay != nullptr &&
+        static_cast<int>(to_replay->moves.size()) <=
+            tree_[0]->GetPositionHistory().GetLength() -
+                (to_replay->result == GameResult::UNDECIDED ? 2 : 1)) {
+      game_result_ = to_replay->result;
       adjudicated_ = true;
       break;
     }
@@ -222,12 +279,12 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
     auto node = tree_[idx]->GetCurrentHead();
     Eval played_eval = best_eval;
     Move move;
+    size_t move_no = tree_[idx]->GetPositionHistory().GetLength() - 1;
     while (true) {
-      if (to_replay.moves.empty()) {
+      if (!to_replay || move_no >= to_replay->moves.size()) {
         move = search_->GetBestMove().first;
       } else {
-        move =
-            to_replay.moves[tree_[idx]->GetPositionHistory().GetLength() - 1];
+        move = to_replay->moves[move_no];
       }
       uint32_t max_n = 0;
       uint32_t cur_n = 0;
@@ -245,7 +302,7 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
       }
       // If 'best move' is less than allowed visits and not max visits,
       // discard it and try again.
-      if (!to_replay.moves.empty() || cur_n == max_n ||
+      if (to_replay || cur_n == max_n ||
           static_cast<int>(cur_n) >=
               options_[idx].uci_options->Get<int>(kMinimumAllowedVistsId)) {
         break;
@@ -264,6 +321,12 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
       }
       search_->ResetBestMove();
     }
+
+    movelist +=
+        std::to_string((tree_[0]->GetPlyCount() / 2) + 1) +
+        (tree_[0]->IsBlackToMove() ? "..." : ".") +
+        MoveToSan(move, tree_[0]->GetPositionHistory().Last().GetBoard()) +
+        " {" + std::to_string(played_eval.wl) + "} ";
 
     if (training) {
       bool best_is_proof = best_is_terminal;  // But check for better moves.
@@ -292,6 +355,23 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
     tree_[0]->MakeMove(move);
     if (tree_[0] != tree_[1]) tree_[1]->MakeMove(move);
     blacks_move = !blacks_move;
+  }
+
+  if (out_pgn) {
+    auto fen = GetFen(tree_[0]->GetPositionHistory().Starting());
+    if (fen != ChessBoard::kStartposFen) {
+      *out_pgn += "[FEN \"" + fen + "\"]\n";
+    }
+    std::string result = "*";
+    if (game_result_ == GameResult::WHITE_WON) {
+      result = "1-0";
+    } else if (game_result_ == GameResult::BLACK_WON) {
+      result = "0-1";
+    } else if (game_result_ == GameResult::DRAW) {
+      result = "1/2-1/2";
+    }
+    *out_pgn += "[Result \"" + result + "\"]\n\n";
+    *out_pgn += movelist + result + "\n\n";
   }
 }
 

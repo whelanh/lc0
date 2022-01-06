@@ -81,6 +81,8 @@ class SelfPlayTournament {
   bool abort_ GUARDED_BY(mutex_) = false;
   std::vector<Opening> openings_ GUARDED_BY(mutex_);
   std::vector<Opening> games_to_replay_;
+  std::vector<std::string> out_pgn_;
+  std::string out_file_;
   // Games in progress. Exposed here to be able to abort them in case if
   // Abort(). Stored as list and not vector so that threads can keep iterators
   // to them and not worry that it becomes invalid.

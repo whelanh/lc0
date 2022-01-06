@@ -27,6 +27,8 @@
 
 #include "selfplay/tournament.h"
 
+#include <fstream>
+
 #include "chess/pgn.h"
 #include "mcts/search.h"
 #include "mcts/stoppers/factory.h"
@@ -87,6 +89,9 @@ const OptionId kSyzygyTablebaseId{
 const OptionId kReplayFileId{
     "replay-pgn", "ReplayPgnFile",
     "A path name to a pgn file containing games to replay."};
+const OptionId kReplayOutFileId{
+    "replay-pgn-out", "ReplayPgnOutFile",
+    "A pgn to save the replayed moves and their evaluation."};
 }  // namespace
 
 void SelfPlayTournament::PopulateOptions(OptionsParser* options) {
@@ -124,6 +129,7 @@ void SelfPlayTournament::PopulateOptions(OptionsParser* options) {
 
   options->Add<StringOption>(kSyzygyTablebaseId);
   options->Add<StringOption>(kReplayFileId) = "";
+  options->Add<StringOption>(kReplayOutFileId) = "";
   SelfPlayGame::PopulateUciParams(options);
 
   auto defaults = options->GetMutableDefaultsOptions();
@@ -185,6 +191,10 @@ SelfPlayTournament::SelfPlayTournament(
     PgnReader book_reader;
     book_reader.AddPgnFile(replay_book);
     games_to_replay_ = book_reader.ReleaseGames();
+    out_file_ = options.Get<std::string>(kReplayOutFileId);
+    if (!out_file_.empty()) {
+      out_pgn_.resize(games_to_replay_.size());
+    }
   }
 
   // If playing just one game, the player1 is white, otherwise randomize.
@@ -272,11 +282,17 @@ void SelfPlayTournament::PlayOneGame(int game_number) {
       discard_pile_.pop_back();
     }
   }
-  Opening game_to_replay;
+  Opening* game_to_replay = nullptr;
+  std::string* out_pgn = nullptr;
   if (!games_to_replay_.empty()) {
-    game_to_replay = games_to_replay_[game_number];
-    if (game_to_replay.moves.empty()) return;
-    opening.start_fen = game_to_replay.start_fen;
+    game_to_replay = &games_to_replay_[game_number];
+    if (game_to_replay->moves.empty() &&
+        game_to_replay->result != GameResult::UNDECIDED)
+      return;
+    opening.start_fen = game_to_replay->start_fen;
+    if (!out_pgn_.empty()) {
+      out_pgn = &out_pgn_[game_number];
+    }
   }
 
   const int color_idx[2] = {player1_black ? 1 : 0, player1_black ? 0 : 1};
@@ -373,7 +389,7 @@ void SelfPlayTournament::PlayOneGame(int game_number) {
   auto player1_threads = player_options_[0][color_idx[0]].Get<int>(kThreadsId);
   auto player2_threads = player_options_[1][color_idx[1]].Get<int>(kThreadsId);
   game.Play(player1_threads, player2_threads, kTraining, syzygy_tb_.get(),
-            game_to_replay, enable_resign);
+            game_to_replay, out_pgn, enable_resign);
 
   // If game was aborted, it's still undecided.
   if (game.GetGameResult() != GameResult::UNDECIDED) {
@@ -492,6 +508,11 @@ void SelfPlayTournament::Stop() {
 SelfPlayTournament::~SelfPlayTournament() {
   Abort();
   Wait();
+
+  if (!out_pgn_.empty()) {
+    std::ofstream out_pgn(out_file_);
+    for (auto entry : out_pgn_) out_pgn << entry;
+  }
 }
 
 }  // namespace lczero
