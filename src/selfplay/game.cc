@@ -326,7 +326,9 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
         std::to_string((tree_[0]->GetPlyCount() / 2) + 1) +
         (tree_[0]->IsBlackToMove() ? "..." : ".") +
         MoveToSan(move, tree_[0]->GetPositionHistory().Last().GetBoard()) +
-        " {" + std::to_string(played_eval.wl) + "} ";
+        " {" +
+        std::to_string(played_eval.wl * (tree_[0]->IsBlackToMove() ? -1 : 1)) +
+        "} ";
 
     if (training) {
       bool best_is_proof = best_is_terminal;  // But check for better moves.
