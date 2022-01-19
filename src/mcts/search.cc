@@ -1554,7 +1554,7 @@ void SearchWorker::PickNodesToExtendTask(
           completed_visits += cur_limit;
         }
         full_path.pop_back();
-        node = full_path.back();
+        node = (full_path.size() > 0) ? full_path.back() : nullptr;
         current_path.pop_back();
         continue;
       }
@@ -1812,7 +1812,7 @@ void SearchWorker::PickNodesToExtendTask(
     }
     if (!found_child) {
       full_path.pop_back();
-      node = full_path.back();
+      node = (full_path.size() > 0) ? full_path.back() : nullptr;
       if (!moves_to_path.empty()) {
         moves_to_path.pop_back();
       }
