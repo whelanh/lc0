@@ -270,6 +270,10 @@ class Node {
     }
   }
 
+float orig_wl_ = 0.0f;
+float orig_d_ = 0.0f;
+float orig_ml_ = 0.0f;
+
  private:
   // Performs construction time type initialization. For use only with a node
   // that has not been used beyond its construction.
@@ -311,6 +315,7 @@ class Node {
   float d_ = 0.0f;
   // Estimated remaining plies.
   float m_ = 0.0f;
+
   // How many completed visits this node had.
   uint32_t n_ = 0;
   // (AKA virtual loss.) How many threads currently process this node (started
@@ -356,7 +361,7 @@ class Node {
 #if defined(__i386__) || (defined(__arm__) && !defined(__aarch64__))
 static_assert(sizeof(Node) == 48, "Unexpected size of Node for 32bit compile");
 #else
-static_assert(sizeof(Node) == 64, "Unexpected size of Node");
+static_assert(sizeof(Node) == 80, "Unexpected size of Node");
 #endif
 
 // Contains Edge and Node pair and set of proxy functions to simplify access

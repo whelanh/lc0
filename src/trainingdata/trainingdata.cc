@@ -81,11 +81,13 @@ Eval CalculateOriginalEval(const Node* node) {
   int n = node->GetN();
   result.wl = -node->GetWL() * n;
   result.d = node->GetD() * n;
+  result.ml = node->GetM() * n;
 
   for (auto& edge : node->Edges()) {
     int n = edge.GetN();
     result.wl -= edge.GetWL(0) * n;
     result.d -= edge.GetD(0) * n;
+    result.ml -= (edge.GetM(0)+1) * n;
   }
 
   // Checks to compensate for drift.
@@ -105,8 +107,10 @@ Eval CalculateOriginalEval(const Node* node) {
 
   // Moves left suffers from enough drift that the calculated value can be
   // quite inaccurate, so just leave as NaN.
-  result.ml = std::numeric_limits<float>::quiet_NaN();
-
+//  result.ml = std::numeric_limits<float>::quiet_NaN();
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
+CERR << "XXX, " << -node->orig_wl_ << ", " << result.wl << ", " << node->orig_d_ << ", " << result.d << ", " << node->orig_ml_ << ", " << result.ml << ", YYY";
   return result;
 }
 }  // namespace
@@ -142,7 +146,7 @@ void V6TrainingDataArray::Write(TrainingDataWriter* writer, GameResult result,
     }
     chunk.plies_left = m_estimate;
     m_estimate -= 1.0f;
-    writer->WriteChunk(chunk);
+//    writer->WriteChunk(chunk);
   }
 }
 

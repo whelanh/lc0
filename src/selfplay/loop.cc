@@ -115,8 +115,10 @@ void SelfPlayLoop::SendGameInfo(const GameInfo& info) {
     responses.push_back(resign_res);
   }
   std::string res = "gameready";
+/*
   if (!info.training_filename.empty())
     res += " trainingfile " + info.training_filename;
+*/
   if (info.game_id != -1) res += " gameid " + std::to_string(info.game_id);
   res += " play_start_ply " + std::to_string(info.play_start_ply);
   if (info.is_black)
@@ -128,10 +130,12 @@ void SelfPlayLoop::SendGameInfo(const GameInfo& info) {
                 : (info.game_result == GameResult::WHITE_WON) ? "whitewon"
                                                               : "blackwon");
   }
+/*
   if (!info.moves.empty()) {
     res += " moves";
     for (const auto& move : info.moves) res += " " + move.as_string();
   }
+*/
   if (!info.initial_fen.empty() &&
       info.initial_fen != ChessBoard::kStartposFen) {
     res += " from_fen " + info.initial_fen;

@@ -2165,6 +2165,10 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
                         params_.GetNoiseAlpha());
   }
   node->SortEdges();
+
+    node->orig_wl_ = node_to_process->v;
+    node->orig_d_ = node_to_process->d;
+    node->orig_ml_ = node_to_process->m;
 }
 
 // 6. Propagate the new nodes' information to all their parents in the tree.
