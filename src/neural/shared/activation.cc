@@ -50,11 +50,7 @@ float Activate(const float val, const ActivationFunction activation) {
       auto e = expf(val);
       auto n = e * e + 2.0f * e;
       auto d = val / (n + 2.0f);
-      if (val <= -0.6f) {
-        return n * d;
-      } else {
-        return val - 2.0f * d;
-      }
+      return n * d;
     }
     case TANH:
       return tanhf(val);
@@ -75,39 +71,133 @@ float Activate(const float val, const ActivationFunction activation) {
   return val;
 }
 
-void Activate(const size_t len, float* data,
-              const ActivationFunction activation) {
-  for (size_t i = 0; i < len; i++) {
-    data[i] = Activate(data[i], activation);
+void Activate(const size_t len, const float* data, const float* bias,
+              float* output, const ActivationFunction activation) {
+  if (activation == NONE) {
+    for (size_t b = 0; b < len; b++) {
+      output[b] = data[b] + bias[b];
+    }
+  } else if (activation == RELU) {
+    for (size_t b = 0; b < len; b++) {
+      float val = data[b] + bias[b];
+      output[b] = val > 0 ? val : 0;
+    }
+  } else if (activation == MISH) {
+    for (size_t b = 0; b < len; b++) {
+      float val = data[b] + bias[b];
+      auto e = expf(val);
+      auto n = e * e + 2.0f * e;
+      auto d = val / (n + 2.0f);
+      output[b] = n * d;
+    }
+  } else {
+    for (size_t b = 0; b < len; b++) {
+      float val = data[b] + bias[b];
+      output[b] = Activate(val, activation);
+    }
   }
 }
 
-void BiasResidualRelu(const size_t batch_size, const size_t channels,
-                 float* data, const float* biases,
-                 const float* eltwise,
-                 const ActivationFunction activation) {
+void Activate(const size_t len, float gamma, const float* data,
+              const float* bias, float beta, float* output,
+              const ActivationFunction activation) {
+  if (activation == NONE) {
+    for (size_t b = 0; b < len; b++) {
+      float val = gamma * data[b] + bias[b] + beta;
+      output[b] = val;
+    }
+  } else if (activation == RELU) {
+    for (size_t b = 0; b < len; b++) {
+      float val = gamma * data[b] + bias[b] + beta;
+      output[b] = val > 0 ? val : 0;
+    }
+  } else if (activation == MISH) {
+    for (size_t b = 0; b < len; b++) {
+      float val = gamma * data[b] + bias[b] + beta;
+      auto e = expf(val);
+      auto n = e * e + 2.0f * e;
+      auto d = val / (n + 2.0f);
+      output[b] = n * d;
+    }
+  } else {
+    for (size_t b = 0; b < len; b++) {
+      float val = gamma * data[b] + bias[b] + beta;
+      output[b] = Activate(val, activation);
+    }
+  }
+}
+
+void BiasResidual(const size_t batch_size, const size_t channels, float* data,
+                  const float* biases, const float* eltwise,
+                  const ActivationFunction activation) {
   for (size_t i = 0; i < batch_size; i++) {
     for (size_t c = 0; c < channels; ++c) {
       auto bias = biases[c];
-
-      if (eltwise == nullptr) {
-        auto arr = &data[c * kSquares];
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = arr[b] + bias;
-          if (activation != NONE) {
-            val = Activate(val, activation);
+      if (activation == NONE) {
+        if (eltwise == nullptr) {
+          auto arr = &data[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = arr[b] + bias;
+            arr[b] = val;
           }
-          arr[b] = val;
+        } else {
+          auto arr = &data[c * kSquares];
+          auto res = &eltwise[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = res[b] + arr[b] + bias;
+            arr[b] = val;
+          }
+        }
+      } else if (activation == RELU) {
+        if (eltwise == nullptr) {
+          auto arr = &data[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = arr[b] + bias;
+            arr[b] = val > 0 ? val : 0;
+          }
+        } else {
+          auto arr = &data[c * kSquares];
+          auto res = &eltwise[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = res[b] + arr[b] + bias;
+            arr[b] = val > 0 ? val : 0;
+          }
+        }
+      } else if (activation == MISH) {
+        if (eltwise == nullptr) {
+          auto arr = &data[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = arr[b] + bias;
+            auto e = expf(val);
+            auto n = e * e + 2.0f * e;
+            auto d = val / (n + 2.0f);
+            arr[b] = n * d;
+          }
+        } else {
+          auto arr = &data[c * kSquares];
+          auto res = &eltwise[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = res[b] + arr[b] + bias;
+            auto e = expf(val);
+            auto n = e * e + 2.0f * e;
+            auto d = val / (n + 2.0f);
+            arr[b] = n * d;
+          }
         }
       } else {
-        auto arr = &data[c * kSquares];
-        auto res = &eltwise[c * kSquares];
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = res[b] + arr[b] + bias;
-          if (activation != NONE) {
-            val = Activate(val, activation);
+        if (eltwise == nullptr) {
+          auto arr = &data[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = arr[b] + bias;
+            arr[b] = Activate(val, activation);
           }
-          arr[b] = val;
+        } else {
+          auto arr = &data[c * kSquares];
+          auto res = &eltwise[c * kSquares];
+          for (size_t b = 0; b < kSquares; b++) {
+            float val = res[b] + arr[b] + bias;
+            arr[b] = Activate(val, activation);
+          }
         }
       }
     }
@@ -115,4 +205,5 @@ void BiasResidualRelu(const size_t batch_size, const size_t channels,
     if (eltwise != nullptr) eltwise += channels * kSquares;
   }
 }
+
 }  // namespace lczero

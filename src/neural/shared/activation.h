@@ -24,15 +24,21 @@
 namespace lczero {
 enum ActivationFunction { NONE, RELU, TANH, SIGMOID, SELU, MISH };
 
-  // Softmax activation
+// Softmax activation
 void SoftmaxActivation(const size_t size, const float* input, float* output);
 
 void BiasResidualRelu(const size_t batch_size, const size_t channels,
-                 float* data, const float* biases,
-                 const float* eltwise = nullptr,
-                 const ActivationFunction activation = RELU);
-float Activate(const float val,
+                      float* data, const float* biases,
+                      const float* eltwise = nullptr,
+                      const ActivationFunction activation = RELU);
+
+float Activate(const float val, const ActivationFunction activation);
+
+void Activate(const size_t len, const float* data, const float* bias,
+              float* output, const ActivationFunction activation);
+
+void Activate(const size_t len, float gamma, const float* data,
+              const float* bias, float beta, float* out,
               const ActivationFunction activation);
-void Activate(const size_t len, float* data,
-              const ActivationFunction activation);
+
 }  // namespace lczero
