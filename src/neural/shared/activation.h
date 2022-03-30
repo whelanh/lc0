@@ -27,10 +27,9 @@ enum ActivationFunction { NONE, RELU, TANH, SIGMOID, SELU, MISH };
 // Softmax activation
 void SoftmaxActivation(const size_t size, const float* input, float* output);
 
-void BiasResidualRelu(const size_t batch_size, const size_t channels,
-                      float* data, const float* biases,
-                      const float* eltwise = nullptr,
-                      const ActivationFunction activation = RELU);
+void BiasResidual(const size_t batch_size, const size_t channels, float * data,
+                  const float* biases, const float* eltwise = nullptr,
+                  const ActivationFunction activation = RELU);
 
 float Activate(const float val, const ActivationFunction activation);
 
