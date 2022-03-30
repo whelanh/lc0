@@ -50,7 +50,11 @@ float Activate(const float val, const ActivationFunction activation) {
       auto e = expf(val);
       auto n = e * e + 2.0f * e;
       auto d = val / (n + 2.0f);
-      return n * d;
+      if (val <= -0.125f) {
+        return n * d;
+      } else {
+        return val - 2.0f * d;
+      }
     }
     case TANH:
       return tanhf(val);
@@ -88,7 +92,11 @@ void Activate(const size_t len, const float* data, const float* bias,
       auto e = expf(val);
       auto n = e * e + 2.0f * e;
       auto d = val / (n + 2.0f);
-      output[b] = n * d;
+      if (val <= -0.125f) {
+        output[b] = n * d;
+      } else {
+        output[b] = val - 2.0f * d;
+      }
     }
   } else {
     for (size_t b = 0; b < len; b++) {
@@ -117,7 +125,11 @@ void Activate(const size_t len, float gamma, const float* data,
       auto e = expf(val);
       auto n = e * e + 2.0f * e;
       auto d = val / (n + 2.0f);
-      output[b] = n * d;
+      if (val <= -0.125f) {
+        output[b] = n * d;
+      } else {
+        output[b] = val - 2.0f * d;
+      }
     }
   } else {
     for (size_t b = 0; b < len; b++) {
@@ -171,7 +183,11 @@ void BiasResidual(const size_t batch_size, const size_t channels, float* data,
             auto e = expf(val);
             auto n = e * e + 2.0f * e;
             auto d = val / (n + 2.0f);
-            arr[b] = n * d;
+            if (val <= -0.125f) {
+              arr[b] = n * d;
+            } else {
+              arr[b] = val - 2.0f * d;
+            }
           }
         } else {
           auto arr = &data[c * kSquares];
@@ -181,7 +197,11 @@ void BiasResidual(const size_t batch_size, const size_t channels, float* data,
             auto e = expf(val);
             auto n = e * e + 2.0f * e;
             auto d = val / (n + 2.0f);
-            arr[b] = n * d;
+            if (val <= -0.125f) {
+              arr[b] = n * d;
+            } else {
+              arr[b] = val - 2.0f * d;
+            }
           }
         }
       } else {
