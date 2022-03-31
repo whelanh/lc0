@@ -245,8 +245,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
     convolve3.Forward(batch_size, kInputPlanes, output_channels, conv_in,
                       weights_.input.weights.data(), conv_out);
 
-    BiasResidual(batch_size, output_channels, conv_out,
-                 weights_.input.biases.data(), nullptr, default_activation_);
+    BiasActivate(batch_size, output_channels, conv_out,
+                 weights_.input.biases.data(), default_activation_);
 
     // Residual tower
 
@@ -260,8 +260,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
       convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
                         conv1.weights.data(), conv_out);
 
-      BiasResidual(batch_size, output_channels, &conv_out[0],
-                   conv1.biases.data(), nullptr, default_activation_);
+      BiasActivate(batch_size, output_channels, &conv_out[0],
+                   conv1.biases.data(), default_activation_);
 
       std::swap(conv_in, res);
       std::swap(conv_out, conv_in);
@@ -271,8 +271,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
 
       if (residual.has_se) {
         // No relu if followed by SE-unit and residual is added later
-        BiasResidual(batch_size, output_channels, &conv_out[0],
-                     conv2.biases.data(), nullptr, NONE);
+        BiasActivate(batch_size, output_channels, &conv_out[0],
+                     conv2.biases.data(), NONE);
 
         std::swap(conv_out, conv_in);
 
@@ -389,16 +389,15 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
       convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
                         weights_.policy1.weights.data(), res);
 
-      BiasResidual(batch_size, output_channels, &res[0],
-                   weights_.policy1.biases.data(), nullptr,
-                   default_activation_);
+      BiasActivate(batch_size, output_channels, &res[0],
+                   weights_.policy1.biases.data(), default_activation_);
 
       convolve3.Forward(batch_size, output_channels, num_policy_input_planes,
                         res, weights_.policy.weights.data(),
                         head_buffer.data());
 
-      BiasResidual(batch_size, num_policy_input_planes, &head_buffer.data()[0],
-                   weights_.policy.biases.data(), nullptr, NONE);
+      BiasActivate(batch_size, num_policy_input_planes, &head_buffer.data()[0],
+                   weights_.policy.biases.data(), NONE);
 
       // Mapping from convolutional policy to lc0 policy
       for (auto batch = size_t{0}; batch < batch_size; batch++) {
@@ -416,8 +415,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
           batch_size, output_channels, num_policy_input_planes, conv_out,
           weights_.policy.weights.data(), head_buffer.data());
 
-      BiasResidual(batch_size, num_policy_input_planes, &head_buffer[0],
-                   weights_.policy.biases.data(), nullptr, default_activation_);
+      BiasActivate(batch_size, num_policy_input_planes, &head_buffer[0],
+                   weights_.policy.biases.data(), default_activation_);
 
       FullyConnectedLayer<use_eigen>::Forward1D(
           batch_size, num_policy_input_planes * kSquares, num_output_policy,
@@ -441,8 +440,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
         batch_size, output_channels, num_value_input_planes, conv_out,
         weights_.value.weights.data(), head_buffer.data());
 
-    BiasResidual(batch_size, num_value_input_planes, &head_buffer[0],
-                 weights_.value.biases.data(), nullptr, default_activation_);
+    BiasActivate(batch_size, num_value_input_planes, &head_buffer[0],
+                 weights_.value.biases.data(), default_activation_);
 
     FullyConnectedLayer<use_eigen>::Forward1D(
         batch_size, num_value_input_planes * kSquares, num_value_channels,
@@ -483,9 +482,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
           batch_size, output_channels, num_moves_input_planes, conv_out,
           weights_.moves_left.weights.data(), head_buffer.data());
 
-      BiasResidual(batch_size, num_moves_input_planes, &head_buffer[0],
-                   weights_.moves_left.biases.data(), nullptr,
-                   default_activation_);
+      BiasActivate(batch_size, num_moves_input_planes, &head_buffer[0],
+                   weights_.moves_left.biases.data(), default_activation_);
 
       FullyConnectedLayer<use_eigen>::Forward1D(
           batch_size, num_moves_input_planes * kSquares, num_moves_channels,
