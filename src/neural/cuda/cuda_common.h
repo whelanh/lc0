@@ -55,6 +55,10 @@ static constexpr int kMaxResBlockFusingSeKFp16Ampere =
     512;  // (use a different kernel with reduced register pressure)
 static constexpr int kMaxResBlockFusingSeK =
     128;  // limit on (num_filters / se_ratio)
+static constexpr int kMaxResBlockFusingSeFp16AmpereSmem =
+    72 * kMaxResBlockFusingSeKFp16Ampere *
+    sizeof(half);  // shared memory used by the special
+                   // kernel
 
 #ifdef USE_CUDNN
 void CudnnError(cudnnStatus_t status, const char* file, const int& line);
@@ -70,7 +74,7 @@ void CudaError(cudaError_t status, const char* file, const int& line);
 
 inline int DivUp(int a, int b) { return (a + b - 1) / b; }
 
-enum ActivationFunction { NONE, RELU, TANH, SIGMOID, SELU };
+enum ActivationFunction { NONE, RELU, TANH, SIGMOID, SELU, MISH };
 
 }  // namespace cudnn_backend
 }  // namespace lczero
