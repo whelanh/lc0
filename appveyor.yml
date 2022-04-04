@@ -69,8 +69,8 @@ install:
 - cmd: IF DEFINED CUDNN_INSTALL 7z x cudnn-11.4-windows-x64-v8.2.4.15.zip -oC:\cache -y
 - cmd: IF %CUDNN%==false set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3"
 - cmd: IF %CUDA%==true IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/cuda/11.3.1/network_installers/cuda_11.3.1_win10_network.exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_11.3.1_win10_network.exe -s nvcc_11.3 cublas_dev_11.3 cublas_11.3 cudart_11.3 documentation_11.3
+- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/cuda/11.2.2/network_installers/cuda_11.2.2_win10_network.exe
+- cmd: IF DEFINED CUDA_INSTALL cuda_11.2.2_win10_network.exe -s nvcc_11.2 cublas_dev_11.2 cublas_11.2 cudart_11.2 documentation_11.2
 - cmd: IF %CUDA%==true set PATH=%CUDA_PATH%\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson==0.55.3
@@ -100,7 +100,7 @@ install:
 - cmd: cd C:\projects\lc0
 cache:
   - C:\cache
-  - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3'
+  - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2'
   - C:\projects\lc0\subprojects\packagecache
   - C:\ndk\android-ndk-r19c\toolchains\llvm\prebuilt\windows-x86_64
 before_build:
