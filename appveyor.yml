@@ -5,14 +5,14 @@ image:
 - Visual Studio 2017
 environment:
   matrix:
-  - NAME: gpu-nvidia-cudnn
+#  - NAME: gpu-nvidia-cudnn
   - NAME: gpu-nvidia-cuda
-  - NAME: gpu-dx12
-  - NAME: gpu-opencl
-  - NAME: cpu-dnnl
-  - NAME: cpu-openblas
-  - NAME: onednn
-  - NAME: android
+#  - NAME: gpu-dx12
+#  - NAME: gpu-opencl
+#  - NAME: cpu-dnnl
+#  - NAME: cpu-openblas
+#  - NAME: onednn
+#  - NAME: android
 for:
 -
   matrix:
@@ -67,10 +67,10 @@ install:
 - cmd: IF DEFINED CUDNN_INSTALL cuda_11.4.4_windows_network.exe -s nvcc_11.4 cublas_dev_11.4 cublas_11.4 cudart_11.4 documentation_11.4
 - cmd: IF DEFINED CUDNN_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/redist/cudnn/v8.2.4/cudnn-11.4-windows-x64-v8.2.4.15.zip
 - cmd: IF DEFINED CUDNN_INSTALL 7z x cudnn-11.4-windows-x64-v8.2.4.15.zip -oC:\cache -y
-- cmd: IF %CUDNN%==false set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4"
+- cmd: IF %CUDNN%==false set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3"
 - cmd: IF %CUDA%==true IF NOT EXIST "%CUDA_PATH%" set CUDA_INSTALL=1
-- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/cuda/11.4.4/network_installers/cuda_11.4.4_windows_network.exe
-- cmd: IF DEFINED CUDA_INSTALL cuda_11.4.4_windows_network.exe -s nvcc_11.4 cublas_dev_11.4 cublas_11.4 cudart_11.4 documentation_11.4
+- cmd: IF DEFINED CUDA_INSTALL appveyor DownloadFile https://developer.download.nvidia.com/compute/cuda/11.3.1/network_installers/cuda_11.3.1_win10_network.exe
+- cmd: IF DEFINED CUDA_INSTALL cuda_11.3.1_win10_network.exe -s nvcc_11.3 cublas_dev_11.3 cublas_11.3 cudart_11.3 documentation_11.3
 - cmd: IF %CUDA%==true set PATH=%CUDA_PATH%\bin;%PATH%
 - cmd: set PATH=C:\Python36;C:\Python36\scripts;%PATH%
 - cmd: pip3 install --upgrade meson==0.55.3
@@ -100,7 +100,7 @@ install:
 - cmd: cd C:\projects\lc0
 cache:
   - C:\cache
-  - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4'
+  - 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.3'
   - C:\projects\lc0\subprojects\packagecache
   - C:\ndk\android-ndk-r19c\toolchains\llvm\prebuilt\windows-x86_64
 before_build:
