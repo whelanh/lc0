@@ -146,75 +146,26 @@ void Activate(const size_t len, float gamma, const float* data,
 void BiasResidual(const size_t batch_size, const size_t channels, float* data,
                   const float* biases, const float* eltwise,
                   const ActivationFunction activation) {
-  for (size_t i = 0; i < batch_size; i++) {
-    for (size_t c = 0; c < channels; ++c) {
-      auto bias = biases[c];
-      auto arr = &data[c * kSquares];
-      auto res = &eltwise[c * kSquares];
-      if (activation == NONE) {
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = res[b] + arr[b] + bias;
-          arr[b] = val;
-        }
-      } else if (activation == RELU) {
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = res[b] + arr[b] + bias;
-          arr[b] = val > 0 ? val : 0;
-        }
-      } else if (activation == MISH) {
-#ifndef USE_ISPC
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = res[b] + arr[b] + bias;
-          arr[b] = mish(val);
-        }
-#else
-        ispc::ActivateMish(kSquares, 1.0f, res, arr, bias, arr);
-#endif
-      } else {
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = res[b] + arr[b] + bias;
-          arr[b] = Activate(val, activation);
-        }
+  if (eltwise != nullptr) {
+    for (size_t i = 0; i < batch_size; i++) {
+      for (size_t c = 0; c < channels; ++c) {
+        auto bias = biases[c];
+        auto arr = &data[c * kSquares];
+        auto res = &eltwise[c * kSquares];
+        Activate(kSquares, 1.0f, arr, res, bias, arr, activation);
       }
+      data += channels * kSquares;
+      eltwise += channels * kSquares;
     }
-    data += channels * kSquares;
-    eltwise += channels * kSquares;
-  }
-}
-
-void BiasActivate(const size_t batch_size, const size_t channels, float* data,
-                  const float* biases, const ActivationFunction activation) {
-  for (size_t i = 0; i < batch_size; i++) {
-    for (size_t c = 0; c < channels; ++c) {
-      auto bias = biases[c];
-      auto arr = &data[c * kSquares];
-      if (activation == NONE) {
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = arr[b] + bias;
-          arr[b] = val;
-        }
-      } else if (activation == RELU) {
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = arr[b] + bias;
-          arr[b] = val > 0 ? val : 0;
-        }
-      } else if (activation == MISH) {
-#ifndef USE_ISPC
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = arr[b] + bias;
-          arr[b] = mish(val);
-        }
-#else
-        ispc::ActivateMish(kSquares, 0.0f, arr, arr, bias, arr);
-#endif
-      } else {
-        for (size_t b = 0; b < kSquares; b++) {
-          float val = arr[b] + bias;
-          arr[b] = Activate(val, activation);
-        }
+  } else {
+    for (size_t i = 0; i < batch_size; i++) {
+      for (size_t c = 0; c < channels; ++c) {
+        auto bias = biases[c];
+        auto arr = &data[c * kSquares];
+        Activate(kSquares, 0.0f, arr, arr, bias, arr, activation);
       }
+      data += channels * kSquares;
     }
-    data += channels * kSquares;
   }
 }
 

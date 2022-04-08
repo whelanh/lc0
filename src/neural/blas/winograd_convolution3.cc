@@ -40,12 +40,10 @@ using ConstEigenMatrixMap =
     Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
 
 template <bool use_eigen>
-void WinogradConvolution3<use_eigen>::Forward(const size_t batch_size,
-                                              const size_t input_channels,
-                                              const size_t output_channels,
-                                              const float* input,
-                                              const float* weights,
-                                              float* output, float *V_, float *M_) {
+void WinogradConvolution3<use_eigen>::Forward(
+    const size_t batch_size, const size_t input_channels,
+    const size_t output_channels, const float* input, const float* weights,
+    float* output, float* V_, float* M_) {
   TransformIn(batch_size, input, V_, input_channels);
   Sgemm(batch_size, V_, M_, weights, input_channels, output_channels);
   TransformOut(batch_size, M_, output, output_channels);
@@ -53,7 +51,7 @@ void WinogradConvolution3<use_eigen>::Forward(const size_t batch_size,
 
 template <bool use_eigen>
 void WinogradConvolution3<use_eigen>::TransformIn(const size_t batch_size,
-                                                  const float* input, float *V_,
+                                                  const float* input, float* V_,
                                                   const size_t channels) {
 #ifndef USE_ISPC
 
@@ -155,8 +153,8 @@ void WinogradConvolution3<use_eigen>::TransformIn(const size_t batch_size,
 
 #ifdef USE_BLAS
 template <>
-void WinogradConvolution3<false>::Sgemm(const size_t batch_size, float *V_, float *M_,
-                                        const float* weights,
+void WinogradConvolution3<false>::Sgemm(const size_t batch_size, float* V_,
+                                        float* M_, const float* weights,
                                         const size_t input_channels,
                                         const size_t output_channels) {
 #ifdef USE_MKL
@@ -233,8 +231,8 @@ void WinogradConvolution3<false>::Sgemm(const size_t batch_size, float *V_, floa
 #endif
 
 template <>
-void WinogradConvolution3<true>::Sgemm(const size_t batch_size, float *V_, float *M_,
-                                       const float* weights,
+void WinogradConvolution3<true>::Sgemm(const size_t batch_size, float* V_,
+                                       float* M_, const float* weights,
                                        const size_t input_channels,
                                        const size_t output_channels) {
   for (size_t b = 0; b < kWinogradTile; b++) {
@@ -251,8 +249,8 @@ void WinogradConvolution3<true>::Sgemm(const size_t batch_size, float *V_, float
 }
 
 template <bool use_eigen>
-void WinogradConvolution3<use_eigen>::TransformOut(const size_t batch_size, float *M_,
-                                                   float* output,
+void WinogradConvolution3<use_eigen>::TransformOut(const size_t batch_size,
+                                                   float* M_, float* output,
                                                    const size_t channels) {
 #ifndef USE_ISPC
 

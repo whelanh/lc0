@@ -244,58 +244,81 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
     }
 
     // Input convolution
+    convolve3.TransformIn(batch_size, conv_in, &V_[0], kInputPlanes);
+    convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.input.weights.data(),
+                    kInputPlanes, output_channels);
+    {
+      convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
 
-//    convolve3.Forward(batch_size, kInputPlanes, output_channels, conv_in,
-//                      weights_.input.weights.data(), conv_out, &V_[0], &M_[0]);
-  convolve3.TransformIn(batch_size, conv_in, &V_[0], kInputPlanes);
-  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.input.weights.data(), kInputPlanes, output_channels);
-  convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
+      BiasResidual(batch_size, output_channels, conv_out,
+                   weights_.input.biases.data(), nullptr, default_activation_);
 
-    BiasActivate(batch_size, output_channels, conv_out,
-                 weights_.input.biases.data(), default_activation_);
+      convolve3.TransformIn(batch_size, conv_out, &V_[0], output_channels);
+    }
 
     // Residual tower
+    for (size_t i = 0; i < weights_.residual.size(); i++) {
+      auto& residual = weights_.residual[i];
 
-    for (auto& residual : weights_.residual) {
       const auto& conv1 = residual.conv1;
       const auto& conv2 = residual.conv2;
       const auto& se = residual.se;
 
       std::swap(conv_out, conv_in);
 
-//      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
-//                        conv1.weights.data(), conv_out, &V_[0], &M_[0]);
-  convolve3.TransformIn(batch_size, conv_in, &V_[0], output_channels);
-  convolve3.Sgemm(batch_size, &V_[0], &M_[0], conv1.weights.data(), output_channels, output_channels);
-  convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
+      convolve3.Sgemm(batch_size, &V_[0], &M_[0], conv1.weights.data(),
+                      output_channels, output_channels);
+      {
+        convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
 
-      BiasActivate(batch_size, output_channels, &conv_out[0],
-                   conv1.biases.data(), default_activation_);
+        BiasResidual(batch_size, output_channels, &conv_out[0],
+                     conv1.biases.data(), nullptr, default_activation_);
 
+        convolve3.TransformIn(batch_size, conv_out, &V_[0], output_channels);
+      }
       std::swap(conv_in, res);
       std::swap(conv_out, conv_in);
 
-//      convolve3.Forward(batch_size, output_channels, output_channels, conv_in,
-//                        conv2.weights.data(), conv_out, &V_[0], &M_[0]);
-  convolve3.TransformIn(batch_size, conv_in, &V_[0], output_channels);
-  convolve3.Sgemm(batch_size, &V_[0], &M_[0], conv2.weights.data(), output_channels, output_channels);
-  convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
+      convolve3.Sgemm(batch_size, &V_[0], &M_[0], conv2.weights.data(),
+                      output_channels, output_channels);
 
       if (residual.has_se) {
         // No relu if followed by SE-unit and residual is added later
-        BiasActivate(batch_size, output_channels, &conv_out[0],
-                     conv2.biases.data(), NONE);
+
+        std::vector<float> s(output_channels * batch_size);
+        std::vector<float> b(output_channels * batch_size);
 
         std::swap(conv_out, conv_in);
 
         auto se_fc_outputs = se.b1.size();
-        ApplySEUnit<use_eigen>(batch_size, output_channels, se_fc_outputs,
-                               conv_in, res, se.w1.data(), se.b1.data(),
-                               se.w2.data(), se.b2.data(), conv_out,
-                               default_activation_);
+        SEUnit<use_eigen>(batch_size, output_channels, se_fc_outputs, &M_[0], conv2.biases.data(),
+                          se.w1.data(), se.b1.data(), se.w2.data(),
+                          se.b2.data(), s.data(), b.data(),
+                          default_activation_);
+        {
+          convolve3.TransformOut(batch_size, &M_[0], conv_in, output_channels);
+
+          for (auto batch = size_t{0}; batch < batch_size; batch++)
+            for (auto ch = size_t{0}; ch < output_channels; ch++) {
+              auto c = batch * output_channels + ch;
+              Activate(kSquares, s[c], &conv_in[c * kSquares],
+                       &res[c * kSquares], b[c], &conv_out[c * kSquares],
+                       default_activation_);
+            }
+
+          // if (conv_policy_ || i != weights_.residual.size() - 1)
+          convolve3.TransformIn(batch_size, conv_out, &V_[0], output_channels);
+        }
       } else {
-        BiasResidual(batch_size, output_channels, &conv_out[0],
-                     conv2.biases.data(), res, default_activation_);
+        {
+          convolve3.TransformOut(batch_size, &M_[0], conv_out, output_channels);
+
+          BiasResidual(batch_size, output_channels, &conv_out[0],
+                       conv2.biases.data(), res, default_activation_);
+
+          // if (conv_policy_ || i != weights_.residual.size() - 1)
+          convolve3.TransformIn(batch_size, conv_out, &V_[0], output_channels);
+        }
       }
     }
 
@@ -397,24 +420,26 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
       }
     } else if (conv_policy_) {
       // Need to preserve conv_out which is used for value head
-//      convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
-//                        weights_.policy1.weights.data(), res, &V_[0], &M_[0]);
-  convolve3.TransformIn(batch_size, conv_out, &V_[0], output_channels);
-  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.policy1.weights.data(), output_channels, output_channels);
-  convolve3.TransformOut(batch_size, &M_[0], res, output_channels);
+      convolve3.Sgemm(batch_size, &V_[0], &M_[0],
+                      weights_.policy1.weights.data(), output_channels,
+                      output_channels);
+      {
+        convolve3.TransformOut(batch_size, &M_[0], res, output_channels);
 
-      BiasActivate(batch_size, output_channels, &res[0],
-                   weights_.policy1.biases.data(), default_activation_);
+        BiasResidual(batch_size, output_channels, &res[0],
+                     weights_.policy1.biases.data(), nullptr,
+                     default_activation_);
 
-//      convolve3.Forward(batch_size, output_channels, num_policy_input_planes,
-//                        res, weights_.policy.weights.data(),
-//                        head_buffer.data(), &V_[0], &M_[0]);
-  convolve3.TransformIn(batch_size, res, &V_[0], output_channels);
-  convolve3.Sgemm(batch_size, &V_[0], &M_[0], weights_.policy.weights.data(), output_channels, num_policy_input_planes);
-  convolve3.TransformOut(batch_size, &M_[0], head_buffer.data(), num_policy_input_planes);
+        convolve3.TransformIn(batch_size, res, &V_[0], output_channels);
+      }
+      convolve3.Sgemm(batch_size, &V_[0], &M_[0],
+                      weights_.policy.weights.data(), output_channels,
+                      num_policy_input_planes);
+      convolve3.TransformOut(batch_size, &M_[0], head_buffer.data(),
+                             num_policy_input_planes);
 
-      BiasActivate(batch_size, num_policy_input_planes, &head_buffer.data()[0],
-                   weights_.policy.biases.data(), NONE);
+      BiasResidual(batch_size, num_policy_input_planes, &head_buffer.data()[0],
+                   weights_.policy.biases.data(), nullptr, NONE);
 
       // Mapping from convolutional policy to lc0 policy
       for (auto batch = size_t{0}; batch < batch_size; batch++) {
@@ -432,8 +457,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
           batch_size, output_channels, num_policy_input_planes, conv_out,
           weights_.policy.weights.data(), head_buffer.data());
 
-      BiasActivate(batch_size, num_policy_input_planes, &head_buffer[0],
-                   weights_.policy.biases.data(), default_activation_);
+      BiasResidual(batch_size, num_policy_input_planes, &head_buffer[0],
+                   weights_.policy.biases.data(), nullptr, default_activation_);
 
       FullyConnectedLayer<use_eigen>::Forward1D(
           batch_size, num_policy_input_planes * kSquares, num_output_policy,
@@ -457,8 +482,8 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
         batch_size, output_channels, num_value_input_planes, conv_out,
         weights_.value.weights.data(), head_buffer.data());
 
-    BiasActivate(batch_size, num_value_input_planes, &head_buffer[0],
-                 weights_.value.biases.data(), default_activation_);
+    BiasResidual(batch_size, num_value_input_planes, &head_buffer[0],
+                 weights_.value.biases.data(), nullptr, default_activation_);
 
     FullyConnectedLayer<use_eigen>::Forward1D(
         batch_size, num_value_input_planes * kSquares, num_value_channels,
@@ -499,8 +524,9 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
           batch_size, output_channels, num_moves_input_planes, conv_out,
           weights_.moves_left.weights.data(), head_buffer.data());
 
-      BiasActivate(batch_size, num_moves_input_planes, &head_buffer[0],
-                   weights_.moves_left.biases.data(), default_activation_);
+      BiasResidual(batch_size, num_moves_input_planes, &head_buffer[0],
+                   weights_.moves_left.biases.data(), nullptr,
+                   default_activation_);
 
       FullyConnectedLayer<use_eigen>::Forward1D(
           batch_size, num_moves_input_planes * kSquares, num_moves_channels,

@@ -40,16 +40,18 @@ class WinogradConvolution3 {
   // Forward inference, batched.
   void Forward(const size_t batch_size, const size_t input_channels,
                const size_t output_channels, const float* input,
-               const float* weights, float* output, float *V_, float *M_);
+               const float* weights, float* output, float* V_, float* M_);
 
-  void TransformIn(const size_t batch_size, const float* input, float *V_,
+  void TransformIn(const size_t batch_size, const float* input, float* V_,
                    const size_t channels);
 
-  void Sgemm(const size_t batch_size, float *V_, float *M_, const float* weights,
-             const size_t input_channels, const size_t output_channels);
+  void Sgemm(const size_t batch_size, float* V_, float* M_,
+             const float* weights, const size_t input_channels,
+             const size_t output_channels);
 
-  void TransformOut(const size_t batch_size, float *M_, float* output,
+  void TransformOut(const size_t batch_size, float* M_, float* output,
                     const size_t channels);
+
  private:
   static constexpr auto kWidth = 8;
   static constexpr auto kHeight = 8;
@@ -60,7 +62,5 @@ class WinogradConvolution3 {
 
   static constexpr auto kWinogradAlpha = 4;
   static constexpr auto kWinogradTile = kWinogradAlpha * kWinogradAlpha;
-
-
 };
 }  // namespace lczero

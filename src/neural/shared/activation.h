@@ -31,10 +31,6 @@ void BiasResidual(const size_t batch_size, const size_t channels, float * data,
                   const float* biases, const float* eltwise,
                   const ActivationFunction activation = RELU);
 
-void BiasActivate(const size_t batch_size, const size_t channels, float * data,
-                  const float* biases,
-                  const ActivationFunction activation = RELU);
-
 float Activate(const float val, const ActivationFunction activation);
 
 void Activate(const size_t len, const float* data, const float* bias,
