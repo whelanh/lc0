@@ -38,22 +38,26 @@ static void global_avg_pooling(const size_t batch_size, const size_t channels,
     const float* M_batch = &M[channels * kTiles * batch_index];
 
     for (size_t channel = 0; channel < channels; channel++) {
-      const float* M_channel = M_batch + channel;
-      auto acc = 0.0f;
+      output[batch_index * channels + channel] = bias[channel];
+    }
 
-      for (int block_x = 0; block_x < kWtiles; block_x++) {
-        for (int block_y = 0; block_y < kWtiles; block_y++) {
-          const auto b = block_y * kWtiles + block_x;
-          const float* M_wtile = M_channel + channels * b;
-          const auto M_incr = channels * kTiles * batch_size;
+    for (int block_x = 0; block_x < kWtiles; block_x++) {
+      for (int block_y = 0; block_y < kWtiles; block_y++) {
+        auto o = &output[batch_index * channels];
+        const auto b = block_y * kWtiles + block_x;
+        const auto M_incr = channels * kTiles * batch_size;
 
-          acc += M_wtile[0] + 2 * M_wtile[M_incr] - M_wtile[3 * M_incr] +
-                 2 * M_wtile[4 * M_incr] + 4 * M_wtile[5 * M_incr] -
-                 2 * M_wtile[7 * M_incr] - M_wtile[12 * M_incr] -
-                 2 * M_wtile[13 * M_incr] + M_wtile[15 * M_incr];
+        for (size_t channel = 0; channel < channels; channel++) {
+          const float* M_wtile = M_batch + channel + channels * b;
+
+          o[channel] +=
+              (M_wtile[0] + 2 * M_wtile[M_incr] - M_wtile[3 * M_incr] +
+               2 * M_wtile[4 * M_incr] + 4 * M_wtile[5 * M_incr] -
+               2 * M_wtile[7 * M_incr] - M_wtile[12 * M_incr] -
+               2 * M_wtile[13 * M_incr] + M_wtile[15 * M_incr]) /
+              kSquares;
         }
       }
-      *(output++) = acc / kSquares + bias[channel];
     }
   }
 }
