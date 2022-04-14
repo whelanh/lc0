@@ -33,6 +33,7 @@
 #include <memory>
 #include <mutex>
 
+#include <utils/fp16_utils.h>
 #include "layers.h"
 #include "neural/factory.h"
 #include "neural/network_legacy.h"
@@ -40,7 +41,6 @@
 #include "utils/bititer.h"
 #include "utils/exception.h"
 
-#include <immintrin.h>
 #include <omp.h>
 
 namespace lczero {
@@ -168,10 +168,9 @@ class OnednnNetworkComputation : public NetworkComputation {
 
   float GetPVal(int sample, int move_id) const override {
     if (f16_) {
-      auto t = _mm_cvtsi32_si128(
+      return FP16toFP32(
           inputs_outputs_
               ->op_policy_mem_s_[sample * kNumOutputPolicy + move_id]);
-      return _mm_cvtss_f32(_mm_cvtph_ps(t));
     } else {
       return inputs_outputs_
           ->op_policy_mem_f_[sample * kNumOutputPolicy + move_id];
@@ -554,9 +553,8 @@ class OnednnNetwork : public Network {
       if (data_type_ == dnnl::memory::data_type::f16) {
         short* buffer = (short*)input_mem.get_data_handle();
         for (int j = 0; j < currentBatchSize * kInputPlanes; j++) {
-          auto t = _mm_cvtps_ph(
-              _mm_set_ss(ipDataValues[j + start * kInputPlanes]), 0);
-          const short value = _mm_extract_epi16(t, 0);
+          const short value =
+              FP32toFP16(ipDataValues[j + start * kInputPlanes]);
           const uint64_t mask = ipDataMasks[j + start * kInputPlanes];
           for (auto i = 0; i < 64; i++)
             *(buffer++) = (mask & (((uint64_t)1) << i)) != 0 ? value : 0;
