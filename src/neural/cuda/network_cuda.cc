@@ -164,7 +164,7 @@ class CudaNetwork : public Network {
     attn_policy_ = file.format().network_format().policy() ==
                    pblczero::NetworkFormat::POLICY_ATTENTION;
 
-    max_batch_size_ = options.GetOrDefault<int>("max_batch", 1024);
+    max_batch_size_ = options.GetOrDefault<int>("max_batch", 4096);
 
     showInfo();
 
