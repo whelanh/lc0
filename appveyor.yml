@@ -45,19 +45,19 @@ install:
 - cmd: IF NOT %BLAS%==true IF NOT %ANDROID%==true set NET=753723
 - cmd: IF NOT %BLAS%==true IF NOT %ANDROID%==true set NET_HASH=3e3444370b9fe413244fdc79671a490e19b93d3cca1669710ffeac890493d198
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-- cmd: IF %NAME%==cpu-dnnl IF NOT EXIST C:\cache\dnnl_win_1.5.0_cpu_vcomp appveyor DownloadFile https://github.com/oneapi-src/oneDNN/releases/download/v1.5/dnnl_win_1.5.0_cpu_vcomp.zip
-- cmd: IF %NAME%==cpu-dnnl IF NOT EXIST C:\cache\dnnl_win_1.5.0_cpu_vcomp 7z x dnnl_win_1.5.0_cpu_vcomp.zip -oC:\cache
 - cmd: set DNNL_NAME=dnnl_win_1.5.0_cpu_vcomp
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 nuget install opencl-nug -Version 0.777.77 -OutputDirectory C:\temp
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 cd \temp
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 appveyor DownloadFile https://github.com/oneapi-src/oneDNN/archive/refs/tags/v2.6.zip
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 7z x v2.6.zip
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 cd oneDNN-2.6
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 md build
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 cd build
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DDNNL_GPU_RUNTIME=OCL -DOpenCL_INCLUDE_DIR=\temp\opencl-nug.0.777.77\build\native\include -DOpenCL_LIBRARY=\temp\opencl-nug.0.777.77\build\native\lib\x64\OpenCL.lib -DCMAKE_INSTALL_PREFIX=C:\cache\dnnl26 -DONEDNN_BUILD_TESTS=OFF ..
-- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\dnnl26 cmake --build . --config Release --target INSTALL
-- cmd: IF %NAME%==onednn set DNNL_NAME=dnnl26
+- cmd: IF %NAME%==cpu-dnnl IF NOT EXIST C:\cache\%DNNL_NAME% appveyor DownloadFile https://github.com/oneapi-src/oneDNN/releases/download/v1.5/dnnl_win_1.5.0_cpu_vcomp.zip
+- cmd: IF %NAME%==cpu-dnnl IF NOT EXIST C:\cache\%DNNL_NAME% 7z x dnnl_win_1.5.0_cpu_vcomp.zip -oC:\cache
+- cmd: IF %NAME%==onednn set DNNL_NAME=dnnl254
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% nuget install opencl-nug -Version 0.777.77 -OutputDirectory C:\temp
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% cd \temp
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% appveyor DownloadFile https://github.com/oneapi-src/oneDNN/archive/refs/tags/v2.5.4.zip
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% 7z x v2.5.4.zip
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% cd oneDNN-2.5.4
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% md build
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% cd build
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DDNNL_GPU_RUNTIME=OCL -DOpenCL_INCLUDE_DIR=\temp\opencl-nug.0.777.77\build\native\include -DOpenCL_LIBRARY=\temp\opencl-nug.0.777.77\build\native\lib\x64\OpenCL.lib -DCMAKE_INSTALL_PREFIX=C:\cache\%DNNL_NAME% -DONEDNN_BUILD_TESTS=OFF ..
+- cmd: IF %NAME%==onednn IF NOT EXIST C:\cache\%DNNL_NAME% cmake --build . --config Release --target INSTALL
 - cmd: cd C:\projects\lc0
 - cmd: IF %NAME%==cpu-openblas IF NOT EXIST C:\cache\OpenBLAS appveyor DownloadFile https://sjeng.org/ftp/OpenBLAS-0.3.3-win-oldthread.zip
 - cmd: IF %NAME%==cpu-openblas IF NOT EXIST C:\cache\OpenBLAS 7z x OpenBLAS-0.3.3-win-oldthread.zip -oC:\cache\OpenBLAS
