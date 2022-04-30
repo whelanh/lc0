@@ -734,11 +734,23 @@ class OnednnNetwork : public Network {
       if (attn_policy_) {
         float* opPol = (float*)opPol_mem.get_data_handle();
         for (int batch = 0; batch < currentBatchSize; batch++) {
-          for (int i = 0; i < 64 * 64 + 8 * 24; i++) {
-            auto j = kAttnPolicyMap[i];
-            if (j >= 0) {
-              io->op_policy_mem_[(batch + start) * kNumOutputPolicy + j] =
-                  opPol[batch * (64 * 64 + 8 * 24) + i];
+          for (int x = 0; x < 64 * 64; x++) {
+            auto y = kAttnPolicyMap[x];
+            if (y >= 0) {
+              io->op_policy_mem_[(batch + start) * kNumOutputPolicy + y] =
+                  opPol[batch * (64 * 64 + 8 * 24) + x];
+            }
+          }
+          for (int k = 0; k < 8; k++) {      // y in cuda
+            for (int j = 0; j < 8; j++) {    // w in cuda
+              for (int i = 0; i < 3; i++) {  // c in cuda
+                auto y = kAttnPolicyMap[64 * 64 + 24 * k + 3 * j + i];
+                if (y >= 0) {
+                  io->op_policy_mem_[(batch + start) * kNumOutputPolicy + y] =
+                      opPol[batch * (64 * 64 + 8 * 24) + 64 * 64 + 64 * i +
+                            8 * j + k];
+                }
+              }
             }
           }
         }

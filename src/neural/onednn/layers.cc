@@ -698,15 +698,11 @@ void AttentionPolicyHead::Eval(int N, dnnl::memory& output, dnnl::memory& input,
       scratchpad_md = add_pd.scratchpad_desc();
     }
 
-    auto promo2_md = dnnl::memory::desc({N, 8, 4}, data_type_,
-                                        dnnl::memory::format_tag::acb);
     auto add2_d = dnnl::binary::desc(
         dnnl::algorithm::binary_add,
-        out_md.submemory_desc({N, 8, 1, 8}, {0, 48, 7, 0})
-            .reshape({N, 8, 8, 1}),
-        promo2_md.submemory_desc({N, 8, 3}, {0, 0, 0}).reshape({N, 1, 8, 3}),
-        out_md.submemory_desc({N, 3, 8, 8}, {0, 64, 0, 0})
-            .reshape({N, 8, 8, 3}));
+        out_md.submemory_desc({N, 8, 1, 8}, {0, 48, 7, 0}),
+        promo_md.submemory_desc({N, 3, 8}, {0, 0, 0}).reshape({N, 3, 8, 1}),
+        out_md.submemory_desc({N, 3, 8, 8}, {0, 64, 0, 0}));
     dnnl::primitive_attr add2_attr;
     add2_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
     auto add2_pd = dnnl::binary::primitive_desc(add2_d, add2_attr, eng);
