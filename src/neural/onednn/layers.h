@@ -200,7 +200,6 @@ class AttentionPolicyHead : public BaseLayer {
   dnnl::memory fc_out_mem;
   dnnl::memory fcQ_out_mem;
   dnnl::memory fcK_out_mem;
-  dnnl::memory promo_mem;
 
   dnnl::memory scratchpad_mem;
 
@@ -209,8 +208,6 @@ class AttentionPolicyHead : public BaseLayer {
   dnnl::inner_product_forward fcQK_;
   dnnl::matmul mul_;
   dnnl::matmul pmul_;
-  dnnl::binary add_;
-  dnnl::binary add2_;
 };
 
 }  // namespace onednn_backend
