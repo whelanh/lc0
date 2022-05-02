@@ -1,6 +1,6 @@
 /*
  This file is part of Leela Chess Zero.
- Copyright (C) 2018-2020 The LCZero Authors
+ Copyright (C) 2018-2022 The LCZero Authors
 
  Leela Chess is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  along with Leela Chess.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <Eigen/Core>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -34,8 +35,6 @@
 #include "neural/shared/policy_map.h"
 #include "neural/shared/winograd_filter.h"
 
-#include <Eigen/Core>
-
 #ifdef USE_DNNL
 #include <omp.h>
 #endif
@@ -48,7 +47,8 @@ class BlasComputation : public NetworkComputation {
  public:
   BlasComputation(const LegacyWeights& weights, const size_t max_batch_size,
                   const bool wdl, const bool moves_left, const bool conv_policy,
-                  const ActivationFunction default_activation, const bool attn_policy);
+                  const ActivationFunction default_activation,
+                  const bool attn_policy);
 
   virtual ~BlasComputation() {}
 
@@ -126,7 +126,7 @@ class BlasNetwork : public Network {
 
   std::unique_ptr<NetworkComputation> NewComputation() override {
     return std::make_unique<BlasComputation<use_eigen>>(
-        weights_, max_batch_size_, wdl_, moves_left_, conv_policy_, 
+        weights_, max_batch_size_, wdl_, moves_left_, conv_policy_,
         default_activation_, attn_policy_);
   }
 
@@ -166,6 +166,13 @@ BlasComputation<use_eigen>::BlasComputation(
   omp_set_num_threads(1);
 #endif
 }
+
+template <typename T>
+using EigenMatrixMap =
+    Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
+template <typename T>
+using ConstEigenMatrixMap =
+    Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
 
 template <bool use_eigen>
 void BlasComputation<use_eigen>::ComputeBlocking() {
@@ -270,28 +277,26 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
                         conv2.weights.data(), conv_out);
 
       if (residual.has_se) {
-        // No relu if followed by SE-unit and residual is added later
-        BiasActivate(batch_size, output_channels, &conv_out[0],
-                     conv2.biases.data(), NONE);
-
+        // No relu if followed by SE-unit and residual/bias is added later
         std::swap(conv_out, conv_in);
 
         auto se_fc_outputs = se.b1.size();
         ApplySEUnit<use_eigen>(batch_size, output_channels, se_fc_outputs,
-                               conv_in, res, se.w1.data(), se.b1.data(),
-                               se.w2.data(), se.b2.data(), conv_out,
-                               default_activation_);
+                               conv_in, conv2.biases.data(), res, se.w1.data(),
+                               se.b1.data(), se.w2.data(), se.b2.data(),
+                               conv_out, default_activation_);
       } else {
         BiasResidual(batch_size, output_channels, &conv_out[0],
                      conv2.biases.data(), res, default_activation_);
       }
     }
 
+    // Need to preserve conv_out which is used for value and moves left heads.
     if (attn_policy_) {
       // NCHW to NHWC conversion.
       for (auto batch = size_t{0}; batch < batch_size; batch++) {
         for (auto i = 0; i < kSquares; i++) {
-          for (auto j = 0; j < output_channels; j++) {
+          for (size_t j = 0; j < output_channels; j++) {
             res[batch * kSquares * output_channels + i * output_channels + j] =
                 conv_out[batch * kSquares * output_channels + j * kSquares + i];
           }
@@ -300,56 +305,62 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
       const size_t embedding_size = weights_.ip_pol_b.size();
       // Embedding.
       FullyConnectedLayer<use_eigen>::Forward1D(
-          batch_size * kSquares, output_channels, embedding_size,
-          res, weights_.ip_pol_w.data(),
-          weights_.ip_pol_b.data(),
+          batch_size * kSquares, output_channels, embedding_size, res,
+          weights_.ip_pol_w.data(), weights_.ip_pol_b.data(),
           SELU,  // SELU activation for attention head.
           head_buffer.data());
 
       for (auto layer : weights_.pol_encoder) {
-        // TODO: support encoder heds.
-        throw Exception("Eigen/Blas backend doesn't support encoder heads yet.");
+        // TODO: support encoder heads.
+        throw Exception(
+            "Eigen/Blas backend doesn't support encoder heads yet.");
       }
       const size_t policy_d_model = weights_.ip2_pol_b.size();
       std::vector<float> head_buffer2(largest_batch_size * policy_d_model *
-                                     kSquares);
+                                      kSquares);
       std::vector<float> head_buffer3(largest_batch_size * policy_d_model *
                                       kSquares);
       // Q
       FullyConnectedLayer<use_eigen>::Forward1D(
-          batch_size * kSquares, embedding_size, policy_d_model, head_buffer.data(),
-          weights_.ip2_pol_w.data(), weights_.ip2_pol_b.data(),
-          NONE,
-          head_buffer2.data());
+          batch_size * kSquares, embedding_size, policy_d_model,
+          head_buffer.data(), weights_.ip2_pol_w.data(),
+          weights_.ip2_pol_b.data(), NONE, head_buffer2.data());
       // K
       FullyConnectedLayer<use_eigen>::Forward1D(
           batch_size * kSquares, embedding_size, policy_d_model,
           head_buffer.data(), weights_.ip3_pol_w.data(),
           weights_.ip3_pol_b.data(), NONE, head_buffer3.data());
-      // TODO: perform dotproduct with Eigen/Blas rather than handrolled?
-      const float scaling = sqrtf(policy_d_model);
+      const float scaling = 1.0f / sqrtf(policy_d_model);
       for (auto batch = size_t{0}; batch < batch_size; batch++) {
-        for (auto i = 0; i < kSquares; i++) {
-          for (auto j = 0; j < kSquares; j++) {
-            float sum = 0.0f;
-            for (auto k = 0; k < policy_d_model; k++) {
-              sum += head_buffer2.data()[batch * 64 * policy_d_model +
-                                         i * policy_d_model + k] *
-                     head_buffer3.data()[batch * 64 * policy_d_model +
-                                         j * policy_d_model + k];
-            }
-            head_buffer.data()[batch * (64 * 64 + 8 * 24) + i * 64 + j] =
-                sum / scaling;
-          }
+        const float* A = &head_buffer2[batch * 64 * policy_d_model];
+        const float* B = &head_buffer3[batch * 64 * policy_d_model];
+        float* C = &head_buffer[batch * (64 * 64 + 8 * 24)];
+        if (use_eigen) {
+          auto C_mat = EigenMatrixMap<float>(C, kSquares, kSquares);
+          C_mat.noalias() =
+              scaling *
+              ConstEigenMatrixMap<float>(B, policy_d_model, kSquares)
+                  .transpose() *
+              ConstEigenMatrixMap<float>(A, policy_d_model, kSquares);
+        } else {
+#ifdef USE_BLAS
+          cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, kSquares,
+                      kSquares, policy_d_model, scaling, A, policy_d_model, B,
+                      policy_d_model, 0.0f, C, 64);
+#else
+          // Should never get here.
+          throw Exception("Blas backend internal error");
+#endif
         }
       }
       // Promotion offset calculation.
       for (auto batch = size_t{0}; batch < batch_size; batch++) {
         float promotion_offsets[4][8];
+        // This is so small that SGEMM seems slower.
         for (int i = 0; i < 4; i++) {
           for (int j = 0; j < 8; j++) {
             float sum = 0;
-            for (int k = 0; k < policy_d_model; k++) {
+            for (size_t k = 0; k < policy_d_model; k++) {
               sum += head_buffer3.data()[batch * kSquares * policy_d_model +
                                          (56 + j) * policy_d_model + k] *
                      weights_.ip4_pol_w.data()[i * policy_d_model + k];
@@ -376,7 +387,7 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
       }
       // Mapping from attention policy to lc0 policy
       for (auto batch = size_t{0}; batch < batch_size; batch++) {
-        for (auto i = 0; i < 64*64+8*24; i++) {
+        for (auto i = 0; i < 64 * 64 + 8 * 24; i++) {
           auto j = kAttnPolicyMap[i];
           if (j >= 0) {
             output_fc[batch * num_output_policy + j] =
@@ -385,7 +396,6 @@ void BlasComputation<use_eigen>::ComputeBlocking() {
         }
       }
     } else if (conv_policy_) {
-      // Need to preserve conv_out which is used for value head
       convolve3.Forward(batch_size, output_channels, output_channels, conv_out,
                         weights_.policy1.weights.data(), res);
 
@@ -625,10 +635,10 @@ std::unique_ptr<Network> MakeBlasNetwork(const std::optional<WeightsFile>& w,
           pblczero::NetworkFormat::NETWORK_CLASSICAL_WITH_HEADFORMAT &&
       weights.format().network_format().network() !=
           pblczero::NetworkFormat::NETWORK_SE_WITH_HEADFORMAT) {
-    throw Exception(
-        "Network format " +
-        std::to_string(weights.format().network_format().network()) +
-        " is not supported by BLAS backend.");
+    throw Exception("Network format " +
+                    pblczero::NetworkFormat::NetworkStructure_Name(
+                        weights.format().network_format().network()) +
+                    " is not supported by BLAS backend.");
   }
   if (weights.format().network_format().policy() !=
           pblczero::NetworkFormat::POLICY_CLASSICAL &&
@@ -637,7 +647,8 @@ std::unique_ptr<Network> MakeBlasNetwork(const std::optional<WeightsFile>& w,
       weights.format().network_format().policy() !=
           pblczero::NetworkFormat::POLICY_ATTENTION) {
     throw Exception("Policy format " +
-                    std::to_string(weights.format().network_format().policy()) +
+                    pblczero::NetworkFormat::PolicyFormat_Name(
+                        weights.format().network_format().policy()) +
                     " is not supported by BLAS backend.");
   }
   if (weights.format().network_format().value() !=
@@ -645,7 +656,8 @@ std::unique_ptr<Network> MakeBlasNetwork(const std::optional<WeightsFile>& w,
       weights.format().network_format().value() !=
           pblczero::NetworkFormat::VALUE_WDL) {
     throw Exception("Value format " +
-                    std::to_string(weights.format().network_format().value()) +
+                    pblczero::NetworkFormat::ValueFormat_Name(
+                        weights.format().network_format().value()) +
                     " is not supported by BLAS backend.");
   }
   if (weights.format().network_format().default_activation() !=
@@ -654,7 +666,8 @@ std::unique_ptr<Network> MakeBlasNetwork(const std::optional<WeightsFile>& w,
           pblczero::NetworkFormat::DEFAULT_ACTIVATION_MISH) {
     throw Exception(
         "Default activation " +
-        std::to_string(weights.format().network_format().default_activation()) +
+        pblczero::NetworkFormat::DefaultActivation_Name(
+            weights.format().network_format().default_activation()) +
         " is not supported by BLAS backend.");
   }
   return std::make_unique<BlasNetwork<use_eigen>>(weights, options);
