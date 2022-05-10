@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -104,7 +105,15 @@ float OnnxComputation::GetQVal(int sample) const {
   if (network_->wdl_head_ != -1) {
     const auto& data =
         output_tensors_[network_->wdl_head_].GetTensorData<float>();
-    return data[sample * 3 + 0] - data[sample * 3 + 2];
+    float w = data[sample * 3 + 0];
+    float d = data[sample * 3 + 1];
+    float l = data[sample * 3 + 2];
+    float m = std::max({w, d, l});
+    w = std::exp(w - m);
+    d = std::exp(d - m);
+    l = std::exp(l - m);
+    float sum = w + d + l;
+    return (w - l) / sum;
   } else {
     const auto& data =
         output_tensors_[network_->value_head_].GetTensorData<float>();
@@ -115,7 +124,15 @@ float OnnxComputation::GetDVal(int sample) const {
   if (network_->wdl_head_ == -1) return 0.0f;
   const auto& data =
       output_tensors_[network_->wdl_head_].GetTensorData<float>();
-  return data[sample * 3 + 1];
+  float w = data[sample * 3 + 0];
+  float d = data[sample * 3 + 1];
+  float l = data[sample * 3 + 2];
+  float m = std::max({w, d, l});
+  w = std::exp(w - m);
+  d = std::exp(d - m);
+  l = std::exp(l - m);
+  float sum = w + d + l;
+  return d / sum;
 }
 float OnnxComputation::GetPVal(int sample, int move_id) const {
   const auto& data =
@@ -135,10 +152,15 @@ Ort::Value OnnxComputation::PrepareInput() {
   auto iter = input_tensor_data_.data();
   for (const auto& sample : raw_input_) {
     assert(sample.size() == kInputPlanes);
+    int idx = 0;
     for (const auto& plane : sample) {
       for (auto bit : IterateBits(plane.mask)) {
-        *(iter + bit) = plane.value;
+        if (idx == 109)
+          *(iter + bit) = plane.value / 99;
+        else
+          *(iter + bit) = plane.value;
       }
+      idx++;
       iter += 64;
     }
   }
