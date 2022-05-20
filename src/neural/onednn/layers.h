@@ -49,7 +49,8 @@ class BaseLayer {
   void SetDataType(dnnl::memory::data_type type) { data_type_ = type; }
   void SetConvolutionType(dnnl::algorithm type) { convolution_type_ = type; }
   virtual void Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                    dnnl::engine& eng, dnnl::stream& stream) = 0;
+                    dnnl::memory& scratch, dnnl::engine& eng,
+                    dnnl::stream& stream) = 0;
 
  protected:
   BaseLayer* input_;
@@ -71,7 +72,8 @@ class ConvLayer : public BaseLayer {
                    dnnl::stream& stream);
 
   // If there is a skip connection the output doubles as an input.
-  void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+  void Eval(int N, dnnl::memory& output, dnnl::memory& input,
+            dnnl::memory& scratch, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
  private:
@@ -102,7 +104,8 @@ class FCLayer : public BaseLayer {
 
   void LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::engine& eng,
                    dnnl::stream& stream);
-  void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+  void Eval(int N, dnnl::memory& output, dnnl::memory& input,
+            dnnl::memory& scratch, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
  private:
@@ -133,7 +136,8 @@ class SELayer : public BaseLayer {
 
   // Initially output holds the skip connection. Both input and output are
   // assumed to be the same memory format.
-  void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+  void Eval(int N, dnnl::memory& output, dnnl::memory& input,
+            dnnl::memory& scratch, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
  private:
@@ -176,7 +180,8 @@ class AttentionPolicyHead : public BaseLayer {
   void LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::memory& w2,
                    dnnl::memory& b2, dnnl::memory& w3, dnnl::memory& b3,
                    dnnl::memory& w4, dnnl::engine& eng, dnnl::stream& stream);
-  void Eval(int N, dnnl::memory& output, dnnl::memory& input, dnnl::engine& eng,
+  void Eval(int N, dnnl::memory& output, dnnl::memory& input,
+            dnnl::memory& scratch, dnnl::engine& eng,
             dnnl::stream& stream) override;
 
  private:

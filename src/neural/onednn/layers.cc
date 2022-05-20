@@ -69,7 +69,8 @@ void ConvLayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1,
 }
 
 void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                     dnnl::engine& eng, dnnl::stream& stream) {
+                     dnnl::memory& scratch, dnnl::engine& eng,
+                     dnnl::stream& stream) {
   std::lock_guard<std::mutex> lock(lock_);
   if (last_batch_ != N) {
     auto t_in_md = dnnl::memory::desc({N, c_input_, H, W}, data_type_,
@@ -158,22 +159,20 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
   }
 
   if (in_md != input.get_desc()) {
-    auto tmp = dnnl::memory(in_md, eng);
     in_reorder_.execute(stream, {{DNNL_ARG_SRC, input},
-                                 {DNNL_ARG_DST, tmp},
+                                 {DNNL_ARG_DST, scratch},
                                  {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-    input = tmp;
+    std::swap(input, scratch);
   }
 
-  if (!output || out_md != output.get_desc()) {
+  if (out_md != output.get_desc()) {
     if (use_skip_) {
-      auto tmp = dnnl::memory(out_md, eng);
       skip_reorder_.execute(stream, {{DNNL_ARG_SRC, output},
-                                     {DNNL_ARG_DST, tmp},
+                                     {DNNL_ARG_DST, scratch},
                                      {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-      output = tmp;
+      std::swap(output, scratch);
     } else {
-      output = dnnl::memory(out_md, eng);
+      output = dnnl::memory(out_md, eng, output.get_data_handle());
     }
   }
 
@@ -222,7 +221,8 @@ void SELayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::memory& w2,
 }
 
 void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                   dnnl::engine& eng, dnnl::stream& stream) {
+                   dnnl::memory& /*scratch*/, dnnl::engine& eng,
+                   dnnl::stream& stream) {
   std::lock_guard<std::mutex> lock(lock_);
   if (last_batch_ != N) {
     // Also the broadcast input memory format for the binary primitives.
@@ -244,6 +244,10 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
 
     auto t_fc2_out_md = dnnl::memory::desc({N, 2 * C}, data_type_,
                                            dnnl::memory::format_tag::any);
+
+    // CERR << input.get_desc().dims()[0] << ", " << input.get_desc().dims()[1]
+    // << ", " << input.get_desc().dims()[2] << ", " <<
+    // input.get_desc().dims()[3];
 
     auto pooling_d = dnnl::pooling_forward::desc(
         dnnl::prop_kind::forward_inference, dnnl::algorithm::pooling_avg,
@@ -487,7 +491,8 @@ void FCLayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::engine& eng,
 }
 
 void FCLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                   dnnl::engine& eng, dnnl::stream& stream) {
+                   dnnl::memory& scratch, dnnl::engine& eng,
+                   dnnl::stream& stream) {
   std::lock_guard<std::mutex> lock(lock_);
   if (last_batch_ != N) {
     const int num_outputs = C * H * W;
@@ -545,15 +550,14 @@ void FCLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
   }
 
   if (in_md != input.get_desc()) {
-    auto tmp = dnnl::memory(in_md, eng);
     in_reorder_.execute(stream, {{DNNL_ARG_SRC, input},
-                                 {DNNL_ARG_DST, tmp},
+                                 {DNNL_ARG_DST, scratch},
                                  {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-    input = tmp;
+    std::swap(input, scratch);
   }
 
-  if (!output || out_md != output.get_desc()) {
-    output = dnnl::memory(out_md, eng);
+  if (out_md != output.get_desc()) {
+    output = dnnl::memory(out_md, eng, output.get_data_handle());
   }
 
   fc_.execute(stream, {{DNNL_ARG_SRC, input},
@@ -600,7 +604,8 @@ void AttentionPolicyHead::LoadWeights(dnnl::memory& w1, dnnl::memory& b1,
 }
 
 void AttentionPolicyHead::Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                               dnnl::engine& eng, dnnl::stream& stream) {
+                               dnnl::memory& /*scratch*/, dnnl::engine& eng,
+                               dnnl::stream& stream) {
   std::lock_guard<std::mutex> lock(lock_);
   if (last_batch_ != N) {
     in_md = dnnl::memory::desc({N, C, H, W}, data_type_,
