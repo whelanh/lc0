@@ -91,7 +91,6 @@ class ConvLayer : public BaseLayer {
   dnnl::convolution_forward conv_;
   dnnl::eltwise_forward mish_;
   dnnl::reorder in_reorder_;
-  dnnl::reorder skip_reorder_;
   dnnl::memory scratchpad_mem;
   // Cached values to change in/out tensors for best performance.
   dnnl::memory::desc in_md;

@@ -80,8 +80,10 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
         dnnl::memory::desc({C, c_input_, filter_size_, filter_size_},
                            data_type_, dnnl::memory::format_tag::any);
 
-    auto t_out_md = dnnl::memory::desc({N, C, H, W}, data_type_,
-                                       dnnl::memory::format_tag::any);
+    auto t_out_md = use_skip_
+                        ? output.get_desc()
+                        : dnnl::memory::desc({N, C, H, W}, data_type_,
+                                             dnnl::memory::format_tag::any);
 
     const int padding = filter_size_ / 2;
     auto conv_d = dnnl::convolution_forward::desc(
@@ -108,7 +110,7 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     conv_ = dnnl::convolution_forward(conv_pd);
 
     in_md = conv_pd.src_desc();
-    out_md = conv_pd.dst_desc();
+    out_md = use_skip_ ? output.get_desc() : conv_pd.dst_desc();
 
     // Apparently convolution doesn't go well with mish post op.
     if (activation_ == MISH) {
@@ -143,40 +145,26 @@ void ConvLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
       scratchpad_md = in_reorder_pd.scratchpad_desc();
     }
 
-    if (use_skip_) {
-      auto skip_reorder_pd = dnnl::reorder::primitive_desc(
-          eng, output.get_desc(), eng, out_md, reorder_attr);
-      skip_reorder_ = dnnl::reorder(skip_reorder_pd);
-      if (scratchpad_md.get_size() <
-          skip_reorder_pd.scratchpad_desc().get_size()) {
-        scratchpad_md = skip_reorder_pd.scratchpad_desc();
-      }
-    }
-
     scratchpad_mem = dnnl::memory(scratchpad_md, eng);
 
     last_batch_ = N;
   }
 
+  dnnl::memory in;
   if (in_md != input.get_desc()) {
     in_reorder_.execute(stream, {{DNNL_ARG_SRC, input},
                                  {DNNL_ARG_DST, scratch},
                                  {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-    std::swap(input, scratch);
+    in = scratch;
+  } else {
+    in = input;
   }
 
   if (out_md != output.get_desc()) {
-    if (use_skip_) {
-      skip_reorder_.execute(stream, {{DNNL_ARG_SRC, output},
-                                     {DNNL_ARG_DST, scratch},
-                                     {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-      std::swap(output, scratch);
-    } else {
-      output = dnnl::memory(out_md, eng, output.get_data_handle());
-    }
+    output = dnnl::memory(out_md, eng, output.get_data_handle());
   }
 
-  conv_.execute(stream, {{DNNL_ARG_SRC, input},
+  conv_.execute(stream, {{DNNL_ARG_SRC, in},
                          {DNNL_ARG_WEIGHTS, conv_filter_mem},
                          {DNNL_ARG_BIAS, bias_mem},
                          {DNNL_ARG_DST, output},
@@ -549,18 +537,21 @@ void FCLayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     last_batch_ = N;
   }
 
+  dnnl::memory in;
   if (in_md != input.get_desc()) {
     in_reorder_.execute(stream, {{DNNL_ARG_SRC, input},
                                  {DNNL_ARG_DST, scratch},
                                  {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-    std::swap(input, scratch);
+    in = scratch;
+  } else {
+    in = input;
   }
 
   if (out_md != output.get_desc()) {
     output = dnnl::memory(out_md, eng, output.get_data_handle());
   }
 
-  fc_.execute(stream, {{DNNL_ARG_SRC, input},
+  fc_.execute(stream, {{DNNL_ARG_SRC, in},
                        {DNNL_ARG_WEIGHTS, filter_mem},
                        {DNNL_ARG_BIAS, bias_mem},
                        {DNNL_ARG_DST, output},
