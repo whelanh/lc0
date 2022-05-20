@@ -139,8 +139,10 @@ class SELayer : public BaseLayer {
  private:
   dnnl::memory filter_mem;
   dnnl::memory bias_mem;
-  dnnl::memory filter2_mem;
-  dnnl::memory bias2_mem;
+  dnnl::memory filter2a_mem;
+  dnnl::memory bias2a_mem;
+  dnnl::memory filter2b_mem;
+  dnnl::memory bias2b_mem;
 
   int numFc1Out_;
 
@@ -150,8 +152,8 @@ class SELayer : public BaseLayer {
   int last_batch_ = 0;
   dnnl::pooling_forward pooling_;
   dnnl::inner_product_forward fc_;
-  dnnl::inner_product_forward fc2_;
-  dnnl::eltwise_forward sigmoid_;
+  dnnl::inner_product_forward fc2a_;
+  dnnl::inner_product_forward fc2b_;
   dnnl::binary mul_;
   dnnl::binary add_;
   dnnl::reorder fc1_reorder_;
@@ -163,7 +165,8 @@ class SELayer : public BaseLayer {
   dnnl::memory::desc pool_out_md;
   dnnl::memory::desc fc1_in_md;
   dnnl::memory::desc fc1_out_md;
-  dnnl::memory::desc fc2_out_md;
+  dnnl::memory::desc fc2a_out_md;
+  dnnl::memory::desc fc2b_out_md;
 };
 
 class AttentionPolicyHead : public BaseLayer {
