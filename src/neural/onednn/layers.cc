@@ -209,7 +209,7 @@ void SELayer::LoadWeights(dnnl::memory& w1, dnnl::memory& b1, dnnl::memory& w2,
 }
 
 void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                   dnnl::memory& /*scratch*/, dnnl::engine& eng,
+                   dnnl::memory& scratch, dnnl::engine& eng,
                    dnnl::stream& stream) {
   std::lock_guard<std::mutex> lock(lock_);
   if (last_batch_ != N) {
@@ -232,10 +232,6 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
 
     auto t_fc2_out_md = dnnl::memory::desc({N, 2 * C}, data_type_,
                                            dnnl::memory::format_tag::any);
-
-    // CERR << input.get_desc().dims()[0] << ", " << input.get_desc().dims()[1]
-    // << ", " << input.get_desc().dims()[2] << ", " <<
-    // input.get_desc().dims()[3];
 
     auto pooling_d = dnnl::pooling_forward::desc(
         dnnl::prop_kind::forward_inference, dnnl::algorithm::pooling_avg,
@@ -389,12 +385,19 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
 
     scratchpad_mem = dnnl::memory(scratchpad_md, eng);
 
+    buf1 = dnnl::memory(pool_out_md, eng);
+    if (fc1_out_md.get_size() > pool_out_md.get_size()) {
+      buf2 = dnnl::memory(fc1_out_md, eng);
+    } else {
+      buf2 = dnnl::memory(pool_out_md, eng);
+    }
+
     last_batch_ = N;
   }
 
-  auto pool_out_mem = dnnl::memory(pool_out_md, eng);
-  auto fc1_out_mem = dnnl::memory(fc1_out_md, eng);
-  auto fc2_out_mem = dnnl::memory(fc2_out_md, eng);
+  auto& pool_out_mem = buf1;
+  auto& fc1_out_mem = buf2;
+  auto& fc2_out_mem = scratch;
 
   pooling_.execute(stream, {{DNNL_ARG_SRC, input},
                             {DNNL_ARG_DST, pool_out_mem},
@@ -402,10 +405,10 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
 
   dnnl::memory fc1_in_mem;
   if (fc1_in_md != pool_out_md) {
-    fc1_in_mem = dnnl::memory(fc1_in_md, eng);
     fc1_reorder_.execute(stream, {{DNNL_ARG_SRC, pool_out_mem},
-                                  {DNNL_ARG_DST, fc1_in_mem},
+                                  {DNNL_ARG_DST, scratch},
                                   {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
+    fc1_in_mem = scratch;
   } else {
     fc1_in_mem = pool_out_mem;
   }
@@ -422,8 +425,7 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
                         {DNNL_ARG_DST, fc2_out_mem},
                         {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
 
-  dnnl::memory mul_in_mem;
-  mul_in_mem = dnnl::memory(pool_out_md, eng);
+  auto& mul_in_mem = buf1;
   mul_reorder_.execute(stream, {{DNNL_ARG_SRC, fc2_out_mem},
                                 {DNNL_ARG_DST, mul_in_mem},
                                 {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
@@ -432,8 +434,7 @@ void SELayer::Eval(int N, dnnl::memory& output, dnnl::memory& input,
                             {DNNL_ARG_DST, mul_in_mem},
                             {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
 
-  dnnl::memory add_in_mem;
-  add_in_mem = dnnl::memory(pool_out_md, eng);
+  auto& add_in_mem = buf2;
   add_reorder_.execute(stream, {{DNNL_ARG_SRC, fc2_out_mem},
                                 {DNNL_ARG_DST, add_in_mem},
                                 {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
