@@ -604,7 +604,7 @@ void AttentionPolicyHead::LoadWeights(dnnl::memory& w1, dnnl::memory& b1,
 }
 
 void AttentionPolicyHead::Eval(int N, dnnl::memory& output, dnnl::memory& input,
-                               dnnl::memory& /*scratch*/, dnnl::engine& eng,
+                               dnnl::memory& scratch, dnnl::engine& eng,
                                dnnl::stream& stream) {
   std::lock_guard<std::mutex> lock(lock_);
   if (last_batch_ != N) {
@@ -728,20 +728,22 @@ void AttentionPolicyHead::Eval(int N, dnnl::memory& output, dnnl::memory& input,
     last_batch_ = N;
   }
 
+  dnnl::memory in;
   // Convert to NHWC.
   if (in_md != input.get_desc()) {
-    auto tmp = dnnl::memory(in_md, eng);
     in_reorder_.execute(stream, {{DNNL_ARG_SRC, input},
-                                 {DNNL_ARG_DST, tmp},
+                                 {DNNL_ARG_DST, scratch},
                                  {DNNL_ARG_SCRATCHPAD, scratchpad_mem}});
-    input = tmp;
+    in = scratch;
+  } else {
+    in = input;
   }
 
-  if (!output || out_md != output.get_desc()) {
-    output = dnnl::memory(out_md, eng);
+  if (out_md != output.get_desc()) {
+    output = dnnl::memory(out_md, eng, output.get_data_handle());
   }
 
-  fc_.execute(stream, {{DNNL_ARG_SRC, input},
+  fc_.execute(stream, {{DNNL_ARG_SRC, in},
                        {DNNL_ARG_WEIGHTS, fc_filter_mem},
                        {DNNL_ARG_BIAS, fc_bias_mem},
                        {DNNL_ARG_DST, fc_out_mem},
