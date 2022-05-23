@@ -208,6 +208,8 @@ class OnednnNetwork : public Network {
         data_type_ = dnnl::memory::data_type::f16;
       }
     }
+    dgpu_ = options.GetOrDefault<bool>("dgpu", false) &&
+            eng_.get_kind() == dnnl::engine::kind::gpu;
 
     // Unfortunately current oneDNN versions get this wrong, selecting Winograd
     // on gpu and not on cpu (last tested with version 2.6.0). So for the time
@@ -567,7 +569,7 @@ class OnednnNetwork : public Network {
 
       auto scratch_desc =
           dnnl::memory::desc({alloc_batch, kInputPlanes, 8, 8},
-                             data_type_ == dnnl::memory::data_type::f16
+                             dgpu_ && data_type_ == dnnl::memory::data_type::f16
                                  ? dnnl::memory::data_type::f16
                                  : dnnl::memory::data_type::f32,
                              dnnl::memory::format_tag::nchw);
@@ -623,7 +625,7 @@ class OnednnNetwork : public Network {
 
       auto input_desc =
           dnnl::memory::desc({batchSize, kInputPlanes, 8, 8},
-                             data_type_ == dnnl::memory::data_type::f16
+                             dgpu_ && data_type_ == dnnl::memory::data_type::f16
                                  ? dnnl::memory::data_type::f16
                                  : dnnl::memory::data_type::f32,
                              dnnl::memory::format_tag::nchw);
@@ -634,7 +636,7 @@ class OnednnNetwork : public Network {
                              io->scratch_mem.get_data_handle())
               : dnnl::memory(input_desc, cpu_eng_);
 
-      if (data_type_ == dnnl::memory::data_type::f16) {
+      if (dgpu_ && data_type_ == dnnl::memory::data_type::f16) {
         uint16_t* buffer = (uint16_t*)input_mem.get_data_handle();
         for (int j = 0; j < currentBatchSize * kInputPlanes; j++) {
           const auto value = FP32toFP16(ipDataValues[j + start * kInputPlanes]);
@@ -671,17 +673,18 @@ class OnednnNetwork : public Network {
       dnnl::memory::desc opPol_desc;
       if (attn_policy_) {
         opPol_desc = dnnl::memory::desc(
-            {batchSize, 67, 8, 8}, data_type_ == dnnl::memory::data_type::f16
-                                       ? dnnl::memory::data_type::f16
-                                       : dnnl::memory::data_type::f32,
+            {batchSize, 67, 8, 8},
+            dgpu_ && data_type_ == dnnl::memory::data_type::f16
+                ? dnnl::memory::data_type::f16
+                : dnnl::memory::data_type::f32,
             dnnl::memory::format_tag::nchw);
       } else if (conv_policy_) {
-        opPol_desc =
-            dnnl::memory::desc({batchSize, pol_channels_, 8, 8},
-                               data_type_ == dnnl::memory::data_type::f16
-                                   ? dnnl::memory::data_type::f16
-                                   : dnnl::memory::data_type::f32,
-                               dnnl::memory::format_tag::nchw);
+        opPol_desc = dnnl::memory::desc(
+            {batchSize, pol_channels_, 8, 8},
+            dgpu_ && data_type_ == dnnl::memory::data_type::f16
+                ? dnnl::memory::data_type::f16
+                : dnnl::memory::data_type::f32,
+            dnnl::memory::format_tag::nchw);
       } else {
         opPol_desc = dnnl::memory::desc({batchSize, kNumOutputPolicy, 1, 1},
                                         dnnl::memory::data_type::f32,
@@ -863,7 +866,7 @@ class OnednnNetwork : public Network {
                currentBatchSize * sizeof(float));
       }
       if (attn_policy_) {
-        if (data_type_ == dnnl::memory::data_type::f16) {
+        if (dgpu_ && data_type_ == dnnl::memory::data_type::f16) {
           uint16_t* opPol = (uint16_t*)opPol_mem_cpu.get_data_handle();
           // The promotion offsets are extracted from the output tensor.
           float promotion_offsets[3][8];
@@ -933,7 +936,7 @@ class OnednnNetwork : public Network {
           }
         }
       } else if (conv_policy_) {
-        if (data_type_ == dnnl::memory::data_type::f16) {
+        if (dgpu_ && data_type_ == dnnl::memory::data_type::f16) {
           uint16_t* opPol = (uint16_t*)opPol_mem_cpu.get_data_handle();
           for (int batch = 0; batch < currentBatchSize; batch++) {
             for (int i = 0; i < 73 * 8 * 8; i++) {
@@ -1006,6 +1009,7 @@ class OnednnNetwork : public Network {
   int steps_;
   bool wdl_;
   bool moves_left_;
+  bool dgpu_;
 
   std::mutex lock_;
 
