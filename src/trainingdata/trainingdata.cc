@@ -156,7 +156,7 @@ void V6TrainingDataArray::Add(const Node* node, const PositionHistory& history,
       float p = 0;
       for (size_t i = 0; i < legal_moves.size(); i++) {
         if (move == legal_moves[i]) {
-          p = nneval->eval->edges[i].GetP();
+          p = nneval->eval.edges[i].GetP();
           break;
         }
       }
@@ -230,9 +230,9 @@ void V6TrainingDataArray::Add(const Node* node, const PositionHistory& history,
 
   Eval orig_eval;
   if (nneval) {
-    orig_eval.wl = nneval->eval->q;
-    orig_eval.d = nneval->eval->d;
-    orig_eval.ml = nneval->eval->m;
+    orig_eval.wl = nneval->eval.q;
+    orig_eval.d = nneval->eval.d;
+    orig_eval.ml = nneval->eval.m;
   } else {
     orig_eval.wl = std::numeric_limits<float>::quiet_NaN();
     orig_eval.d = std::numeric_limits<float>::quiet_NaN();

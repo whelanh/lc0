@@ -82,9 +82,9 @@ void CachingComputation::AddInput(uint64_t hash,
   batch_.back().idx_in_parent = parent_->GetBatchSize();
   // Cache legal moves.
   std::vector<Move> moves = history.Last().GetBoard().GenerateLegalMoves();
-  batch_.back().eval = std::make_shared<NNEval>();
-  batch_.back().eval->edges = Edge::FromMovelist(moves);
-  batch_.back().eval->num_edges = moves.size();
+  batch_.back().eval = NNEval();
+  batch_.back().eval.edges = Edge::FromMovelist(moves);
+  batch_.back().eval.num_edges = moves.size();
   batch_.back().transform = transform;
   parent_->AddInput(std::move(input));
   return;
@@ -103,9 +103,9 @@ void CachingComputation::ComputeBlocking(float softmax_temp) {
   // Fill cache with data from NN.
   for (auto& item : batch_) {
     if (item.idx_in_parent == -1) continue;
-    item.eval->q = parent_->GetQVal(item.idx_in_parent);
-    item.eval->d = parent_->GetDVal(item.idx_in_parent);
-    item.eval->m = parent_->GetMVal(item.idx_in_parent);
+    item.eval.q = parent_->GetQVal(item.idx_in_parent);
+    item.eval.d = parent_->GetDVal(item.idx_in_parent);
+    item.eval.m = parent_->GetMVal(item.idx_in_parent);
 
     // Calculate maximum first.
     float max_p = -std::numeric_limits<float>::infinity();
@@ -113,8 +113,8 @@ void CachingComputation::ComputeBlocking(float softmax_temp) {
     // There are never more than 256 valid legal moves in any legal position.
     std::array<float, 256> intermediate;
     int transform = item.transform;
-    int num_edges = item.eval->num_edges;
-    auto edges = item.eval->edges.get();
+    int num_edges = item.eval.num_edges;
+    auto edges = item.eval.edges.get();
     for (int ct = 0; ct < num_edges; ct++) {
       auto move = edges[ct].GetMove();
       float p =
@@ -136,15 +136,21 @@ void CachingComputation::ComputeBlocking(float softmax_temp) {
       edges[ct].SetP(intermediate[ct] * scale);
     }
 
-    Edge::SortEdges(item.eval->edges.get(), item.eval->num_edges);
+    Edge::SortEdges(item.eval.edges.get(), item.eval.num_edges);
 
     auto req = std::make_unique<CachedNNRequest>();
-    req->eval = item.eval;
+    req->eval.q = item.eval.q;
+    req->eval.d = item.eval.d;
+    req->eval.m = item.eval.m;
+    req->eval.num_edges = item.eval.num_edges;
+    req->eval.edges = std::make_unique<Edge[]>(item.eval.num_edges);
+    std::memcpy(req->eval.edges.get(), item.eval.edges.get(),
+                item.eval.num_edges * sizeof(Edge));
     cache_->Insert(item.hash, std::move(req));
   }
 }
 
-std::shared_ptr<NNEval> CachingComputation::GetNNEval(int sample) const {
+const NNEval& CachingComputation::GetNNEval(int sample) const {
   const auto& item = batch_[sample];
   if (item.idx_in_parent >= 0) return item.eval;
   return item.lock->eval;

@@ -97,7 +97,7 @@ const size_t kAvgNodeSize =
     sizeof(Node) + sizeof(LowNode) + sizeof(TranspositionTable::slot_type) +
     MemoryWatchingStopper::kAvgMovesPerPosition * sizeof(Edge);
 const size_t kAvgCacheItemSize =
-    NNCache::GetItemStructSize() + sizeof(CachedNNRequest) + sizeof(NNEval) +
+    NNCache::GetItemStructSize() + sizeof(CachedNNRequest) +
     sizeof(Edge) * MemoryWatchingStopper::kAvgMovesPerPosition;
 }  // namespace
 

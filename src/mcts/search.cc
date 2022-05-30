@@ -433,7 +433,7 @@ std::vector<std::string> Search::GetVerboseStats(Node* node) const {
         history.Append(node->GetOwnEdge()->GetMove());
       }
       NNCacheLock nneval = GetCachedNNEval(history);
-      if (nneval) v = -nneval->eval->q;
+      if (nneval) v = -nneval->eval.q;
     }
     if (v) {
       print(oss, "(V: ", sign * *v, ") ", 7, 4);
@@ -2081,13 +2081,13 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     if (is_tt_miss) {
       assert(!tt_iter->second.expired());
       node_to_process->tt_low_node->SetNNEval(
-          computation.GetNNEval(idx_in_computation).get());
+          computation.GetNNEval(idx_in_computation));
     } else {
       auto tt_low_node = tt_iter->second.lock();
       if (!tt_low_node) {
         tt_iter->second = node_to_process->tt_low_node;
         node_to_process->tt_low_node->SetNNEval(
-            computation.GetNNEval(idx_in_computation).get());
+            computation.GetNNEval(idx_in_computation));
       } else {
         assert(!tt_iter->second.expired());
         node_to_process->tt_low_node = tt_iter->second.lock();

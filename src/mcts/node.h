@@ -194,20 +194,20 @@ class LowNode {
     child_ = std::make_unique<Node>(this, index);
   }
 
-  void SetNNEval(const NNEval* eval) {
+  void SetNNEval(const NNEval& eval) {
     assert(!edges_);
     assert(n_ == 0);
     assert(child_ == nullptr);
 
-    edges_ = std::make_unique<Edge[]>(eval->num_edges);
-    std::memcpy(edges_.get(), eval->edges.get(),
-                eval->num_edges * sizeof(Edge));
+    edges_ = std::make_unique<Edge[]>(eval.num_edges);
+    std::memcpy(edges_.get(), eval.edges.get(),
+                eval.num_edges * sizeof(Edge));
 
-    wl_ = eval->q;
-    d_ = eval->d;
-    m_ = eval->m;
+    wl_ = eval.q;
+    d_ = eval.d;
+    m_ = eval.m;
 
-    num_edges_ = eval->num_edges;
+    num_edges_ = eval.num_edges;
   }
 
   // Gets the first child.
