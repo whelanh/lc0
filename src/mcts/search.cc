@@ -430,7 +430,7 @@ std::vector<std::string> Search::GetVerboseStats(Node* node) const {
         history.Append(node->GetOwnEdge()->GetMove());
       }
       NNCacheLock nneval = GetCachedNNEval(history);
-      if (nneval) v = -nneval->eval->q;
+      if (nneval) v = -nneval->eval.q;
     }
     if (v) {
       print(oss, "(V: ", sign * *v, ") ", 7, 4);
@@ -1973,19 +1973,12 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
 }
 
 // Returns whether node was already in cache.
-bool SearchWorker::AddNodeToComputation([[maybe_unused]] Node* node,
-                                        bool add_if_cached) {
+bool SearchWorker::AddNodeToComputation([[maybe_unused]] Node* node) {
   const auto hash = history_.HashLast(params_.GetCacheHistoryLength() + 1);
   // If already in cache, no need to do anything.
-  if (add_if_cached) {
-    if (computation_->AddInputByHash(hash)) {
-      return true;
-    }
-  } else {
     if (search_->cache_->ContainsKey(hash)) {
       return true;
     }
-  }
   computation_->AddInput(hash, history_);
   return false;
 }
@@ -2027,7 +2020,7 @@ int SearchWorker::PrefetchIntoCache(Node* node, int budget, bool is_odd_depth) {
 
   // We are in a leaf, which is not yet being processed.
   if (!node || node->GetNStarted() == 0) {
-    if (AddNodeToComputation(node, false)) {
+    if (AddNodeToComputation(node)) {
       // Make it return 0 to make it not use the slot, so that the function
       // tries hard to find something to cache even among unpopular moves.
       // In practice that slows things down a lot though, as it's not always
@@ -2143,13 +2136,13 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     if (is_tt_miss) {
       assert(!tt_iter->second.expired());
       node_to_process->tt_low_node->SetNNEval(
-          computation.GetNNEval(idx_in_computation).get());
+          computation.GetNNEval(idx_in_computation));
     } else {
       auto tt_low_node = tt_iter->second.lock();
       if (!tt_low_node) {
         tt_iter->second = node_to_process->tt_low_node;
         node_to_process->tt_low_node->SetNNEval(
-            computation.GetNNEval(idx_in_computation).get());
+            computation.GetNNEval(idx_in_computation));
       } else {
         assert(!tt_iter->second.expired());
         node_to_process->tt_low_node = tt_iter->second.lock();

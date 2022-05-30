@@ -350,7 +350,7 @@ class SearchWorker {
 
     // Method to allow NodeToProcess to conform as a 'Computation'. Only safe
     // to call if is_cache_hit is true in the multigather path.
-    std::shared_ptr<NNEval> GetNNEval(int) const { return lock->eval; }
+    const NNEval& GetNNEval(int) const { return lock->eval; }
 
     std::string DebugString() const {
       std::ostringstream oss;
@@ -428,7 +428,7 @@ class SearchWorker {
   };
 
   NodeToProcess PickNodeToExtend(int collision_limit);
-  bool AddNodeToComputation(Node* node, bool add_if_cached);
+  bool AddNodeToComputation(Node* node);
   int PrefetchIntoCache(Node* node, int budget, bool is_odd_depth);
   // Adjust parameters for updating node @n and its parent low node if node is
   // terminal or its child low node is a transposition. Also update bounds and
