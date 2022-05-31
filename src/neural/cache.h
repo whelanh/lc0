@@ -46,8 +46,7 @@ typedef HashKeyedCacheLock<CachedNNRequest> NNCacheLock;
 class CachingComputation {
  public:
   CachingComputation(std::unique_ptr<NetworkComputation> parent,
-                     pblczero::NetworkFormat::InputFormat input_format,
-                     FillEmptyHistory history_fill, NNCache* cache);
+                     NNCache* cache);
 
   // How many inputs are not found in cache and will be forwarded to a wrapped
   // computation.
@@ -62,7 +61,8 @@ class CachingComputation {
   void AddInputByHash(uint64_t hash, NNCacheLock&& lock);
   // Adds a sample to the batch. Also calls EncodePositionForNN() if needed.
   // @hash is a hash to store/lookup it in the cache.
-  void AddInput(uint64_t hash, const PositionHistory& history);
+  void AddInput(uint64_t hash, InputPlanes&& input, std::vector<Move>&& moves,
+                int transform);
   // Undos last AddInput. If it was a cache miss, then it's actually not removed
   // from parent's batch.
   void PopLastInputHit();

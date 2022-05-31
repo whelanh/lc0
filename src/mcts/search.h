@@ -322,6 +322,7 @@ class SearchWorker {
     bool is_tt_hit = false;
     bool is_cache_hit = false;
     bool is_collision = false;
+    int probability_transform = 0;
 
     // Details only populated in the multigather path.
 
@@ -332,7 +333,8 @@ class SearchWorker {
     uint64_t hash;
     std::shared_ptr<LowNode> tt_low_node;
     NNCacheLock lock;
-    PositionHistory history;
+    std::vector<Move> legal_moves;
+    InputPlanes input_planes;
     bool ooo_completed = false;
 
     static NodeToProcess Collision(const std::vector<Node*>& path,

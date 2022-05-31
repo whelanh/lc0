@@ -1127,9 +1127,8 @@ void SearchWorker::ExecuteOneIteration() {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void SearchWorker::InitializeIteration(
     std::unique_ptr<NetworkComputation> computation) {
-  computation_ = std::make_unique<CachingComputation>(
-      std::move(computation), search_->network_->GetCapabilities().input_format,
-      params_.GetHistoryFill(), search_->cache_);
+  computation_ = std::make_unique<CachingComputation>(std::move(computation),
+                                                      search_->cache_);
   computation_->Reserve(params_.GetMiniBatchSize());
   minibatch_.clear();
   minibatch_.reserve(2 * params_.GetMiniBatchSize());
@@ -1300,7 +1299,10 @@ void SearchWorker::GatherMinibatch2() {
         computation_->AddInputByHash(minibatch_[i].hash,
                                      std::move(minibatch_[i].lock));
       } else {
-        computation_->AddInput(minibatch_[i].hash, minibatch_[i].history);
+        computation_->AddInput(minibatch_[i].hash,
+                               std::move(minibatch_[i].input_planes),
+                               std::move(minibatch_[i].legal_moves),
+                               minibatch_[i].probability_transform);
       }
     }
 
@@ -1877,12 +1879,12 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
   // We don't need the mutex because other threads will see that N=0 and
   // N-in-flight=1 and will not touch this node.
   const auto& board = history->Last().GetBoard();
-  std::vector<Move> legal_moves = board.GenerateLegalMoves();
+  picked_node.legal_moves = board.GenerateLegalMoves();
 
   // Check whether it's a draw/lose by position. Importantly, we must check
   // these before doing the by-rule checks below.
   auto node = picked_node.node;
-  if (legal_moves.empty()) {
+  if (picked_node.legal_moves.empty()) {
     // Could be a checkmate or a stalemate
     if (board.IsUnderCheck()) {
       node->MakeTerminal(GameResult::WHITE_WON);
@@ -1956,7 +1958,7 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
   picked_node.hash = history->HashLast(params_.GetCacheHistoryLength() + 1);
   auto tt_iter = search_->tt_->find(picked_node.hash);
   if (tt_iter != search_->tt_->end()) {
-    assert(!tt_iter->second.expired());
+//    assert(!tt_iter->second.expired());
     picked_node.tt_low_node = tt_iter->second.lock();
   }
   if (picked_node.tt_low_node) {
@@ -1967,19 +1969,41 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
     picked_node.is_cache_hit = picked_node.lock;
 
     if (!picked_node.is_cache_hit) {
-      picked_node.history = *history;
+      int transform;
+      picked_node.input_planes = EncodePositionForNN(
+          search_->network_->GetCapabilities().input_format, *history, 8,
+          params_.GetHistoryFill(), &transform);
+      picked_node.probability_transform = transform;
+    } else {
+      picked_node.probability_transform = TransformForPosition(
+          search_->network_->GetCapabilities().input_format, *history);
     }
   }
 }
 
 // Returns whether node was already in cache.
-bool SearchWorker::AddNodeToComputation([[maybe_unused]] Node* node) {
+bool SearchWorker::AddNodeToComputation(Node* node) {
   const auto hash = history_.HashLast(params_.GetCacheHistoryLength() + 1);
   // If already in cache, no need to do anything.
     if (search_->cache_->ContainsKey(hash)) {
       return true;
     }
-  computation_->AddInput(hash, history_);
+  int transform;
+  auto planes =
+      EncodePositionForNN(search_->network_->GetCapabilities().input_format,
+                          history_, 8, params_.GetHistoryFill(), &transform);
+  std::vector<Move> moves;
+  if (node && node->HasChildren()) {
+    // Legal moves are known, use them.
+    moves.reserve(node->GetNumEdges());
+    for (const auto& edge : node->Edges()) {
+      moves.emplace_back(edge.GetMove());
+    }
+  } else {
+    // Cache legal moves.
+    moves = history_.Last().GetBoard().GenerateLegalMoves();
+  }
+  computation_->AddInput(hash, std::move(planes), std::move(moves), transform);
   return false;
 }
 

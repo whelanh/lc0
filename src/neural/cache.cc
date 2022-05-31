@@ -34,12 +34,8 @@
 
 namespace lczero {
 CachingComputation::CachingComputation(
-    std::unique_ptr<NetworkComputation> parent,
-    pblczero::NetworkFormat::InputFormat input_format,
-    lczero::FillEmptyHistory history_fill, NNCache* cache)
+    std::unique_ptr<NetworkComputation> parent, NNCache* cache)
     : parent_(std::move(parent)),
-      input_format_(input_format),
-      history_fill_(history_fill),
       cache_(cache) {}
 
 int CachingComputation::GetCacheMisses() const {
@@ -69,19 +65,15 @@ void CachingComputation::PopCacheHit() {
   batch_.pop_back();
 }
 
-void CachingComputation::AddInput(uint64_t hash,
-                                  const PositionHistory& history) {
+void CachingComputation::AddInput(uint64_t hash, InputPlanes&& input,
+                                  std::vector<Move>&& moves, int transform) {
   if (AddInputByHash(hash)) {
     return;
   }
-  int transform;
-  auto input =
-      EncodePositionForNN(input_format_, history, 8, history_fill_, &transform);
   batch_.emplace_back();
   batch_.back().hash = hash;
   batch_.back().idx_in_parent = parent_->GetBatchSize();
   // Cache legal moves.
-  std::vector<Move> moves = history.Last().GetBoard().GenerateLegalMoves();
   batch_.back().eval = NNEval();
   batch_.back().eval.edges = Edge::FromMovelist(moves);
   batch_.back().eval.num_edges = moves.size();
