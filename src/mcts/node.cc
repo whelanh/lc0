@@ -82,8 +82,6 @@ class NodeGarbageCollector {
         if (subtrees_to_gc_.empty()) return;
         node_to_gc = std::move(subtrees_to_gc_.back());
         subtrees_to_gc_.pop_back();
-
-        node_to_gc->UnsetLowNode();
       }
     }
   }

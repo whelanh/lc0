@@ -280,11 +280,10 @@ class LowNode {
 
   // Add new parent with @n_in_flight visits.
   void AddParent(int n_in_flight) {
-    ++num_parents_;
+    num_parents_ = (num_parents_ << 1) | 1;
     IncrementNInFlight(n_in_flight);
   }
-  // Remove parent and its first visit.
-  void RemoveParent() { --num_parents_; }
+
   bool IsTransposition() const { return num_parents_ > 1; }
 
  private:
@@ -322,7 +321,7 @@ class LowNode {
   // 1 byte fields.
   // Number of edges in @edges_.
   uint8_t num_edges_ = 0;
-  // Number of parents.
+  // Number of parents as set bits, we only care if it gets > 1 (permanently).
   uint8_t num_parents_ = 0;
   // Bit fields using parts of uint8_t fields initialized in the constructor.
   // Whether or not this node end game (with a winning of either sides or draw).
@@ -513,10 +512,6 @@ class Node {
     assert(!low_node_);
     low_node->AddParent(n_in_flight_);
     low_node_ = low_node;
-  }
-  void UnsetLowNode() {
-    if (low_node_) low_node_->RemoveParent();
-    low_node_.reset();
   }
 
   // Debug information about the node.
