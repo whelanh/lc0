@@ -1879,7 +1879,32 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
   // We don't need the mutex because other threads will see that N=0 and
   // N-in-flight=1 and will not touch this node.
   const auto& board = history->Last().GetBoard();
-  picked_node.legal_moves = board.GenerateLegalMoves();
+
+  // Check the transposition table first.
+  picked_node.hash = history->HashLast(params_.GetCacheHistoryLength() + 1);
+  std::shared_ptr<LowNode> tt_low_node;
+  auto tt_iter = search_->tt_->find(picked_node.hash);
+  if (tt_iter != search_->tt_->end()) {
+    tt_low_node = tt_iter->second.lock();
+  }
+
+  // Try to get the moves from the transposition table entry and verify them.
+  if (tt_low_node) {
+    picked_node.legal_moves.reserve(tt_low_node->GetNumEdges());
+    const KingAttackInfo king_attack_info = board.GenerateKingAttackInfo();
+    for (int ct = 0; ct < tt_low_node->GetNumEdges(); ct++) {
+      auto move = tt_low_node->GetEdges()[ct].GetMove();
+      if (!board.IsLegalMove(move, king_attack_info)) {
+        // It was a hash collision, forget it.
+        tt_low_node.reset();
+        break;
+      }
+      picked_node.legal_moves.emplace_back(move);
+    }
+  }
+  if (!tt_low_node) {
+    picked_node.legal_moves = board.GenerateLegalMoves();
+  }
 
   // Check whether it's a draw/lose by position. Importantly, we must check
   // these before doing the by-rule checks below.
@@ -1953,16 +1978,10 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
 
   picked_node.nn_queried = true;  // Node::SetLowNode() required.
 
-  // Check the transposition table first and NN cache second before asking for
-  // NN evaluation.
-  picked_node.hash = history->HashLast(params_.GetCacheHistoryLength() + 1);
-  auto tt_iter = search_->tt_->find(picked_node.hash);
-  if (tt_iter != search_->tt_->end()) {
-//    assert(!tt_iter->second.expired());
-    picked_node.tt_low_node = tt_iter->second.lock();
-  }
-  if (picked_node.tt_low_node) {
+  // Check the NN cache before asking for NN evaluation.
+  if (tt_low_node) {
     assert(!tt_iter->second.expired());
+    picked_node.tt_low_node = std::move(tt_low_node);
     picked_node.is_tt_hit = true;
   } else {
     picked_node.lock = NNCacheLock(search_->cache_, picked_node.hash);
