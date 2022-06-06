@@ -211,10 +211,7 @@ class LowNode {
   bool HasChildren() const { return num_edges_ > 0; }
 
   uint32_t GetN() const { return n_; }
-  uint32_t GetNInFlight() const { return n_in_flight_; }
   uint32_t GetChildrenVisits() const { return n_ - 1; }
-  // Returns n + n_in_flight.
-  int GetNStarted() const { return n_ + n_in_flight_; }
 
   // Returns node eval, i.e. average subtree V for non-terminal node and -1/0/1
   // for terminal nodes.
@@ -241,20 +238,13 @@ class LowNode {
   void MakeNotTerminal(const Node* node);
   void SetBounds(GameResult lower, GameResult upper);
 
-  // Decrements n-in-flight back.
-  void CancelScoreUpdate(int multivisit);
   // Updates the node with newly computed value v.
   // Updates:
   // * Q (weighted average of all V in a subtree)
   // * N (+=multivisit)
-  // * N-in-flight (-=multivisit)
   void FinalizeScoreUpdate(float v, float d, float m, int multivisit);
   // Like FinalizeScoreUpdate, but it updates n existing visits by delta amount.
   void AdjustForTerminal(float v, float d, float m, int multivisit);
-  // When search decides to treat one visit as several (in case of collisions
-  // or visiting terminal nodes several times), it amplifies the visit by
-  // incrementing n_in_flight.
-  void IncrementNInFlight(int multivisit) { n_in_flight_ += multivisit; }
 
   // Deletes all children.
   void ReleaseChildren();
@@ -278,10 +268,9 @@ class LowNode {
     Edge::SortEdges(edges_.get(), num_edges_);
   }
 
-  // Add new parent with @n_in_flight visits.
-  void AddParent(int n_in_flight) {
+  // Add new parent.
+  void AddParent() {
     ++num_parents_;
-    IncrementNInFlight(n_in_flight);
   }
   // Remove parent and its first visit.
   void RemoveParent() { --num_parents_; }
@@ -314,10 +303,6 @@ class LowNode {
   float m_ = 0.0f;
   // How many completed visits this node had.
   uint32_t n_ = 0;
-  // (AKA virtual loss.) How many threads currently process this node (started
-  // but not finished). This value is added to n during selection which node
-  // to pick in MCTS, and also when selecting the best move.
-  uint32_t n_in_flight_ = 0;
 
   // 1 byte fields.
   // Number of edges in @edges_.
@@ -472,7 +457,6 @@ class Node {
   // or visiting terminal nodes several times), it amplifies the visit by
   // incrementing n_in_flight.
   void IncrementNInFlight(int multivisit) {
-    if (low_node_) low_node_->IncrementNInFlight(multivisit);
     n_in_flight_ += multivisit;
   }
 
@@ -511,7 +495,7 @@ class Node {
 
   void SetLowNode(std::shared_ptr<LowNode> low_node) {
     assert(!low_node_);
-    low_node->AddParent(n_in_flight_);
+    low_node->AddParent();
     low_node_ = low_node;
   }
   void UnsetLowNode() {

@@ -543,11 +543,6 @@ void Search::MaybeTriggerStop(const IterationStats& stats,
     bestmove_is_sent_ = true;
     current_best_edge_ = EdgeAndNode();
   }
-
-  // Use a 0 visit cancel score update to clear out any cached best edge, as
-  // at the next iteration remaining playouts may be different.
-  // TODO(crem) Is it really needed?
-  root_node_->CancelScoreUpdate(0);
 }
 
 // Return the evaluation of the actual best child, regardless of temperature
@@ -1624,11 +1619,12 @@ void SearchWorker::PickNodesToExtendTask(
       // visited policy without having to cache it in the node (allowing the
       // node to stay at 64 bytes).
       int max_needed = node->GetNumEdges();
+#if 0
       if (!is_root_node || root_move_filter.empty()) {
         max_needed = std::min(
             max_needed, node->GetLowNode()->GetNStarted() + cur_limit + 2);
       }
-
+#endif
       node->CopyPolicy(max_needed, current_pol.data());
       for (int i = 0; i < max_needed; i++) {
         current_util[i] = std::numeric_limits<float>::lowest();
@@ -2288,8 +2284,6 @@ void SearchWorker::DoBackupUpdateSingleNode(
     if (nl->GetN() == 0) {
       nl->FinalizeScoreUpdate(nl->GetWL(), nl->GetD(), nl->GetM(),
                               node_to_process.multivisit);
-    } else {
-      nl->CancelScoreUpdate(node_to_process.multivisit);
     }
   }
 

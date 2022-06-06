@@ -221,7 +221,7 @@ std::string LowNode::DebugString() const {
   oss << " <LowNode> This:" << this << " Edges:" << edges_.get()
       << " NumEdges:" << static_cast<int>(num_edges_)
       << " Child:" << child_.get() << " WL:" << wl_ << " D:" << d_
-      << " M:" << m_ << " N:" << n_ << " N_:" << n_in_flight_
+      << " M:" << m_ << " N:" << n_
       << " NP:" << static_cast<int>(num_parents_)
       << " Term:" << static_cast<int>(terminal_type_)
       << " Bounds:" << static_cast<int>(lower_bound_) - 2 << ","
@@ -344,18 +344,11 @@ void Node::SetBounds(GameResult lower, GameResult upper) {
 
 bool Node::TryStartScoreUpdate() {
   if (n_ == 0 && n_in_flight_ > 0) return false;
-  if (low_node_) low_node_->IncrementNInFlight(1);
   ++n_in_flight_;
   return true;
 }
 
-void LowNode::CancelScoreUpdate(int multivisit) {
-  assert(n_in_flight_ >= (uint32_t)multivisit);
-  n_in_flight_ -= multivisit;
-}
-
 void Node::CancelScoreUpdate(int multivisit) {
-  if (low_node_) low_node_->CancelScoreUpdate(multivisit);
   assert(n_in_flight_ >= (uint32_t)multivisit);
   n_in_flight_ -= multivisit;
 }
@@ -369,9 +362,6 @@ void LowNode::FinalizeScoreUpdate(float v, float d, float m, int multivisit) {
 
   // Increment N.
   n_ += multivisit;
-  // Decrement virtual loss.
-  assert(n_in_flight_ >= (uint32_t)multivisit);
-  n_in_flight_ -= multivisit;
 }
 
 void LowNode::AdjustForTerminal(float v, float d, float m, int multivisit) {
@@ -458,8 +448,7 @@ std::string LowNode::DotNodeString() const {
       << std::showpos    //
       << "WL=" << wl_    //
       << std::noshowpos  //
-      << "\\lD=" << d_ << "\\lM=" << m_ << "\\lN=" << n_
-      << "\\lN_=" << n_in_flight_ << "\\l\"";
+      << "\\lD=" << d_ << "\\lM=" << m_ << "\\lN=" << n_;
   // Set precision for tooltip.
   oss << std::fixed << std::showpos << std::setprecision(5);
   oss << ",tooltip=\""   //
@@ -467,7 +456,7 @@ std::string LowNode::DotNodeString() const {
       << "WL=" << wl_    //
       << std::noshowpos  //
       << "\\nD=" << d_ << "\\nM=" << m_ << "\\nN=" << n_
-      << "\\nN_=" << n_in_flight_ << "\\nNP=" << static_cast<int>(num_parents_)
+      << "\\nNP=" << static_cast<int>(num_parents_)
       << "\\nTerm=" << static_cast<int>(terminal_type_)  //
       << std::showpos                                    //
       << "\\nBounds=" << static_cast<int>(lower_bound_) - 2 << ","
@@ -488,7 +477,7 @@ std::string Node::DotEdgeString(bool as_opponent) const {
   oss << "label=\""
       << (parent_ == nullptr ? "N/A"
                              : GetOwnEdge()->GetMove(as_opponent).as_string())
-      << "\\lN=" << n_ << "\\lN_=" << n_in_flight_;
+      << "\\lN=" << n_;
   if (IsTwoFoldTerminal()) {
     oss << "\\lDRAW";
   }
@@ -501,7 +490,6 @@ std::string Node::DotEdgeString(bool as_opponent) const {
       << "\\nWL= " << wl_  //
       << std::noshowpos    //
       << "\\nD=" << d_ << "\\nM=" << m_ << "\\nN=" << n_
-      << "\\nN_=" << n_in_flight_
       << "\\nTerm=" << static_cast<int>(terminal_type_)  //
       << std::showpos                                    //
       << "\\nBounds=" << static_cast<int>(lower_bound_) - 2 << ","
