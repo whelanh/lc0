@@ -268,13 +268,14 @@ void EngineController::DumpNode(const std::vector<std::string>& moves_str) {
   for (const Move& move : moves) {
     // Find the corresponding move in the tree.
     bool found_child = false;
-    for (Node* child : here->ChildNodes()) {
-      Edge* childedge = here->GetEdgeToNode(child);
-      Move child_move = childedge->GetMove(black_to_move);
-      // Here we compare the .as_string()s rather than the underlying moves to make it so we can probe castling with e.g. e1g1 rather than e1g8.
-      // I do this so that simply recursively examining the children printed out and sending them back into dumpnode does the right thing.
+    for (auto childedge : here->Edges()) {
+      Move child_move = childedge.GetMove(black_to_move);
+      // Here we compare the .as_string()s rather than the underlying moves to
+      // make it so we can probe castling with e.g. e1g1 rather than e1g8.
+      // I do this so that simply recursively examining the children printed out
+      // and sending them back into dumpnode does the right thing.
       if (child_move.as_string() == move.as_string()) {
-        here = child;
+        here = childedge.node();
         found_child = true;
         break;
       }
@@ -290,9 +291,7 @@ void EngineController::DumpNode(const std::vector<std::string>& moves_str) {
 
   // We now dump info about the given node.
   if (here != nullptr) {
-    for (Node* child : here->ChildNodes()) {
-      if (child->GetN() == 0)
-        continue;
+    for (Node* child : here->VisitedNodes()) {
       Edge* childedge = here->GetEdgeToNode(child);
       Move child_move = childedge->GetMove(black_to_move);
       std::cout << "info string" \
@@ -300,7 +299,7 @@ void EngineController::DumpNode(const std::vector<std::string>& moves_str) {
     << " n=" << child->GetN() \
     << " v=" << 0.0 \
     << " p=" << childedge->GetP() \
-    << " q=" << child->GetQ() \
+    << " q=" << child->GetQ(0) \
     << std::endl;
     }
     std::cout << "info string end-dump" << std::endl;

@@ -79,7 +79,7 @@ class UciLoop {
     throw Exception("Not supported");
   }
   virtual void CmdFen() { throw Exception("Not supported"); }
-  virtual void CmdDumpNode(const std::vector<std::string>& moves) {
+  virtual void CmdDumpNode(const std::vector<std::string>& /*moves*/) {
       throw Exception("Not supported");
   }
   virtual void CmdGo(const GoParams& /*params*/) {
