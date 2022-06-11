@@ -1416,49 +1416,14 @@ bool SearchWorker::IsTwoFold(int depth, PositionHistory* history,
   return false;
 }
 
-bool SearchWorker::IsStillTerminal(Node* node, int depth,
-                                   PositionHistory* history,
-                                   const std::vector<Move>& moves_to_node) {
-  assert((size_t)depth == moves_to_node.size() + 1);
-  if (!node->IsTerminal()) return false;
-  if (!node->IsTwoFoldTerminal()) return true;
-
-  // Initialize position sequence with pre-move position.
-  history->Trim(search_->played_history_.GetLength());
-  for (size_t i = 0; i < moves_to_node.size(); i++) {
-    history->Append(moves_to_node[i]);
-  }
-
-  int cycle_length;
-  if (IsTwoFold(depth, history, cycle_length)) return true;
-
-  // TODO: Introduce locking when removing coarse picking locking.
-  // Take a mutex - any SearchWorker specific mutex... since this is
-  // not safe to do concurrently between multiple tasks.
-  // Mutex::Lock lock(picking_tasks_mutex_);
-  node->MakeNotTerminal(false);
-  // TODO: Is this still true?
-  // When reverting the visits, we also need to revert the initial
-  // visits, as we reused fewer nodes than anticipated.
-  // search_->initial_visits_ -= terminal_visits;
-  // Max depth doesn't change when reverting the visits, and
-  // cum_depth_ only counts the average depth of new nodes, not reused
-  // ones.
-
-  return false;
-}
-
 // Check if PickNodesToExtendTask should stop picking at this @node.
-bool SearchWorker::ShouldStopPickingHere(
-    Node* node, int depth, PositionHistory* history,
-    const std::vector<Move>& moves_to_node) {
+bool SearchWorker::ShouldStopPickingHere(Node* node) {
   constexpr double wl_diff_limit = 0.01f;
   constexpr float d_diff_limit = 0.01f;
   constexpr float m_diff_limit = 2.0f;
 
   // Possibly the best place to verify two-fold terminals.
-  if (node->GetN() == 0 || IsStillTerminal(node, depth, history, moves_to_node))
-    return true;
+  if (node->GetN() == 0 || node->IsTerminal()) return true;
 
   // Check if Node and LowNode differ significantly.
   auto low_node = node->GetLowNode().get();
@@ -1519,8 +1484,6 @@ void SearchWorker::PickNodesToExtendTask(
   full_path = path;
   assert(full_path.size() > 0);
   Node* node = full_path.back();
-  auto& history = workspace->history;
-  history = search_->played_history_;
   // Sometimes receiver is reused, othertimes not, so only jump start if small.
   if (receiver->capacity() < 30) {
     receiver->reserve(receiver->size() + 30);
@@ -1567,7 +1530,7 @@ void SearchWorker::PickNodesToExtendTask(
       // a collision of appropriate size and pop current_path.
       size_t depth = current_path.size() + base_depth;
       assert(full_path.size() == depth);
-      if (ShouldStopPickingHere(node, depth, &history, moves_to_path)) {
+      if (ShouldStopPickingHere(node)) {
         if (is_root_node) {
           // Root node is special - since its not reached from anywhere else, so
           // it needs its own logic. Still need to create the collision to
@@ -1757,8 +1720,7 @@ void SearchWorker::PickNodesToExtendTask(
           new_visits -= 1;
           size_t depth = current_path.size() + 1 + base_depth;
           assert(full_path.size() == depth);
-          if (ShouldStopPickingHere(child_node, depth, &history,
-                                    moves_to_path)) {
+          if (ShouldStopPickingHere(child_node)) {
             // Reduce 1 for the visits_to_perform to ensure the collision
             // created doesn't include this visit.
             (*visits_to_perform.back())[best_idx] -= 1;
@@ -1798,8 +1760,7 @@ void SearchWorker::PickNodesToExtendTask(
           size_t depth = current_path.size() + base_depth + 1;
           assert(full_path.size() == depth);
           // Don't split if not expanded or terminal.
-          if (!ShouldStopPickingHere(child_node, depth, &history,
-                                     moves_to_path)) {
+          if (!ShouldStopPickingHere(child_node)) {
             bool passed = false;
             {
               // TODO: Reinstate this lock when the whole function lock is gone.

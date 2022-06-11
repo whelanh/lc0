@@ -456,15 +456,9 @@ class SearchWorker {
   // Check if the situation described by @depth and complete @history is a
   // two-fold and return true and set @cycle_length, if it is.
   bool IsTwoFold(int depth, PositionHistory* history, int& cycle_length);
-  // Check if node is a terminal and if it is a two-fold then verify that it is
-  // still valid with specified @history and @moves_to_node. Revert two-fold
-  // terminal status as needed and return true if node is still a terminal.
-  bool IsStillTerminal(Node* node, int depth, PositionHistory* history,
-                       const std::vector<Move>& moves_to_node);
   // Check if there is a reason to stop picking and pick @node. Uses
   // IsStillTerminal to check @node.
-  bool ShouldStopPickingHere(Node* node, int depth, PositionHistory* history,
-                             const std::vector<Move>& moves_to_node);
+  bool ShouldStopPickingHere(Node* node);
   void ProcessPickedTask(int batch_start, int batch_end,
                          TaskWorkspace* workspace);
   void ExtendNode(NodeToProcess& picked_node, PositionHistory* history);
