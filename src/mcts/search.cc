@@ -167,8 +167,8 @@ Search::Search(const NodeTree& tree, Network* network,
           params_.GetSyzygyFastPlay(), &tb_hits_, &root_is_in_dtz_)),
       uci_responder_(std::move(uci_responder)) {
   // Evict expired entries from the transposition table.
-  // Garbage collection may lead to expiration at any time so this is not enough
-  // to prevent expired entries later during the search.
+  // Garbage collection may lead to expiration at any time so this is not
+  // enough to prevent expired entries later during the search.
   absl::erase_if(*tt_, [](const auto& item) { return item.second.expired(); });
 
   if (params_.GetMaxConcurrentSearchers() != 0) {
@@ -967,6 +967,10 @@ Search::~Search() {
   {
     SharedMutex::Lock lock(nodes_mutex_);
     CancelSharedCollisions();
+
+#ifndef NDEBUG
+    assert(root_node_->ZeroNInFlight());
+#endif
   }
   LOGFILE << "Search destroyed.";
 }
@@ -1408,7 +1412,8 @@ bool SearchWorker::IsTwoFold(int depth, PositionHistory* history,
     return true;
   }
 
-  if (/*repetitions == 1 &&*/ depth - 1 >= 4 && depth - 1 >= cycle_length) {
+  if (params_.GetTwoFoldDraws() && /*repetitions == 1 &&*/ depth - 1 >= 4 &&
+      depth - 1 >= history->Last().GetPliesSincePrevRepetition()) {
     cycle_length = history->Last().GetPliesSincePrevRepetition();
     return true;
   }
@@ -1749,7 +1754,7 @@ void SearchWorker::PickNodesToExtendTask(
         (*visits_to_perform.back())[best_idx] += new_visits;
         cur_limit -= new_visits;
 
-        Node* child_node = best_edge.GetOrSpawnNode(/* parent */ node, nullptr);
+        Node* child_node = best_edge.GetOrSpawnNode(/* parent */ node);
         full_path.push_back(child_node);
         moves_to_path.push_back(best_edge.GetMove());
         if (child_node->TryStartScoreUpdate()) {
@@ -1839,7 +1844,7 @@ void SearchWorker::PickNodesToExtendTask(
           }
           current_path.back() = idx;
           current_path.push_back(-1);
-          node = child.GetOrSpawnNode(/* parent */ node, nullptr);
+          node = child.GetOrSpawnNode(/* parent */ node);
           full_path.push_back(node);
           found_child = true;
           break;
@@ -1911,7 +1916,7 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
     // Depth starts with 1 at root, so number of plies in PV is depth - 1.
     // Use plies since first repetition as moves left; exact if forced draw.
     int cycle_length;
-    if (params_.GetTwoFoldDraws() && IsTwoFold(depth, history, cycle_length)) {
+    if (IsTwoFold(depth, history, cycle_length)) {
       node->MakeTerminal(GameResult::DRAW, (float)cycle_length,
                          Node::Terminal::TwoFold);
       // Uncertain terminal, set low node.
@@ -1957,8 +1962,8 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
   // NN evaluation.
   picked_node.hash = history->HashLast(params_.GetCacheHistoryLength() + 1);
   auto tt_iter = search_->tt_->find(picked_node.hash);
+  // Transposition table entry might be expired.
   if (tt_iter != search_->tt_->end()) {
-//    assert(!tt_iter->second.expired());
     picked_node.tt_low_node = tt_iter->second.lock();
   }
   if (picked_node.tt_low_node) {
@@ -1982,12 +1987,13 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node,
 }
 
 // Returns whether node was already in cache.
+
 bool SearchWorker::AddNodeToComputation(Node* node) {
   const auto hash = history_.HashLast(params_.GetCacheHistoryLength() + 1);
   // If already in cache, no need to do anything.
-    if (search_->cache_->ContainsKey(hash)) {
-      return true;
-    }
+  if (search_->cache_->ContainsKey(hash)) {
+    return true;
+  }
   int transform;
   auto planes =
       EncodePositionForNN(search_->network_->GetCapabilities().input_format,
@@ -2156,7 +2162,6 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     auto [tt_iter, is_tt_miss] = search_->tt_->insert(
         {node_to_process->hash, node_to_process->tt_low_node});
 
-    assert(!tt_iter->second.expired());
     if (is_tt_miss) {
       assert(!tt_iter->second.expired());
       node_to_process->tt_low_node->SetNNEval(
