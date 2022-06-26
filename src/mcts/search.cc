@@ -1421,25 +1421,11 @@ bool SearchWorker::IsTwoFold(int depth, PositionHistory* history,
   return false;
 }
 
-bool SearchWorker::IsTwoFold(int depth, PositionHistory* history,
-                             const std::vector<Move>& moves_to_node,
-                             int& cycle_length) {
-  assert((size_t)depth == moves_to_node.size() + 1);
-
-  // Initialize position sequence with pre-move position.
-  history->Trim(search_->played_history_.GetLength());
-  for (size_t i = 0; i < moves_to_node.size(); i++) {
-    history->Append(moves_to_node[i]);
-  }
-
-  return IsTwoFold(depth, history, cycle_length);
-}
-
 // Check if PickNodesToExtendTask should stop picking at this @node.
 bool SearchWorker::ShouldStopPickingHere(Node* node, int depth,
                                          PositionHistory* history,
                                          const std::vector<Move>& moves_to_node,
-                                         bool& is_repetition,
+                                         int history_size, bool& is_repetition,
                                          int& cycle_length) {
   constexpr double wl_diff_limit = 0.01f;
   constexpr float d_diff_limit = 0.01f;
@@ -1448,7 +1434,11 @@ bool SearchWorker::ShouldStopPickingHere(Node* node, int depth,
   is_repetition = false;
   if (node->GetN() == 0 || node->IsTerminal()) return true;
 
-  is_repetition = IsTwoFold(depth, history, moves_to_node, cycle_length);
+  history->Trim(search_->played_history_.GetLength() + history_size);
+  for (size_t i = history_size; i < moves_to_node.size(); i++) {
+    history->Append(moves_to_node[i]);
+  }
+  is_repetition = IsTwoFold(depth, history, cycle_length);
   if (is_repetition) return true;
 
   // Check if Node and LowNode differ significantly.
@@ -1544,6 +1534,12 @@ void SearchWorker::PickNodesToExtendTask(
 
   bool is_repetition;
   int cycle_length;
+  size_t base_size = moves_to_base.size();
+  // Initialize position sequence with pre-move position.
+  history.Trim(search_->played_history_.GetLength());
+  for (size_t i = 0; i < base_size; i++) {
+    history.Append(moves_to_base[i]);
+  }
 
   current_path.push_back(-1);
   while (current_path.size() > 0) {
@@ -1561,7 +1557,7 @@ void SearchWorker::PickNodesToExtendTask(
       // a collision of appropriate size and pop current_path.
       size_t depth = current_path.size() + base_depth;
       assert(full_path.size() == depth);
-      if (ShouldStopPickingHere(node, depth, &history, moves_to_path,
+      if (ShouldStopPickingHere(node, depth, &history, moves_to_path, base_size,
                                 is_repetition, cycle_length)) {
         if (is_root_node) {
           // Root node is special - since its not reached from anywhere else, so
@@ -1754,7 +1750,8 @@ void SearchWorker::PickNodesToExtendTask(
           size_t depth = current_path.size() + 1 + base_depth;
           assert(full_path.size() == depth);
           if (ShouldStopPickingHere(child_node, depth, &history, moves_to_path,
-                                    is_repetition, cycle_length)) {
+                                    moves_to_path.size() - 1, is_repetition,
+                                    cycle_length)) {
             // Reduce 1 for the visits_to_perform to ensure the collision
             // created doesn't include this visit.
             (*visits_to_perform.back())[best_idx] -= 1;
@@ -1796,7 +1793,8 @@ void SearchWorker::PickNodesToExtendTask(
           assert(full_path.size() == depth);
           // Don't split if not expanded or terminal.
           if (!ShouldStopPickingHere(child_node, depth, &history, moves_to_path,
-                                     is_repetition, cycle_length)) {
+                                     moves_to_path.size() - 1, is_repetition,
+                                     cycle_length)) {
             bool passed = false;
             {
               // TODO: Reinstate this lock when the whole function lock is gone.

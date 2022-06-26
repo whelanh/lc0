@@ -480,7 +480,8 @@ class SearchWorker {
   // @cycle_length accordingly.
   bool ShouldStopPickingHere(Node* node, int depth, PositionHistory* history,
                              const std::vector<Move>& moves_to_node,
-                             bool& is_repetition, int& cycle_length);
+                             int history_size, bool& is_repetition,
+                             int& cycle_length);
   void ProcessPickedTask(int batch_start, int batch_end,
                          TaskWorkspace* workspace);
   void ExtendNode(NodeToProcess& picked_node, PositionHistory* history);
