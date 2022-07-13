@@ -1827,34 +1827,7 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node) {
   // We don't need the mutex because other threads will see that N=0 and
   // N-in-flight=1 and will not touch this node.
   const auto& board = history.Last().GetBoard();
-  std::vector<Move> legal_moves;
-
-  // Check the transposition table first.
-  picked_node.hash = history.HashLast(params_.GetCacheHistoryLength() + 1);
-  std::shared_ptr<LowNode> tt_low_node;
-  auto entry = search_->tt_->LookupAndPin(picked_node.hash);
-  if (entry) {
-    tt_low_node = entry->lock();
-    search_->tt_->Unpin(picked_node.hash, entry);
-  }
-
-  // Try to get the moves from the transposition table entry and verify them.
-  if (tt_low_node) {
-    legal_moves.reserve(tt_low_node->GetNumEdges());
-    const KingAttackInfo king_attack_info = board.GenerateKingAttackInfo();
-    for (int ct = 0; ct < tt_low_node->GetNumEdges(); ct++) {
-      auto move = tt_low_node->GetEdges()[ct].GetMove();
-      if (!board.IsLegalMove(move, king_attack_info)) {
-        // It was a hash collision, forget it.
-        tt_low_node.reset();
-        break;
-      }
-      legal_moves.emplace_back(move);
-    }
-  }
-  if (!tt_low_node) {
-    legal_moves = board.GenerateLegalMoves();
-  }
+  std::vector<Move> legal_moves = board.GenerateLegalMoves();
 
   // Check whether it's a draw/lose by position. Importantly, we must check
   // these before doing the by-rule checks below.
@@ -1923,10 +1896,16 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node) {
 
   picked_node.nn_queried = true;  // Node::SetLowNode() required.
 
-  // Check the NN cache before asking for NN evaluation.
-  if (tt_low_node) {
-    assert(!tt_iter->second.expired());
-    picked_node.tt_low_node = std::move(tt_low_node);
+  // Check the transposition table first and NN cache second before asking for
+  // NN evaluation.
+  picked_node.hash = history.HashLast(params_.GetCacheHistoryLength() + 1);
+  auto entry = search_->tt_->LookupAndPin(picked_node.hash);
+  // Transposition table entry might be expired.
+  if (entry) {
+    picked_node.tt_low_node = entry->lock();
+    search_->tt_->Unpin(picked_node.hash, entry);
+  }
+  if (picked_node.tt_low_node) {
     picked_node.is_tt_hit = true;
   } else {
     picked_node.lock = NNCacheLock(search_->cache_, picked_node.hash);

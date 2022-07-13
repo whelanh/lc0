@@ -28,7 +28,6 @@
 #include "mcts/stoppers/stoppers.h"
 
 #include "mcts/node.h"
-#include "mcts/search.h"
 #include "neural/cache.h"
 
 namespace lczero {

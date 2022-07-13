@@ -39,6 +39,7 @@
 #include "chess/board.h"
 #include "chess/callbacks.h"
 #include "chess/position.h"
+#include "utils/cache.h"
 #include "utils/mutex.h"
 
 namespace lczero {
@@ -829,6 +830,9 @@ inline VisitedNode_Iterator<true> Node::VisitedNodes() const {
 inline VisitedNode_Iterator<false> Node::VisitedNodes() {
   return {*this, GetChild()};
 }
+
+// Transposition Table type for holding references to all low nodes in DAG.
+typedef HashKeyedCache<std::weak_ptr<LowNode>> TranspositionTable;
 
 class NodeTree {
  public:
