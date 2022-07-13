@@ -166,11 +166,6 @@ Search::Search(const NodeTree& tree, Network* network,
           searchmoves_, syzygy_tb_, played_history_,
           params_.GetSyzygyFastPlay(), &tb_hits_, &root_is_in_dtz_)),
       uci_responder_(std::move(uci_responder)) {
-  // Evict expired entries from the transposition table.
-  // Garbage collection may lead to expiration at any time so this is not
-  // enough to prevent expired entries later during the search.
-  absl::erase_if(*tt_, [](const auto& item) { return item.second.expired(); });
-
   if (params_.GetMaxConcurrentSearchers() != 0) {
     pending_searchers_.store(params_.GetMaxConcurrentSearchers(),
                              std::memory_order_release);
@@ -1837,9 +1832,10 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node) {
   // Check the transposition table first.
   picked_node.hash = history.HashLast(params_.GetCacheHistoryLength() + 1);
   std::shared_ptr<LowNode> tt_low_node;
-  auto tt_iter = search_->tt_->find(picked_node.hash);
-  if (tt_iter != search_->tt_->end()) {
-    tt_low_node = tt_iter->second.lock();
+  auto entry = search_->tt_->LookupAndPin(picked_node.hash);
+  if (entry) {
+    tt_low_node = entry->lock();
+    search_->tt_->Unpin(picked_node.hash, entry);
   }
 
   // Try to get the moves from the transposition table entry and verify them.
@@ -2094,25 +2090,11 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
 
   if (!node_to_process->is_tt_hit) {
     node_to_process->tt_low_node = std::make_shared<LowNode>();
-
-    auto [tt_iter, is_tt_miss] = search_->tt_->insert(
-        {node_to_process->hash, node_to_process->tt_low_node});
-
-    if (is_tt_miss) {
-      assert(!tt_iter->second.expired());
-      node_to_process->tt_low_node->SetNNEval(
-          computation.GetNNEval(idx_in_computation).get());
-    } else {
-      auto tt_low_node = tt_iter->second.lock();
-      if (!tt_low_node) {
-        tt_iter->second = node_to_process->tt_low_node;
-        node_to_process->tt_low_node->SetNNEval(
-            computation.GetNNEval(idx_in_computation).get());
-      } else {
-        assert(!tt_iter->second.expired());
-        node_to_process->tt_low_node = tt_iter->second.lock();
-      }
-    }
+    search_->tt_->Insert(
+        node_to_process->hash,
+        std::make_unique<std::weak_ptr<LowNode>>(node_to_process->tt_low_node));
+    node_to_process->tt_low_node->SetNNEval(
+        computation.GetNNEval(idx_in_computation).get());
   }
 
   // Add NN results to node.

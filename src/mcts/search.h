@@ -44,12 +44,16 @@
 #include "neural/cache.h"
 #include "syzygy/syzygy.h"
 #include "utils/logging.h"
+#include "utils/lru_cache.h"
 #include "utils/mutex.h"
 #include "utils/numa.h"
 
 namespace lczero {
 
 typedef std::vector<std::tuple<Node*, int, int>> BackupPath;
+
+// Transposition Table type for holding references to all low nodes in DAG.
+typedef LruCache<uint64_t, std::weak_ptr<LowNode>> TranspositionTable;
 
 class Search {
  public:

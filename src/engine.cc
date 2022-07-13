@@ -147,6 +147,7 @@ void EngineController::UpdateFromUciOptions() {
 
   // Cache size.
   cache_.SetCapacity(options_.Get<int>(kNNCacheSizeId));
+  tt_.SetCapacity(options_.Get<int>(kNNCacheSizeId));
 
   // Check whether we can update the move timer in "Go".
   strict_uci_timing_ = options_.Get<bool>(kStrictUciTiming);
@@ -165,7 +166,7 @@ void EngineController::NewGame() {
   ResetMoveTimer();
   SharedLock lock(busy_mutex_);
   cache_.Clear();
-  tt_.clear();
+  tt_.Clear();
   search_.reset();
   tree_.reset();
   CreateFreshTimeManager();

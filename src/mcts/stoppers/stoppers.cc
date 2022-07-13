@@ -28,6 +28,7 @@
 #include "mcts/stoppers/stoppers.h"
 
 #include "mcts/node.h"
+#include "mcts/search.h"
 #include "neural/cache.h"
 
 namespace lczero {
@@ -94,10 +95,11 @@ bool PlayoutsStopper::ShouldStop(const IterationStats& stats,
 namespace {
 // FIXME: This is too conservative.
 const size_t kAvgNodeSize =
-    sizeof(Node) + sizeof(LowNode) + sizeof(TranspositionTable::slot_type) +
+    sizeof(Node) + sizeof(LowNode) +
     MemoryWatchingStopper::kAvgMovesPerPosition * sizeof(Edge);
 const size_t kAvgCacheItemSize =
-    NNCache::GetItemStructSize() + sizeof(CachedNNRequest) + sizeof(NNEval) +
+    NNCache::GetItemStructSize() + TranspositionTable::GetItemStructSize() +
+    sizeof(CachedNNRequest) + sizeof(NNEval) +
     sizeof(Edge) * MemoryWatchingStopper::kAvgMovesPerPosition;
 }  // namespace
 

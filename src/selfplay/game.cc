@@ -134,7 +134,7 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
     const int idx = blacks_move ? 1 : 0;
     if (!options_[idx].uci_options->Get<bool>(kReuseTreeId)) {
       tree_[idx]->TrimTreeAtHead();
-      tt_[idx]->clear();
+      tt_[idx]->Clear();
     }
     {
       std::lock_guard<std::mutex> lock(mutex_);
