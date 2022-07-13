@@ -2090,11 +2090,26 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
 
   if (!node_to_process->is_tt_hit) {
     node_to_process->tt_low_node = std::make_shared<LowNode>();
-    search_->tt_->Insert(
-        node_to_process->hash,
-        std::make_unique<std::weak_ptr<LowNode>>(node_to_process->tt_low_node));
-    node_to_process->tt_low_node->SetNNEval(
-        computation.GetNNEval(idx_in_computation).get());
+    auto entry = search_->tt_->LookupAndPin(node_to_process->hash);
+    if (!entry) {
+      node_to_process->tt_low_node->SetNNEval(
+          computation.GetNNEval(idx_in_computation).get());
+      search_->tt_->Insert(node_to_process->hash,
+                           std::make_unique<std::weak_ptr<LowNode>>(
+                               node_to_process->tt_low_node));
+    } else {
+      auto tt_low_node = entry->lock();
+      search_->tt_->Unpin(node_to_process->hash, entry);
+      if (!tt_low_node) {
+        node_to_process->tt_low_node->SetNNEval(
+            computation.GetNNEval(idx_in_computation).get());
+        search_->tt_->Insert(node_to_process->hash,
+                             std::make_unique<std::weak_ptr<LowNode>>(
+                                 node_to_process->tt_low_node));
+      } else {
+        node_to_process->tt_low_node = std::move(tt_low_node);
+      }
+    }
   }
 
   // Add NN results to node.
