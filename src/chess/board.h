@@ -105,14 +105,7 @@ class ChessBoard {
   // Returns the same move but with castling encoded in modern way.
   Move GetModernMove(Move move) const;
 
-  uint64_t Hash() const {
-    return HashCat({our_pieces_.as_int(), their_pieces_.as_int(),
-                    rooks_.as_int(), bishops_.as_int(), pawns_.as_int(),
-                    (static_cast<uint32_t>(our_king_.as_int()) << 24) |
-                        (static_cast<uint32_t>(their_king_.as_int()) << 16) |
-                        (static_cast<uint32_t>(castlings_.as_int()) << 8) |
-                        static_cast<uint32_t>(flipped_)});
-  }
+  uint64_t Hash() const;
 
   class Castlings {
    public:
@@ -254,6 +247,10 @@ class ChessBoard {
   };
 
  private:
+
+  // Used internally by Hash().
+  uint64_t HashPiece(BitBoard in, int offset) const;
+
   // All white pieces.
   BitBoard our_pieces_;
   // All black pieces.

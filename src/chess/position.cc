@@ -150,14 +150,9 @@ bool PositionHistory::DidRepeatSinceLastZeroingMove() const {
   return false;
 }
 
-uint64_t PositionHistory::HashLast(int positions) const {
-  uint64_t hash = positions;
-  for (auto iter = positions_.rbegin(), end = positions_.rend(); iter != end;
-       ++iter) {
-    if (!positions--) break;
-    hash = HashCat(hash, iter->Hash());
-  }
-  return HashCat(hash, Last().GetRule50Ply());
+uint64_t PositionHistory::HashLast(int /*positions*/) const {
+  uint64_t hash = Last().Hash();
+  return hash ^ Hash(Last().GetRule50Ply());
 }
 
 std::string GetFen(const Position& pos) {
