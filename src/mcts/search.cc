@@ -2076,6 +2076,8 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     node_to_process->tt_low_node = std::make_shared<LowNode>();
     node_to_process->tt_low_node->SetRule50Ply(
         node_to_process->history.Last().GetRule50Ply());
+    node_to_process->tt_low_node->SetFlipped(
+        node_to_process->history.Last().IsBlackToMove());
 
     auto [tt_iter, is_tt_miss] = search_->tt_->insert(
         {node_to_process->hash, node_to_process->tt_low_node});

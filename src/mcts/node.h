@@ -166,6 +166,7 @@ class LowNode {
         m_(p.m_),
         num_edges_(p.num_edges_),
         rule50_ply_(p.rule50_ply_),
+        is_flipped_(p.is_flipped_),
         terminal_type_(Terminal::NonTerminal),
         lower_bound_(GameResult::BLACK_WON),
         upper_bound_(GameResult::WHITE_WON),
@@ -300,6 +301,10 @@ class LowNode {
   void SetRule50Ply(uint8_t ply) { rule50_ply_ = ply; }
   uint8_t GetRule50Ply() const { return rule50_ply_; }
 
+  // Used to reconstruct polyglot move from TT entry.
+  void SetFlipped(bool flipped) { is_flipped_ = flipped; }
+  bool GetFlipped() const { return is_flipped_; }
+
  private:
   // To minimize the number of padding bytes and to avoid having unnecessary
   // padding when new fields are added, we arrange the fields by size, largest
@@ -339,6 +344,8 @@ class LowNode {
   uint8_t num_parents_ = 0;
   // Used for retrieving polyglot hash.
   uint8_t rule50_ply_ = 0;
+  // Used for retrieving polyglot move.
+  bool is_flipped_ : 1;
   // Bit fields using parts of uint8_t fields initialized in the constructor.
   // Whether or not this node end game (with a winning of either sides or draw).
   Terminal terminal_type_ : 2;
