@@ -102,6 +102,8 @@ class Search {
   // Returns NN eval for a given node from cache, if that node is cached.
   NNCacheLock GetCachedNNEval(const PositionHistory& history) const;
 
+  TranspositionTable* GetTT() const { return tt_; }
+
  private:
   // Computes the best move, maybe with temperature (according to the settings).
   void EnsureBestMoveKnown();
