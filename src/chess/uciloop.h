@@ -79,6 +79,9 @@ class UciLoop {
     throw Exception("Not supported");
   }
   virtual void CmdFen() { throw Exception("Not supported"); }
+  virtual void CmdDump(unsigned int /*nodes*/) {
+      throw Exception("Not supported");
+  }
   virtual void CmdGo(const GoParams& /*params*/) {
     throw Exception("Not supported");
   }

@@ -67,6 +67,7 @@ class EngineController {
   // Blocks.
   void SetPosition(const std::string& fen,
                    const std::vector<std::string>& moves);
+  void CmdDump(unsigned int nodes);
 
   // Must not block.
   void Go(const GoParams& params);
@@ -130,6 +131,7 @@ class EngineLoop : public UciLoop {
   void CmdPosition(const std::string& position,
                    const std::vector<std::string>& moves) override;
   void CmdFen() override;
+  void CmdDump(unsigned int nodes) override;
   void CmdGo(const GoParams& params) override;
   void CmdPonderHit() override;
   void CmdStop() override;

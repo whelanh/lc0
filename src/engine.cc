@@ -27,9 +27,11 @@
 
 #include "engine.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <iostream>
 
 #include "mcts/search.h"
 #include "mcts/stoppers/factory.h"
@@ -253,6 +255,32 @@ class PonderResponseTransformer : public TransformingUciResponder {
 
 }  // namespace
 
+void EngineController::CmdDump(unsigned int nodes) {
+  SharedLock lock(busy_mutex_);
+  if (search_) {
+    for (auto& l : *search_->GetTT()) {
+      auto x = l.second.lock();
+      if (x && x->GetN() > nodes) {
+        std::string move;
+        unsigned int n = 0;
+        auto child = x->GetChild()->get();
+        while (child) {
+          if (child->GetN() >= n) {
+            n = child->GetN() + 1;
+            move = child->GetOwnEdge()->GetMove(x->GetFlipped()).as_string();
+          }
+          child = child->GetSibling()->get();
+        }
+        if (n == 0) continue;
+        uint64_t hash = l.first ^ Hash(x->GetRule50Ply());
+        std::cout << "info string hash " << std::hex << hash << std::dec
+                  << " move " << move << " nodes " << x->GetN() << std::endl;
+      }
+    }
+  }
+  std::cout << "info string end-dump" << std::endl;
+}
+
 void EngineController::Go(const GoParams& params) {
   // TODO: should consecutive calls to go be considered to be a continuation and
   // hence have the same start time like this behaves, or should we check start
@@ -372,6 +400,8 @@ void EngineLoop::CmdFen() {
 void EngineLoop::CmdGo(const GoParams& params) { engine_.Go(params); }
 
 void EngineLoop::CmdPonderHit() { engine_.PonderHit(); }
+
+void EngineLoop::CmdDump(unsigned int nodes) { engine_.CmdDump(nodes); }
 
 void EngineLoop::CmdStop() { engine_.Stop(); }
 
