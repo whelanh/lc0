@@ -100,7 +100,9 @@ static size_t getMaxAttentionBodySize(const LegacyWeights& weights, int N) {
 
   const size_t encoder_heads = weights.encoder_head_count;
 
-  size_t size = N * 64 * std::max(embedding_op_size, encoder_d_model);
+  size_t size =
+      N * 64 *
+      std::max(std::max(embedding_op_size, encoder_d_model), encoder_dff);
 
   // size of matmul_qk matrix = encoder_heads_ * Batch * 64 * 64
   const size_t matmul_qk_size = encoder_heads * N * 64 * 64;
