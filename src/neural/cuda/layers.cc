@@ -1372,12 +1372,11 @@ AttentionPolicyHead<DataType>::AttentionPolicyHead(BaseLayer<DataType>* ip,
                                                    void* scratch,
                                                    bool attention_body,
                                                    ActivationFunction act)
-    : attention_body_(attention_body),
-      act_(attention_body
-               ? act
-               : SELU),  // HACK : old networks without attention body (e.g: T79
-                         // use hardcoded SELU activations)
-      BaseLayer<DataType>(64 * 64 + 24 * 8, 1, 1, ip) {
+    : BaseLayer<DataType>(64 * 64 + 24 * 8, 1, 1, ip),
+      attention_body_(attention_body),
+      // HACK : old networks without attention body (e.g: T79 use hardcoded SELU
+      // activations)
+      act_(attention_body ? act : SELU) {
   embedding_op_size_ = weights.ip_pol_b.size();
   wq_op_size_ = weights.ip2_pol_b.size();
   wk_op_size_ = weights.ip3_pol_b.size();
@@ -1429,7 +1428,7 @@ template <typename DataType>
 EncoderBlock<DataType>::EncoderBlock(
     const LegacyWeights::EncoderLayer& cpu_weights, void* scratch, int heads,
     int size, float alpha)
-    : encoder_heads_(heads), embedding_op_size_(size), alpha_(alpha) {
+    : embedding_op_size_(size), encoder_heads_(heads), alpha_(alpha) {
   mha_q_size_ = cpu_weights.mha.q_b.size();
   mha_k_size_ = cpu_weights.mha.k_b.size();
   mha_v_size_ = cpu_weights.mha.v_b.size();
@@ -1815,12 +1814,12 @@ AttentionBody<DataType>::AttentionBody(const LegacyWeights& weights,
                                        void* scratch,
                                        ActivationFunction default_act,
                                        int num_res_blocks, int input_c)
-    : embedding_op_size_(weights.ip_emb_b.size()),
+    : BaseLayer<DataType>(weights.ip_emb_b.size(), 8, 8, nullptr),
+      embedding_op_size_(weights.ip_emb_b.size()),
       encoder_head_count_(weights.encoder_head_count),
-      num_resi_blocks_(num_res_blocks),
       default_act_(default_act),
-      input_c_(input_c),
-      BaseLayer<DataType>(weights.ip_emb_b.size(), 8, 8, nullptr) {
+      num_resi_blocks_(num_res_blocks),
+      input_c_(input_c) {
   allocAndUpload<DataType>(&ip_emb_w_, weights.ip_emb_w, scratch);
   allocAndUpload<DataType>(&ip_emb_b_, weights.ip_emb_b, scratch);
 
