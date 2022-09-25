@@ -1300,7 +1300,8 @@ void SearchWorker::GatherMinibatch() {
         computation_->AddInputByHash(minibatch_[i].hash,
                                      std::move(minibatch_[i].lock));
       } else {
-        computation_->AddInput(minibatch_[i].hash, minibatch_[i].history);
+        computation_->AddInput(minibatch_[i].hash, minibatch_[i].history,
+                               false);
       }
     }
 
@@ -1891,17 +1892,6 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node) {
   }
 }
 
-// Returns whether node was already in cache.
-bool SearchWorker::AddNodeToComputation([[maybe_unused]] Node* node) {
-  const auto hash = history_.HashLast(params_.GetCacheHistoryLength() + 1);
-  if (search_->cache_->ContainsKey(hash)) {
-    return true;
-  }
-
-  computation_->AddInput(hash, history_);
-  return false;
-}
-
 // 2b. Copy collisions into shared collisions.
 void SearchWorker::CollectCollisions() {
   SharedMutex::Lock lock(search_->nodes_mutex_);
@@ -1939,13 +1929,16 @@ int SearchWorker::PrefetchIntoCache(Node* node, int budget, bool is_odd_depth) {
 
   // We are in a leaf, which is not yet being processed.
   if (!node || node->GetNStarted() == 0) {
-    if (AddNodeToComputation(node)) {
+    const auto hash = history_.HashLast(params_.GetCacheHistoryLength() + 1);
+    // Is the node already in the cache?
+    if (search_->cache_->ContainsKey(hash)) {
       // Make it return 0 to make it not use the slot, so that the function
       // tries hard to find something to cache even among unpopular moves.
       // In practice that slows things down a lot though, as it's not always
       // easy to find what to cache.
       return 1;
     }
+    computation_->AddInput(hash, history_, true);
     return 1;
   }
 

@@ -70,7 +70,7 @@ void CachingComputation::PopCacheHit() {
 }
 
 void CachingComputation::AddInput(uint64_t hash,
-                                  const PositionHistory& history) {
+                                  const PositionHistory& history, bool insert) {
   if (AddInputByHash(hash)) {
     return;
   }
@@ -86,6 +86,7 @@ void CachingComputation::AddInput(uint64_t hash,
   batch_.back().eval->edges = Edge::FromMovelist(moves);
   batch_.back().eval->num_edges = moves.size();
   batch_.back().transform = transform;
+  batch_.back().insert = insert;
   parent_->AddInput(std::move(input));
   return;
 }
@@ -138,9 +139,11 @@ void CachingComputation::ComputeBlocking(float softmax_temp) {
 
     Edge::SortEdges(item.eval->edges.get(), item.eval->num_edges);
 
-    auto req = std::make_unique<CachedNNRequest>();
-    req->eval = item.eval;
-    cache_->Insert(item.hash, std::move(req));
+    if(item.insert) {
+      auto req = std::make_unique<CachedNNRequest>();
+      req->eval = item.eval;
+      cache_->Insert(item.hash, std::move(req));
+    }
   }
 }
 

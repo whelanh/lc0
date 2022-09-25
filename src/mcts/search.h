@@ -433,7 +433,6 @@ class SearchWorker {
   };
 
   NodeToProcess PickNodeToExtend(int collision_limit);
-  bool AddNodeToComputation(Node* node);
   int PrefetchIntoCache(Node* node, int budget, bool is_odd_depth);
   // Adjust parameters for updating node @n and its parent low node if node is
   // terminal or its child low node is a transposition. Also update bounds and

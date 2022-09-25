@@ -62,7 +62,7 @@ class CachingComputation {
   void AddInputByHash(uint64_t hash, NNCacheLock&& lock);
   // Adds a sample to the batch. Also calls EncodePositionForNN() if needed.
   // @hash is a hash to store/lookup it in the cache.
-  void AddInput(uint64_t hash, const PositionHistory& history);
+  void AddInput(uint64_t hash, const PositionHistory& history, bool insert);
   // Undos last AddInput. If it was a cache miss, then it's actually not removed
   // from parent's batch.
   void PopLastInputHit();
@@ -88,6 +88,7 @@ class CachingComputation {
     int idx_in_parent = -1;
     std::shared_ptr<NNEval> eval;
     int transform;
+    bool insert;
   };
 
   std::unique_ptr<NetworkComputation> parent_;
