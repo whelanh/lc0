@@ -332,6 +332,44 @@ class ResidualBlock : public BaseLayer<DataType> {
   DataType* b2_;
 };
 
+template <typename DataType>
+class EncoderBlock {
+ public:
+  EncoderBlock(const LegacyWeights::EncoderLayer& cpu_weights, void* scratch, int heads, int size, float alpha);
+  ~EncoderBlock();
+
+  void Eval(int N, DataType* inpop, DataType* scratch0, DataType* scratch1,
+            DataType* scratch2, cublasHandle_t cublas,
+            cudaStream_t stream, ActivationFunction act) const;
+
+  // all GPU side pointers
+  DataType *mha_q_w, *mha_q_b;
+  DataType *mha_k_w, *mha_k_b;
+  DataType *mha_v_w, *mha_v_b;
+  DataType *mha_qkv_w, *mha_qkv_b;
+  DataType *mha_dense_w, *mha_dense_b;
+
+  DataType *ln1_gammas, *ln1_betas;
+
+  DataType *ffn_dense1_w, *ffn_dense1_b;
+  DataType *ffn_dense2_w, *ffn_dense2_b;
+
+  DataType *ln2_gammas, *ln2_betas;
+
+  int mha_q_size_;
+  int mha_k_size_;
+  int mha_v_size_;
+  int mha_dense_size_;
+
+  int ffn_dense1_size_;
+  int ffn_dense2_size_;
+
+  int embedding_op_size_;
+  int encoder_heads_;
+
+  float alpha_; // scale to apply to skip connection add
+};
+
 // The Attention policy head implementation
 // Responsible for loading weights into GPU memory, and evaluating the entire
 // policy head
@@ -346,7 +384,7 @@ class AttentionPolicyHead : public BaseLayer<DataType> {
 
  public:
   AttentionPolicyHead(BaseLayer<DataType>* ip, const LegacyWeights& weights,
-                      void* scratch);
+                      void* scratch, bool attention_body, ActivationFunction act);
   ~AttentionPolicyHead();
   void Eval(int N, DataType* output, const DataType* input,
             const DataType* input2, void* scratch, size_t scratch_size,
@@ -354,33 +392,6 @@ class AttentionPolicyHead : public BaseLayer<DataType> {
             cudaStream_t stream) override;
 
  private:
-  struct EncoderWeights {
-    EncoderWeights(const LegacyWeights::EncoderLayer& cpu_weights,
-                   void* scratch);
-    ~EncoderWeights();
-    // all GPU side pointers
-    DataType *mha_q_w, *mha_q_b;
-    DataType *mha_k_w, *mha_k_b;
-    DataType *mha_v_w, *mha_v_b;
-    DataType *mha_qkv_w, *mha_qkv_b;
-    DataType *mha_dense_w, *mha_dense_b;
-
-    DataType *ln1_gammas, *ln1_betas;
-
-    DataType *ffn_dense1_w, *ffn_dense1_b;
-    DataType *ffn_dense2_w, *ffn_dense2_b;
-
-    DataType *ln2_gammas, *ln2_betas;
-
-    int mha_q_size_;
-    int mha_k_size_;
-    int mha_v_size_;
-    int mha_dense_size_;
-
-    int ffn_dense1_size_;
-    int ffn_dense2_size_;
-  };
-
   // GPU allocations to hold various weights used by the attention policy head
   DataType *ip_pol_w_, *ip_pol_b_;    // "embedding" in policy attention
   DataType *ip2_pol_w_, *ip2_pol_b_;  // "wq" in policy attention
@@ -395,9 +406,66 @@ class AttentionPolicyHead : public BaseLayer<DataType> {
 
   int encoder_heads_;
   int policy_d_model_;
+  bool attention_body_;
+  ActivationFunction act_;
 
-  std::vector<EncoderWeights*> encoder_weights_;
+  std::vector<EncoderBlock<DataType>*> encoder_weights_;
 };
+
+template <typename DataType>
+class EmbeddingLayer : public BaseLayer<DataType> {
+  using BaseLayer<DataType>::C;
+  using BaseLayer<DataType>::H;
+  using BaseLayer<DataType>::W;
+
+public:
+  EmbeddingLayer(BaseLayer<DataType>* ip, const std::vector<float>& weights,
+                 const std::vector<float>& biases, void* scratch,
+                 ActivationFunction activation);
+  ~EmbeddingLayer();
+
+  void Eval(int N, DataType* output, const DataType* input,
+            const DataType* input2, void* scratch, size_t scratch_size,
+            cudnnHandle_t cudnn, cublasHandle_t cublas,
+            cudaStream_t stream) override;
+ private:
+  DataType *weights_, *biases_;
+  ActivationFunction act_;
+};
+
+// The Attention body implementation
+// Responsible for loading weights into GPU memory, and evaluating the entire
+// attention network part of the body including the stack of encoder layers
+template <typename DataType>
+class AttentionBody : public BaseLayer<DataType> {
+  using BaseLayer<DataType>::C;
+  using BaseLayer<DataType>::H;
+  using BaseLayer<DataType>::W;
+  using BaseLayer<DataType>::GetC;
+  using BaseLayer<DataType>::GetH;
+  using BaseLayer<DataType>::GetW;
+
+ public:
+  AttentionBody(const LegacyWeights& weights, void* scratch,
+                ActivationFunction default_act, int num_res_blocks,
+                int input_c);
+  ~AttentionBody();
+  void Eval(int N, DataType* output, const DataType* input,
+            const DataType* input2, void* scratch, size_t scratch_size,
+            cudnnHandle_t cudnn, cublasHandle_t cublas,
+            cudaStream_t stream) override;
+
+ private:
+  // GPU allocations to hold various weights used by the attention policy head
+  DataType *ip_emb_w_, *ip_emb_b_;    // "embedding" layer in net body
+  int embedding_op_size_;
+  int encoder_head_count_;
+  std::vector<EncoderBlock<DataType>*> encoder_weights_;
+  ActivationFunction default_act_;
+  int num_resi_blocks_;
+  int input_c_;
+};
+
 
 }  // namespace cudnn_backend
 }  // namespace lczero
