@@ -299,7 +299,7 @@ class SearchWorker {
     }
     bool IsCollision() const { return is_collision; }
     bool CanEvalOutOfOrder() const {
-      return is_tt_hit || is_cache_hit || node->IsTerminal() ||
+      return is_tt_hit || node->IsTerminal() ||
              node->GetLowNode();
     }
     bool ShouldAddToInput() const { return nn_queried && !is_tt_hit; }
@@ -315,7 +315,6 @@ class SearchWorker {
     uint32_t maxvisit = 0;
     bool nn_queried = false;
     bool is_tt_hit = false;
-    bool is_cache_hit = false;
     bool is_collision = false;
 
     // Details that are filled in as we go.
@@ -346,7 +345,7 @@ class SearchWorker {
       oss << "<NodeToProcess> This:" << this << " Depth:" << path.size()
           << " Node:" << node << " Multivisit:" << multivisit
           << " Maxvisit:" << maxvisit << " NNQueried:" << nn_queried
-          << " TTHit:" << is_tt_hit << " CacheHit:" << is_cache_hit
+          << " TTHit:" << is_tt_hit
           << " Collision:" << is_collision << " OOO:" << ooo_completed
           << " Repetitions:" << repetitions << " Path:";
       for (auto it = path.cbegin(); it != path.cend(); ++it) {

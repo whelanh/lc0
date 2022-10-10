@@ -48,20 +48,6 @@ int CachingComputation::GetCacheMisses() const {
 
 int CachingComputation::GetBatchSize() const { return batch_.size(); }
 
-bool CachingComputation::AddInputByHash(uint64_t hash) {
-  NNCacheLock lock(cache_, hash);
-  if (!lock) return false;
-  AddInputByHash(hash, std::move(lock));
-  return true;
-}
-
-void CachingComputation::AddInputByHash(uint64_t hash, NNCacheLock&& lock) {
-  assert(lock);
-  batch_.emplace_back();
-  batch_.back().lock = std::move(lock);
-  batch_.back().hash = hash;
-}
-
 void CachingComputation::PopCacheHit() {
   assert(!batch_.empty());
   assert(batch_.back().lock);
@@ -71,9 +57,6 @@ void CachingComputation::PopCacheHit() {
 
 void CachingComputation::AddInput(uint64_t hash,
                                   const PositionHistory& history) {
-  if (AddInputByHash(hash)) {
-    return;
-  }
   int transform;
   auto input =
       EncodePositionForNN(input_format_, history, 8, history_fill_, &transform);
@@ -137,10 +120,6 @@ void CachingComputation::ComputeBlocking(float softmax_temp) {
     }
 
     Edge::SortEdges(item.eval->edges.get(), item.eval->num_edges);
-
-    auto req = std::make_unique<CachedNNRequest>();
-    req->eval = item.eval;
-    cache_->Insert(item.hash, std::move(req));
   }
 }
 

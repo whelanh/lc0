@@ -54,12 +54,6 @@ class CachingComputation {
   int GetCacheMisses() const;
   // Total number of times AddInput/AddInputByHash were (successfully) called.
   int GetBatchSize() const;
-  // Adds input by hash only. If that hash is not in cache, returns false
-  // and does nothing. Otherwise adds.
-  bool AddInputByHash(uint64_t hash);
-  // Adds input by hash with existing lock. Assumes the given lock holds a real
-  // reference.
-  void AddInputByHash(uint64_t hash, NNCacheLock&& lock);
   // Adds a sample to the batch. Also calls EncodePositionForNN() if needed.
   // @hash is a hash to store/lookup it in the cache.
   void AddInput(uint64_t hash, const PositionHistory& history);

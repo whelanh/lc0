@@ -1292,13 +1292,7 @@ void SearchWorker::GatherMinibatch() {
       // There are no OOO though.
       // Also terminals when OOO is disabled.
       if (!minibatch_[i].ShouldAddToInput()) continue;
-      if (minibatch_[i].is_cache_hit) {
-        // Since minibatch_[i] holds cache lock, this is guaranteed to succeed.
-        computation_->AddInputByHash(minibatch_[i].hash,
-                                     std::move(minibatch_[i].lock));
-      } else {
-        computation_->AddInput(minibatch_[i].hash, minibatch_[i].history);
-      }
+      computation_->AddInput(minibatch_[i].hash, minibatch_[i].history);
     }
 
     // Check for stop at the end so we have at least one node.
@@ -1882,9 +1876,6 @@ void SearchWorker::ExtendNode(NodeToProcess& picked_node) {
   if (tt_low_node != nullptr) {
     picked_node.tt_low_node = tt_low_node;
     picked_node.is_tt_hit = true;
-  } else {
-    picked_node.lock = NNCacheLock(search_->cache_, picked_node.hash);
-    picked_node.is_cache_hit = picked_node.lock;
   }
 }
 
