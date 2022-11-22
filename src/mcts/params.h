@@ -43,9 +43,6 @@ class SearchParams {
 
   // Parameter getters.
   uint32_t GetMiniBatchSize() const { return kMiniBatchSize; }
-  int GetMaxPrefetchBatch() const {
-    return options_.Get<int>(kMaxPrefetchBatchId);
-  }
   float GetCpuct(bool at_root) const { return at_root ? kCpuctAtRoot : kCpuct; }
   float GetCpuctBase(bool at_root) const {
     return at_root ? kCpuctBaseAtRoot : kCpuctBase;
@@ -140,7 +137,6 @@ class SearchParams {
 
   // Search parameter IDs.
   static const OptionId kMiniBatchSizeId;
-  static const OptionId kMaxPrefetchBatchId;
   static const OptionId kCpuctId;
   static const OptionId kCpuctAtRootId;
   static const OptionId kCpuctBaseId;
@@ -205,7 +201,7 @@ class SearchParams {
   // Cached parameter values. Values have to be cached if either:
   // 1. Parameter is accessed often and has to be cached for performance
   // reasons.
-  // 2. Parameter has to stay the say during the search.
+  // 2. Parameter has to stay the same during the search.
   // TODO(crem) Some of those parameters can be converted to be dynamic after
   //            trivial search optimizations.
   const float kCpuct;
