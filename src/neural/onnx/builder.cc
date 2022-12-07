@@ -386,4 +386,21 @@ std::string OnnxBuilder::Shape(const std::string& name,
   return PopulateStdNodeFields(node, name, input, "Shape");
 }
 
+std::string OnnxBuilder::Attention(const std::string& name,
+                                   const std::string& input,
+                                   const std::string& weights,
+                                   const std::string& bias, int heads) {
+  for (static bool flag = false; !flag; flag = true) {
+    auto opset = model_.add_opset_import();
+    opset->set_domain("com.microsoft");
+    opset->set_version(1);
+  }
+  auto* node = model_.mutable_graph()->add_node();
+  node->set_domain("com.microsoft");
+  auto out = PopulateStdNodeFields(node, name, input, "Attention");
+  node->add_input(weights);
+  node->add_input(bias);
+  AddIntAttribute(node, "num_heads", heads);
+  return out;
+}
 }  // namespace lczero

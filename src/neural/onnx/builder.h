@@ -109,6 +109,9 @@ class OnnxBuilder {
   std::string Expand(const std::string& name, const std::string& input,
                      const std::string& shape);
   std::string Shape(const std::string& name, const std::string& input);
+  std::string Attention(const std::string& name, const std::string& input,
+                        const std::string& weights, const std::string& bias,
+                        int heads);
   // Returns ONNX model as protobuf.
   const pblczero::ModelProto& as_proto() const { return model_; }
   // Returns serialized model.

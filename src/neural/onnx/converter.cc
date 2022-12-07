@@ -71,8 +71,6 @@ class Converter {
   size_t NumEncBlocks() const { return src_.weights().encoder().size(); }
   void CopyGenericFields(pblczero::Net* dst);
   void GenerateOnnx(pblczero::OnnxModel* onnx);
-  void FillValueInfo(pblczero::ValueInfoProto* vip, const std::string& name,
-                     std::initializer_list<int> dims);
 
   std::string MakeConvBlock(OnnxBuilder* builder,
                             const LegacyWeights::ConvBlock&, int input_channels,
@@ -251,8 +249,8 @@ std::string Converter::MakeEncoderLayer(
     int embedding_size, int heads, const std::string& encoder_in,
     const std::string& name, ActivationFunction activation, float alpha) {
   const int d_model = layer.mha.q_b.size();
+#if 0
   const int depth = d_model / heads;
-
   auto mha_shape =
       builder->AddInitializer("/const" + name + "/mha/shape",
                               Int64OnnxConst({-1, 64, heads, depth}, {4}));
@@ -296,6 +294,41 @@ std::string Converter::MakeEncoderLayer(
       name + "/mha/out/reshape", flow,
       builder->AddInitializer("/const" + name + "/mha/out/shape",
                               Int64OnnxConst({-1, d_model}, {2})));
+#else
+  auto merge_w = builder->Concat(
+      name + "/mha/w",
+      {builder->AddInitializer(
+           name + "/mha/Q/w",
+           *GetWeghtsConverter(layer.mha.q_w, {embedding_size, d_model},
+                               {1, 0})),
+       builder->AddInitializer(
+           name + "/mha/K/w",
+           *GetWeghtsConverter(layer.mha.k_w, {embedding_size, d_model},
+                               {1, 0})),
+       builder->AddInitializer(
+           name + "/mha/V/w",
+           *GetWeghtsConverter(layer.mha.v_w, {embedding_size, d_model},
+                               {1, 0}))},
+      1);
+  auto merge_b = builder->Concat(
+      name + "/mha/b",
+      {builder->AddInitializer(name + "/mha/Q/b",
+                               *GetWeghtsConverter(layer.mha.q_b, {d_model})),
+       builder->AddInitializer(name + "/mha/K/b",
+                               *GetWeghtsConverter(layer.mha.k_b, {d_model})),
+       builder->AddInitializer(name + "/mha/V/b",
+                               *GetWeghtsConverter(layer.mha.v_b, {d_model}))},
+      0);
+  auto flow = builder->Reshape(
+      name + "/mha/in/reshape", encoder_in,
+      builder->AddInitializer("/const" + name + "/mha/in/shape",
+                              Int64OnnxConst({-1, 64, d_model}, {3})));
+  flow = builder->Attention(name + "/mha", flow, merge_w, merge_b, heads);
+  flow = builder->Reshape(
+      name + "/mha/out/reshape", flow,
+      builder->AddInitializer("/const" + name + "/mha/out/shape",
+                              Int64OnnxConst({-1, d_model}, {2})));
+#endif
   flow =
       builder->MatMul(name + "/mha/out/dense/w", flow,
                       *GetWeghtsConverter(layer.mha.dense_w,
