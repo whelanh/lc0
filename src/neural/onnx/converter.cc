@@ -102,6 +102,11 @@ class Converter {
                              const std::string& name,
                              ActivationFunction activation);
 
+  std::string MakeLayerNorm(OnnxBuilder* builder, const std::string& input,
+                            const std::string& name,
+                            const lczero::OnnxConst& gammas,
+                            const lczero::OnnxConst& betas, int axis);
+
   std::string MakeEncoderLayer(OnnxBuilder* builder,
                                const LegacyWeights::EncoderLayer& layer,
                                int embedding_size, int heads,
@@ -246,6 +251,45 @@ void Converter::AddStdInitializers(OnnxBuilder* builder) {
                           Int64OnnxConst({-1, NumFilters() * 2, 1, 1}, {4}));
 }
 
+std::string Converter::MakeLayerNorm(OnnxBuilder* builder,
+                                     const std::string& input,
+                                     const std::string& name,
+                                     const lczero::OnnxConst& gammas,
+                                     const lczero::OnnxConst& betas, int axis) {
+#if 0
+  return builder->LayerNormalization(name, input, gammas, betas, axis);
+#else
+  auto shape = builder->Shape(name + "/shape", input);
+  auto new_shape = builder->Concat(
+      name + "/new_shape",
+      {builder->AddInitializer(name + "/extra_shape", Int64OnnxConst({1}, {1})),
+       shape},
+      0);
+  auto in = builder->Reshape(name + "/reshape1", input, new_shape);
+  auto mean = builder->GlobalAveragePool(name + "/mean", in);
+  auto flow = builder->Sub(name + "/input-mean", in, mean);
+  flow = builder->Mul(name + "/square", flow, flow);
+  flow = builder->GlobalAveragePool(name + "/var", flow);
+  std::unique_ptr<OnnxConst> epsilon;
+  if (GetDataType() == pblczero::TensorProto::FLOAT16) {
+    epsilon = std::make_unique<Float16OnnxConst>(
+        Float16OnnxConst({FP32toFP16(1e-6f)}, {1}));
+  } else {
+    epsilon = std::make_unique<FloatOnnxConst>(FloatOnnxConst({1e-6f}, {1}));
+  }
+  flow = builder->Add(name + "/epsilon", flow, *epsilon);
+  flow = builder->Sqrt(name + "/stdev", flow);
+  flow = builder->Reciprocal(name + "/invstdev", flow);
+  auto tmp = builder->Mul(name + "/w", flow, gammas);
+  flow = builder->Mul(name + "/in*invstddev", in, tmp);
+  tmp = builder->Mul(name + "/mean*invstddev", mean, tmp);
+  tmp = builder->Sub(name + "/b-mean*invstddev", betas, tmp);
+  flow = builder->Add(name + "/out", flow, tmp);
+  flow = builder->Reshape(name + "/reshape2", flow, shape);
+  return flow;
+#endif
+}
+
 std::string Converter::MakeEncoderLayer(
     OnnxBuilder* builder, const LegacyWeights::EncoderLayer& layer,
     int embedding_size, int heads, const std::string& encoder_in,
@@ -317,11 +361,10 @@ std::string Converter::MakeEncoderLayer(
     alpha_in = encoder_in;
   }
   flow = builder->Add(name + "/mha/out/skip", flow, alpha_in);
-
-  auto ffn_in = builder->LayerNormalization(
-      name + "/ln1", flow,
-      *GetWeghtsConverter(layer.ln1_gammas, {embedding_size}),
-      *GetWeghtsConverter(layer.ln1_betas, {embedding_size}), 1);
+  auto ffn_in =
+      MakeLayerNorm(builder, flow, name + "/ln1",
+                    *GetWeghtsConverter(layer.ln1_gammas, {embedding_size}),
+                    *GetWeghtsConverter(layer.ln1_betas, {embedding_size}), 1);
   const int dff_size = layer.ffn.dense1_b.size();
   flow =
       builder->MatMul(name + "/ffn/dense1/w", ffn_in,
@@ -344,10 +387,10 @@ std::string Converter::MakeEncoderLayer(
     alpha_ffn_in = ffn_in;
   }
   flow = builder->Add(name + "/ffn/skip", flow, alpha_ffn_in);
-  flow = builder->LayerNormalization(
-      name + "/ln2", flow,
-      *GetWeghtsConverter(layer.ln2_gammas, {embedding_size}),
-      *GetWeghtsConverter(layer.ln2_betas, {embedding_size}), 1);
+  flow =
+      MakeLayerNorm(builder, flow, name + "/ln2",
+                    *GetWeghtsConverter(layer.ln2_gammas, {embedding_size}),
+                    *GetWeghtsConverter(layer.ln2_betas, {embedding_size}), 1);
   return flow;
 }
 

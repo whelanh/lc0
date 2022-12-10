@@ -160,6 +160,23 @@ std::string OnnxBuilder::Add(const std::string& name, const std::string& input1,
   return out;
 }
 
+std::string OnnxBuilder::Sub(const std::string& name, const std::string& input1,
+                             const std::string& input2) {
+  auto* node = model_.mutable_graph()->add_node();
+  auto out = PopulateStdNodeFields(node, name, input1, "Sub");
+  node->add_input(input2);
+  return out;
+}
+
+std::string OnnxBuilder::Sub(const std::string& name, const OnnxConst& input1,
+                             const std::string& input2) {
+  auto* node = model_.mutable_graph()->add_node();
+  auto out = PopulateStdNodeFields(node, name,
+                                   AddInitializer(name + "/w", input1), "Sub");
+  node->add_input(input2);
+  return out;
+}
+
 std::string OnnxBuilder::GlobalAveragePool(const std::string& name,
                                            const std::string& input) {
   auto* node = model_.mutable_graph()->add_node();
@@ -384,6 +401,18 @@ std::string OnnxBuilder::Shape(const std::string& name,
                                const std::string& input) {
   auto* node = model_.mutable_graph()->add_node();
   return PopulateStdNodeFields(node, name, input, "Shape");
+}
+
+std::string OnnxBuilder::Sqrt(const std::string& name,
+                              const std::string& input) {
+  auto* node = model_.mutable_graph()->add_node();
+  return PopulateStdNodeFields(node, name, input, "Sqrt");
+}
+
+std::string OnnxBuilder::Reciprocal(const std::string& name,
+                                    const std::string& input) {
+  auto* node = model_.mutable_graph()->add_node();
+  return PopulateStdNodeFields(node, name, input, "Reciprocal");
 }
 
 }  // namespace lczero
