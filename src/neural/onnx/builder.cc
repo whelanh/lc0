@@ -389,4 +389,46 @@ std::string OnnxBuilder::Shape(const std::string& name,
   return PopulateStdNodeFields(node, name, input, "Shape");
 }
 
+std::string OnnxBuilder::Exp(const std::string& name,
+                             const std::string& input) {
+  auto* node = model_.mutable_graph()->add_node();
+  return PopulateStdNodeFields(node, name, input, "Exp");
+}
+
+std::string OnnxBuilder::Div(const std::string& name, const std::string& input1,
+                             const std::string& input2) {
+  auto* node = model_.mutable_graph()->add_node();
+  auto out = PopulateStdNodeFields(node, name, input1, "Div");
+  node->add_input(input2);
+  return out;
+}
+
+std::string OnnxBuilder::Sub(const std::string& name, const std::string& input1,
+                             const std::string& input2) {
+  auto* node = model_.mutable_graph()->add_node();
+  auto out = PopulateStdNodeFields(node, name, input1, "Sub");
+  node->add_input(input2);
+  return out;
+}
+
+std::string OnnxBuilder::Greater(const std::string& name,
+                                 const std::string& input1,
+                                 const OnnxConst& input2) {
+  auto* node = model_.mutable_graph()->add_node();
+  auto out = PopulateStdNodeFields(node, name, input1, "Greater");
+  node->add_input(AddInitializer(name + "/threshold", input2));
+  return out;
+}
+
+std::string OnnxBuilder::Where(const std::string& name,
+                               const std::string& input1,
+                               const std::string& input2,
+                               const std::string& input3) {
+  auto* node = model_.mutable_graph()->add_node();
+  auto out = PopulateStdNodeFields(node, name, input1, "Where");
+  node->add_input(input2);
+  node->add_input(input3);
+  return out;
+}
+
 }  // namespace lczero
