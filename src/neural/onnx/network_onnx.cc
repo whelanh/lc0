@@ -117,7 +117,7 @@ class OnnxNetwork : public Network {
   static constexpr int max_batch_size_ = 1024;
   // For conditional locking if running the DML provider.
   OnnxProvider provider_;
-  std::mutex lock_;
+  std::vector<std::mutex> lock_;
 };
 
 template <typename DataType>
@@ -240,12 +240,26 @@ void OnnxComputation<DataType>::ComputeBlocking() {
     int batch = batch_size * step;
 
     auto input_tensor = PrepareInputs(i, batch);
-    if (network_->provider_ == OnnxProvider::DML) network_->lock_.lock();
+    if (network_->provider_ == OnnxProvider::DML) {
+      if (!network_->lock_[step - 1].try_lock()) {
+        step--;
+        if (step < 1) {
+          step = 1;
+        } else {
+          batch = batch_size * step;
+          input_tensor = PrepareInputs(i, batch);
+        }
+        network_->lock_[step - 1].lock();
+      }
+    }
+
     network_->session_[step - 1].Run(
         {}, network_->inputs_cstr_.data(), &input_tensor, 1,
         network_->outputs_cstr_.data(), output_tensors_.data(),
         output_tensors_.size());
-    if (network_->provider_ == OnnxProvider::DML) network_->lock_.unlock();
+    if (network_->provider_ == OnnxProvider::DML) {
+      network_->lock_[step - 1].unlock();
+    }
     i += batch;
   }
 }
@@ -315,6 +329,9 @@ OnnxNetwork::OnnxNetwork(const WeightsFile& file, const OptionsDict&,
     session_.emplace_back(onnx_env_, file.onnx_model().model().data(),
                           file.onnx_model().model().size(),
                           GetOptions(provider, gpu, batch_size_ * step));
+
+  std::vector<std::mutex> tmp(steps_);
+  lock_.swap(tmp);
 
   const auto& md = file.onnx_model();
   if (!md.has_input_planes()) {
