@@ -585,11 +585,16 @@ void Converter::GenerateOnnx(pblczero::OnnxModel* onnx) {
   AddStdInitializers(&builder);
 
   onnx->set_input_planes(options_.input_planes_name);
-  builder.AddInput(options_.input_planes_name, {options_.batch_size, 112, 8, 8},
+  builder.AddInput(options_.input_planes_name, {options_.batch_size, 8, 8, 112},
                    GetDataType());
+
+  // Transpose to NCHW
+  auto flow = builder.Transpose("/input_nchw", options_.input_planes_name,
+                                {0, 3, 1, 2});
+
   // Input convolution.
-  auto flow = MakeConvBlock(&builder, weights.input, kInputPlanes, NumFilters(),
-                            options_.input_planes_name, "/inputconv");
+  flow = MakeConvBlock(&builder, weights.input, kInputPlanes, NumFilters(),
+                       flow, "/inputconv");
 
   // Residual tower.
   for (size_t i = 0; i < NumBlocks(); ++i) {

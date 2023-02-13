@@ -192,19 +192,20 @@ template <typename DataType>
 Ort::Value OnnxComputation<DataType>::PrepareInputs(int start, int batch_size) {
   input_tensor_data_.clear();
   input_tensor_data_.resize(batch_size * kInputPlanes * 8 * 8);
-  auto iter = input_tensor_data_.data();
   int end = std::min(start + batch_size, static_cast<int>(raw_input_.size()));
   for (int i = start; i < end; i++) {
+    auto iter = input_tensor_data_.data() + i * kInputPlanes * 8 * 8;
     for (const auto& plane : raw_input_[i]) {
       DataType value = std::is_same<Ort::Float16_t, DataType>::value
                            ? FP32toFP16(plane.value)
                            : plane.value;
       for (auto bit : IterateBits(plane.mask)) {
-        *(iter + bit) = value;
+        *(iter + bit * kInputPlanes) = value;
       }
-      iter += 64;
+      iter += 1;
     }
   }
+  auto iter = input_tensor_data_.data() + end * kInputPlanes * 8 * 8;
   for (int i = end; i < start + batch_size; i++) {
     for (int j = 0; j < kInputPlanes * 64; j++) {
       *iter++ = 0;
@@ -223,7 +224,7 @@ Ort::Value OnnxComputation<DataType>::PrepareInputs(int start, int batch_size) {
         size * batch_size, dims, 2));
   }
 
-  int64_t dims[] = {batch_size, kInputPlanes, 8, 8};
+  int64_t dims[] = {batch_size, 8, 8, kInputPlanes};
   return Ort::Value::CreateTensor<DataType>(memory_info,
                                             input_tensor_data_.data(),
                                             input_tensor_data_.size(), dims, 4);
