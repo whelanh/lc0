@@ -248,7 +248,7 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
     size_t batch_size, const LegacyWeights::EncoderLayer& layer,
     int embedding_size, int heads, ActivationFunction smolgen_activation,
     ActivationFunction ffn_activation, float alpha) {
-  const int d_model = layer.mha.q_b.size();
+  const int d_model = layer.mha.k_b.size();
   const int dff_size = layer.ffn.dense1_b.size();
   const int hidden_channels =
       layer.mha.has_smolgen ? layer.mha.smolgen.compress.size() / embedding_size
@@ -266,7 +266,7 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
                  std::max(std::max(d_model, hidden_channels) * kSquares,
                           gen_sz_outputs));
   vec_adjust(head_buffer3,
-             largest_batch_size * std::max(d_model * kSquares, hidden_sz));
+             largest_batch_size * std::max(3 * d_model * kSquares, hidden_sz));
   vec_adjust(head_buffer4, batch_size * std::max(d_model, dff_size) * kSquares);
 
   // Smolgen.
@@ -309,14 +309,10 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
         NONE, QK);
   }
 
-  // Q
+  // Q, K and V in one step.
   FullyConnectedLayer<use_eigen>::Forward1D(
-      batch_size * kSquares, embedding_size, d_model, head_buffer.data(),
-      layer.mha.q_w.data(), layer.mha.q_b.data(), NONE, head_buffer2.data());
-  // K
-  FullyConnectedLayer<use_eigen>::Forward1D(
-      batch_size * kSquares, embedding_size, d_model, head_buffer.data(),
-      layer.mha.k_w.data(), layer.mha.k_b.data(), NONE, head_buffer3.data());
+      batch_size * kSquares, embedding_size, 3 * d_model, head_buffer.data(),
+      layer.mha.q_w.data(), layer.mha.q_b.data(), NONE, head_buffer3.data());
 
   // MHA (Q, K, V)
   const int depth = d_model / heads;
@@ -328,8 +324,8 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
 
     float* QK = &head_buffer4[batch * kSquares * kSquares * heads];
 
-    const float* Q = &head_buffer2[batchStart];
-    const float* K = &head_buffer3[batchStart];
+    const float* Q = &head_buffer3[3 * batchStart];
+    const float* K = &head_buffer3[3 * batchStart + d_model];
 
     // matmul(Q, K) for all heads per batch.
 
@@ -344,14 +340,14 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
             beta * C_mat +
             scaling *
                 ConstEigenStridedMatrixMap<float>(
-                    B, depth, kSquares, Eigen::OuterStride<>(heads * depth))
+                    B, depth, kSquares, Eigen::OuterStride<>(3 * d_model))
                     .transpose() *
                 ConstEigenStridedMatrixMap<float>(
-                    A, depth, kSquares, Eigen::OuterStride<>(heads * depth));
+                    A, depth, kSquares, Eigen::OuterStride<>(3 * d_model));
       } else {
 #ifdef USE_BLAS
         cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, kSquares, kSquares,
-                    depth, scaling, A, heads * depth, B, heads * depth, beta, C,
+                    depth, scaling, A, 3 * d_model, B, 3 * d_model, beta, C,
                     kSquares);
 #else
         // Should never get here.
@@ -374,16 +370,11 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
     SoftmaxActivation(kSquares, QK + h, QK + h);
   }
 
-  // V
-  FullyConnectedLayer<use_eigen>::Forward1D(
-      batch_size * kSquares, embedding_size, d_model, head_buffer.data(),
-      layer.mha.v_w.data(), layer.mha.v_b.data(), NONE, head_buffer3.data());
-
   for (auto batch = size_t{0}; batch < batch_size; batch++) {
     auto batchStart = batch * kSquares * d_model;
     // matmul(softmax(QK), V) for all heads per batch.
     float* attn = &head_buffer2[batchStart];
-    const float* V = &head_buffer3[batchStart];
+    const float* V = &head_buffer3[3 * batchStart + 2 * d_model];
     const float* QK = &head_buffer4[batch * kSquares * kSquares * heads];
     for (auto h = 0; h < heads; h++) {
       const float* A = &QK[h * kSquares * kSquares];
@@ -391,16 +382,16 @@ void BlasComputation<use_eigen>::MakeEncoderLayer(
       float* C = &attn[h * depth];
       if (use_eigen) {
         auto C_mat = EigenStridedMatrixMap<float>(
-            C, depth, kSquares, Eigen::OuterStride<>(heads * depth));
+            C, depth, kSquares, Eigen::OuterStride<>(d_model));
         C_mat.noalias() =
             ConstEigenStridedMatrixMap<float>(
-                B, depth, kSquares, Eigen::OuterStride<>(heads * depth)) *
+                B, depth, kSquares, Eigen::OuterStride<>(3 * d_model)) *
             ConstEigenMatrixMap<float>(A, kSquares, kSquares);
       } else {
 #ifdef USE_BLAS
         cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, kSquares, depth,
-                    kSquares, 1.0f, A, kSquares, B, heads * depth, 0.0f, C,
-                    heads * depth);
+                    kSquares, 1.0f, A, kSquares, B, 3 * d_model, 0.0f, C,
+                    d_model);
 #endif
       }
     }
@@ -950,6 +941,38 @@ BlasNetwork<use_eigen>::BlasNetwork(const WeightsFile& file,
     auto pol_channels = weights_.policy.biases.size();
     weights_.policy.weights = WinogradFilterTransformF(weights_.policy.weights,
                                                        pol_channels, channels);
+  }
+
+  if (attn_policy_) {
+    if (weights_.pol_encoder.size() > 0) {
+      for (auto& layer : weights_.pol_encoder) {
+        // Merge QKV weights and biases.
+        layer.mha.q_w.insert(layer.mha.q_w.end(), layer.mha.k_w.begin(),
+                             layer.mha.k_w.end());
+        layer.mha.q_w.insert(layer.mha.q_w.end(), layer.mha.v_w.begin(),
+                             layer.mha.v_w.end());
+
+        layer.mha.q_b.insert(layer.mha.q_b.end(), layer.mha.k_b.begin(),
+                             layer.mha.k_b.end());
+        layer.mha.q_b.insert(layer.mha.q_b.end(), layer.mha.v_b.begin(),
+                             layer.mha.v_b.end());
+      }
+    }
+  }
+
+  if (attn_body_) {
+    for (auto& layer : weights_.encoder) {
+      // Merge QKV weights and biases.
+      layer.mha.q_w.insert(layer.mha.q_w.end(), layer.mha.k_w.begin(),
+                           layer.mha.k_w.end());
+      layer.mha.q_w.insert(layer.mha.q_w.end(), layer.mha.v_w.begin(),
+                           layer.mha.v_w.end());
+
+      layer.mha.q_b.insert(layer.mha.q_b.end(), layer.mha.k_b.begin(),
+                           layer.mha.k_b.end());
+      layer.mha.q_b.insert(layer.mha.q_b.end(), layer.mha.v_b.begin(),
+                           layer.mha.v_b.end());
+    }
   }
 
   if (use_eigen) {
