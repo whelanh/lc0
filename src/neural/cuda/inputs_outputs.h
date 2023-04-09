@@ -99,6 +99,7 @@ struct InputsOutputs {
       }
       if (scratch_mem_) ReportCUDAErrors(cudaFree(scratch_mem_));
       if (offset_pointers_) ReportCUDAErrors(cudaFree(offset_pointers_));
+      if (head_offset_pointers_) ReportCUDAErrors(cudaFree(head_offset_pointers_));
 
       cudaStreamDestroy(stream_);
       cublasDestroy(cublas_);
@@ -126,6 +127,7 @@ struct InputsOutputs {
   void* tensor_mem_[3];
   void* scratch_mem_;
   void** offset_pointers_ = nullptr;
+  void** head_offset_pointers_ = nullptr;
 
   // cuda stream used to run the network
   cudaStream_t stream_;
