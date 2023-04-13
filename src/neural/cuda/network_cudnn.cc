@@ -317,7 +317,7 @@ class CudnnNetwork : public Network {
       }
     }
 
-    const bool use_gemm_ex = deviceProp.major >= 5;
+    const bool use_gemm_ex = false;
 
     // 0. Check for SE.
     has_se_ = false;

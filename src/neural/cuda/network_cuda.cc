@@ -305,7 +305,7 @@ class CudaNetwork : public Network {
       use_res_block_winograd_fuse_opt_ = options.Get<bool>("res_block_fusing");
     }
 
-    const bool use_gemm_ex = deviceProp.major >= 5;
+    const bool use_gemm_ex = false;
 
     // 0. Check for SE.
     has_se_ = false;
