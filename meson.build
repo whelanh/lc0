@@ -580,6 +580,9 @@ if get_option('build_backends')
                   required: true,
                   args: '-I' + get_option('onnx_include'))
     deps += [onnx_lib]
+    if cc.has_header('dml_provider_factory.h', args: '-I' + get_option('onnx_include'))
+      deps += cc.find_library('dxgi', required: true)
+    endif
 
     files += [
       'src/neural/onnx/network_onnx.cc',

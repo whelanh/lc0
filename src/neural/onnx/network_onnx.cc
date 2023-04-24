@@ -28,12 +28,14 @@
 #include <algorithm>
 #include <cassert>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 
 #if __has_include("dml_provider_factory.h")
+#include <dxgi.h>
 #include "dml_provider_factory.h"
 #define USE_DML
 #endif
@@ -354,11 +356,45 @@ std::unique_ptr<Network> MakeOnnxNetwork(const std::optional<WeightsFile>& w,
 
   int gpu = opts.GetOrDefault<int>("gpu", 0);
 
-  int batch_size =
-      opts.GetOrDefault<int>("batch", kProvider == OnnxProvider::DML ? 16 : -1);
+  int default_batch_size = -1;
+  int default_step_size = 1;
+#ifdef USE_DML
+  if (kProvider == OnnxProvider::DML) {
+    default_batch_size = 16;
+    default_step_size = 4;
 
-  int steps =
-      opts.GetOrDefault<int>("steps", kProvider == OnnxProvider::DML ? 4 : 1);
+    IDXGIFactory* factory = nullptr;
+    if (CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory)) {
+      throw Exception("onnx-dml internal error");
+    }
+    IDXGIAdapter* adapter = nullptr;
+    if (factory->EnumAdapters(gpu, &adapter)) {
+      factory->Release();
+      throw Exception("Invalid gpu number");
+    }
+    DXGI_ADAPTER_DESC desc;
+    if (!adapter->GetDesc(&desc)) {
+      std::wcout << "GPU: " << desc.Description << std::endl;
+      std::cout << "Vendor Id: " << std::hex << desc.VendorId << std::endl;
+      std::cout << "Device Id: " << desc.DeviceId << std::endl;
+      std::cout << "Subsystem Id: " << desc.SubSysId << std::endl;
+      std::cout << "Revision: " << desc.Revision << std::dec << std::endl;
+      std::cout << "Dedicated Video Memory: "
+                << desc.DedicatedVideoMemory / 1024 / 1024 << "MB" << std::endl;
+      std::cout << "Dedicated System Memory: "
+                << desc.DedicatedSystemMemory / 1024 / 1024 << "MB"
+                << std::endl;
+      std::cout << "Shared System Memory: "
+                << desc.SharedSystemMemory / 1024 / 1024 << "MB" << std::endl;
+
+      // Add heuristics here.
+    }
+    adapter->Release();
+    factory->Release();
+  }
+#endif
+  int batch_size = opts.GetOrDefault<int>("batch", default_batch_size);
+  int steps = opts.GetOrDefault<int>("steps", default_step_size);
 
   int threads =
       opts.GetOrDefault<int>("threads", kProvider == OnnxProvider::CPU ? 1 : 0);
