@@ -356,58 +356,14 @@ std::unique_ptr<Network> MakeOnnxNetwork(const std::optional<WeightsFile>& w,
 
   int gpu = opts.GetOrDefault<int>("gpu", 0);
 
-  int default_batch_size = -1;
-  int default_step_size = 1;
-#ifdef USE_DML
-  if (kProvider == OnnxProvider::DML) {
-    default_batch_size = 16;
-    default_step_size = 4;
-
-    IDXGIFactory* factory = nullptr;
-    if (CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory)) {
-      throw Exception("onnx-dml internal error");
-    }
-    IDXGIAdapter* adapter = nullptr;
-    if (factory->EnumAdapters(gpu, &adapter)) {
-      factory->Release();
-      throw Exception("Invalid gpu number");
-    }
-    DXGI_ADAPTER_DESC desc;
-    if (!adapter->GetDesc(&desc)) {
-      std::wcout << "GPU: " << desc.Description << std::endl;
-      std::cout << "Vendor Id: " << std::hex << desc.VendorId << std::endl;
-      std::cout << "Device Id: " << desc.DeviceId << std::endl;
-      std::cout << "Subsystem Id: " << desc.SubSysId << std::endl;
-      std::cout << "Revision: " << desc.Revision << std::dec << std::endl;
-      std::cout << "Dedicated Video Memory: "
-                << desc.DedicatedVideoMemory / 1024 / 1024 << "MB" << std::endl;
-      std::cout << "Dedicated System Memory: "
-                << desc.DedicatedSystemMemory / 1024 / 1024 << "MB"
-                << std::endl;
-      std::cout << "Shared System Memory: "
-                << desc.SharedSystemMemory / 1024 / 1024 << "MB" << std::endl;
-
-      // Add heuristics here.
-    }
-    adapter->Release();
-    factory->Release();
-  }
-#endif
-  int batch_size = opts.GetOrDefault<int>("batch", default_batch_size);
-  int steps = opts.GetOrDefault<int>("steps", default_step_size);
-
   int threads =
       opts.GetOrDefault<int>("threads", kProvider == OnnxProvider::CPU ? 1 : 0);
-
-  if (batch_size <= 0) batch_size = -1;  // Variable batch size.
 
   bool fp16 = opts.GetOrDefault<bool>(
       "fp16", kProvider == OnnxProvider::CPU ? false : true);
 
-  if (w->has_onnx_model()) {
-    return std::make_unique<OnnxNetwork>(*w, opts, kProvider, gpu, threads,
-                                         false, batch_size, steps);
-  } else {
+  WeightsFile converted;
+  if (!w->has_onnx_model()) {
     if (w->format().network_format().network() !=
             pblczero::NetworkFormat::NETWORK_CLASSICAL_WITH_HEADFORMAT &&
         w->format().network_format().network() !=
@@ -456,7 +412,53 @@ std::unique_ptr<Network> MakeOnnxNetwork(const std::optional<WeightsFile>& w,
         fp16 ? WeightsToOnnxConverterOptions::DataType::kFloat16
              : WeightsToOnnxConverterOptions::DataType::kFloat32;
 
-    auto converted = ConvertWeightsToOnnx(*w, converter_options);
+    converted = ConvertWeightsToOnnx(*w, converter_options);
+  }
+
+  int default_batch_size = -1;
+  int default_steps = 1;
+#ifdef USE_DML
+  if (kProvider == OnnxProvider::DML) {
+    default_batch_size = 16;
+    default_steps = 8;  // This is an upper limit.
+
+    IDXGIFactory* factory = nullptr;
+    if (CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory)) {
+      throw Exception("onnx-dml internal error");
+    }
+    IDXGIAdapter* adapter = nullptr;
+    if (factory->EnumAdapters(gpu, &adapter)) {
+      factory->Release();
+      throw Exception("Invalid gpu number");
+    }
+    DXGI_ADAPTER_DESC desc;
+    if (!adapter->GetDesc(&desc)) {
+      std::wcout << "GPU: " << desc.Description << std::endl;
+      std::cout << "Vendor Id: " << std::hex << desc.VendorId << std::endl;
+      std::cout << "Device Id: " << desc.DeviceId << std::dec << std::endl;
+      auto memory = desc.DedicatedVideoMemory + desc.DedicatedSystemMemory +
+                    desc.SharedSystemMemory;
+      auto model_size = w->has_onnx_model()
+                            ? w->onnx_model().model().size()
+                            : converted.onnx_model().model().size();
+      // We use 3 * model_size as an uppper limit to the memory required per
+      // session. Measurements put the constant term between 1.6 and 2.6.
+      int max_step_size = memory / 2 / (3 * model_size);
+      default_steps = std::max(1, std::min(default_steps, max_step_size));
+    }
+    adapter->Release();
+    factory->Release();
+  }
+#endif
+  int batch_size = opts.GetOrDefault<int>("batch", default_batch_size);
+  int steps = opts.GetOrDefault<int>("steps", default_steps);
+
+  if (batch_size <= 0) batch_size = -1;  // Variable batch size.
+
+  if (w->has_onnx_model()) {
+    return std::make_unique<OnnxNetwork>(*w, opts, kProvider, gpu, threads,
+                                         false, batch_size, steps);
+  } else {
     return std::make_unique<OnnxNetwork>(converted, opts, kProvider, gpu,
                                          threads, fp16, batch_size, steps);
   }
