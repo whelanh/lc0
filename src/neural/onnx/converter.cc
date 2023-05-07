@@ -527,12 +527,10 @@ std::string Converter::MakeAttentionBody(OnnxBuilder* builder,
                                 Int64OnnxConst({-1, 64, 112}, {3})));
     auto pre = builder->Slice("/attn_body/preproc/slice", flow, {0, 0, 0},
                               {INT_MAX, INT_MAX, 12});
-
     pre = builder->Reshape(
         "/attn_body/preproc/reshape", pre,
         builder->AddInitializer("/const/att_body_preproc_shape",
                                 Int64OnnxConst({-1, 768}, {2})));
-
     int preproc_size = weights.ip_emb_preproc_b.size();
     pre = builder->MatMul("/attn_body/preproc/matmul", pre,
                           *GetWeghtsConverter(weights.ip_emb_preproc_w,
@@ -540,13 +538,15 @@ std::string Converter::MakeAttentionBody(OnnxBuilder* builder,
     pre = builder->Add(
         "/attn_body/preproc/add", pre,
         *GetWeghtsConverter(weights.ip_emb_preproc_b, {preproc_size}));
-
     pre = builder->Reshape(
         "/attn_body/preproc/reshape2", pre,
         builder->AddInitializer("/const/att_body_preproc_shape2",
                                 Int64OnnxConst({-1, 64, 128}, {3})));
-
     flow = builder->Concat("/attn_body/preproc/concat", {flow, pre}, 2);
+    flow = builder->Reshape(
+        "/attn_body/preproc/reshape3", flow,
+        builder->AddInitializer("/const/att_body_preproc_shape3",
+                                Int64OnnxConst({-1, 240}, {2})));
   } else {
     flow = builder->Reshape(
         "/attn_body/reshape", flow,
@@ -592,19 +592,12 @@ std::string Converter::MakeAttentionBody(OnnxBuilder* builder,
   flow = builder->Add("/attn_body/add", flow,
                       *GetWeghtsConverter(weights.ip_emb_b, {embedding_size}));
 
-  if (weights.ip_emb_preproc_w.size() > 0) {
-    flow = MakeActivation(builder, flow, "/attn_body", ACTIVATION_SWISH);
-    flow = builder->Reshape(
-        "/attn_body/reshape3", flow,
-        builder->AddInitializer("/const/att_body_shape3",
-                                Int64OnnxConst({-1, embedding_size}, {2})));
+  flow = MakeActivation(builder, flow, "/attn_body", default_activation_);
+  if (weights.ip_emb_ln_gammas.size() > 0) {
     flow = MakeLayerNorm(builder, flow, "/attn_body/ln",
                          weights.ip_emb_ln_gammas, weights.ip_emb_ln_betas,
                          weights.ip_emb_ln_betas.size(), 1e-3);
-  } else {
-    flow = MakeActivation(builder, flow, "/attn_body", default_activation_);
   }
-
   if (weights.ip_mult_gate.size() > 0 || weights.ip_add_gate.size() > 0) {
     flow = builder->Reshape(
         "/attn_body/ma_gating/rehape1", flow,
