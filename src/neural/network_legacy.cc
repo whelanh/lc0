@@ -30,8 +30,12 @@ static constexpr float kEpsilon = 1e-5f;
 
 LegacyWeights::LegacyWeights(const pblczero::Weights& weights)
     : input(weights.input()),
+      ip_emb_preproc_w(LayerAdapter(weights.ip_emb_preproc_w()).as_vector()),
+      ip_emb_preproc_b(LayerAdapter(weights.ip_emb_preproc_b()).as_vector()),
       ip_emb_w(LayerAdapter(weights.ip_emb_w()).as_vector()),
       ip_emb_b(LayerAdapter(weights.ip_emb_b()).as_vector()),
+      ip_emb_ln_gammas(LayerAdapter(weights.ip_emb_ln_gammas()).as_vector()),
+      ip_emb_ln_betas(LayerAdapter(weights.ip_emb_ln_betas()).as_vector()),
       ip_mult_gate(LayerAdapter(weights.ip_mult_gate()).as_vector()),
       ip_add_gate(LayerAdapter(weights.ip_add_gate()).as_vector()),
       policy1(weights.policy1()),

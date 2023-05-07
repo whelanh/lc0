@@ -111,6 +111,12 @@ class Converter {
                           const std::string& encoder_in,
                           const std::string& name);
 
+  std::string MakeLayerNorm(OnnxBuilder* builder, const std::string& input,
+                            const std::string& name,
+                            const std::vector<float>& gammas,
+                            const std::vector<float>& betas, int size,
+                            float eps = 1e-6);
+
   std::string MakeEncoderLayer(OnnxBuilder* builder,
                                const LegacyWeights::EncoderLayer& layer,
                                int embedding_size, int heads,
@@ -320,11 +326,9 @@ std::string Converter::MakeSmolgen(OnnxBuilder* builder,
       name + "/smolgen/dense1/b", flow,
       *GetWeghtsConverter(layer.mha.smolgen.dense1_b, {smolgen_hidden_sz}));
   flow = MakeActivation(builder, flow, name + "/smolgen/dense1", activation);
-  flow = builder->LayerNormalization(
-      name + "/smolgen/ln1", flow,
-      *GetWeghtsConverter(layer.mha.smolgen.ln1_gammas, {smolgen_hidden_sz}),
-      *GetWeghtsConverter(layer.mha.smolgen.ln1_betas, {smolgen_hidden_sz}), 1,
-      1e-3);
+  flow = MakeLayerNorm(builder, flow, name + "/smolgen/ln1",
+                       layer.mha.smolgen.ln1_gammas,
+                       layer.mha.smolgen.ln1_betas, smolgen_hidden_sz, 1e-3);
   flow = builder->MatMul(
       name + "/smolgen/dense2/w", flow,
       *GetWeghtsConverter(layer.mha.smolgen.dense2_w,
@@ -333,13 +337,9 @@ std::string Converter::MakeSmolgen(OnnxBuilder* builder,
                       *GetWeghtsConverter(layer.mha.smolgen.dense2_b,
                                           {smolgen_gen_sz * heads}));
   flow = MakeActivation(builder, flow, name + "/smolgen/dense2", activation);
-  flow = builder->LayerNormalization(
-      name + "/smolgen/ln2", flow,
-      *GetWeghtsConverter(layer.mha.smolgen.ln2_gammas,
-                          {smolgen_gen_sz * heads}),
-      *GetWeghtsConverter(layer.mha.smolgen.ln2_betas,
-                          {smolgen_gen_sz * heads}),
-      1, 1e-3);
+  flow = MakeLayerNorm(
+      builder, flow, name + "/smolgen/ln2", layer.mha.smolgen.ln2_gammas,
+      layer.mha.smolgen.ln2_betas, smolgen_gen_sz * heads, 1e-3);
   flow =
       builder->Reshape(name + "/smolgen/gen_from/reshape", flow,
                        builder->AddInitializer(
@@ -352,6 +352,44 @@ std::string Converter::MakeSmolgen(OnnxBuilder* builder,
       builder->AddInitializer("/const" + name + "/smolgen/out/shape",
                               Int64OnnxConst({-1, heads, 64, 64}, {4})));
   return flow;
+}
+
+std::string Converter::MakeLayerNorm(OnnxBuilder* builder,
+                                     const std::string& input,
+                                     const std::string& name,
+                                     const std::vector<float>& gammas,
+                                     const std::vector<float>& betas, int size,
+                                     float eps) {
+  if (gammas.size() > 0 && betas.size() > 0) {
+    return builder->LayerNormalization(
+        name, input, *GetWeghtsConverter(gammas, {size}),
+        *GetWeghtsConverter(betas, {size}), 1, eps);
+  } else if (gammas.size() > 0) {
+    auto in = builder->Reshape(
+        name + "/reshape1", input,
+        builder->AddInitializer("/const" + name + "/shape1",
+                                Int64OnnxConst({1, -1, size}, {3})));
+    auto flow = builder->Mul(name + "/square", in, in);
+    flow = builder->GlobalAveragePool(name + "/var", flow);
+    std::unique_ptr<OnnxConst> epsilon;
+    if (GetDataType() == pblczero::TensorProto::FLOAT16) {
+      epsilon = std::make_unique<Float16OnnxConst>(
+          Float16OnnxConst({FP32toFP16(eps)}, {1}));
+    } else {
+      epsilon = std::make_unique<FloatOnnxConst>(FloatOnnxConst({eps}, {1}));
+    }
+    flow = builder->Add(name + "/epsilon", flow, *epsilon);
+    flow = builder->Sqrt(name + "/stdev", flow);
+    flow = builder->Reciprocal(name + "/invstdev", flow);
+    flow = builder->Mul(name + "/w", flow, *GetWeghtsConverter(gammas, {size}));
+    flow = builder->Mul(name + "/in*invstddev", flow, in);
+    flow = builder->Reshape(
+        name + "/reshape2", flow,
+        builder->AddInitializer("/const" + name + "/shape2",
+                                Int64OnnxConst({-1, size}, {2})));
+    return flow;
+  }
+  return input;
 }
 
 std::string Converter::MakeEncoderLayer(
@@ -430,11 +468,8 @@ std::string Converter::MakeEncoderLayer(
     alpha_in = encoder_in;
   }
   flow = builder->Add(name + "/mha/out/skip", flow, alpha_in);
-
-  auto ffn_in = builder->LayerNormalization(
-      name + "/ln1", flow,
-      *GetWeghtsConverter(layer.ln1_gammas, {embedding_size}),
-      *GetWeghtsConverter(layer.ln1_betas, {embedding_size}), 1);
+  auto ffn_in = MakeLayerNorm(builder, flow, name + "/ln1", layer.ln1_gammas,
+                              layer.ln1_betas, embedding_size);
   const int dff_size = layer.ffn.dense1_b.size();
   flow =
       builder->MatMul(name + "/ffn/dense1/w", ffn_in,
@@ -462,10 +497,8 @@ std::string Converter::MakeEncoderLayer(
     alpha_ffn_in = ffn_in;
   }
   flow = builder->Add(name + "/ffn/skip", flow, alpha_ffn_in);
-  flow = builder->LayerNormalization(
-      name + "/ln2", flow,
-      *GetWeghtsConverter(layer.ln2_gammas, {embedding_size}),
-      *GetWeghtsConverter(layer.ln2_betas, {embedding_size}), 1);
+  flow = MakeLayerNorm(builder, flow, name + "/ln2", layer.ln2_gammas,
+                       layer.ln2_betas, embedding_size);
   return flow;
 }
 
@@ -487,6 +520,33 @@ std::string Converter::MakeAttentionBody(OnnxBuilder* builder,
         "/attn_body/reshape", flow,
         builder->AddInitializer("/const/att_body_shape",
                                 Int64OnnxConst({-1, NumFilters()}, {2})));
+  } else if (weights.ip_emb_preproc_w.size() > 0) {
+    flow = builder->Reshape(
+        "/attn_body/reshape", flow,
+        builder->AddInitializer("/const/att_body_shape",
+                                Int64OnnxConst({-1, 64, 112}, {3})));
+    auto pre = builder->Slice("/attn_body/preproc/slice", flow, {0, 0, 0},
+                              {INT_MAX, INT_MAX, 12});
+
+    pre = builder->Reshape(
+        "/attn_body/preproc/reshape", pre,
+        builder->AddInitializer("/const/att_body_preproc_shape",
+                                Int64OnnxConst({-1, 768}, {2})));
+
+    int preproc_size = weights.ip_emb_preproc_b.size();
+    pre = builder->MatMul("/attn_body/preproc/matmul", pre,
+                          *GetWeghtsConverter(weights.ip_emb_preproc_w,
+                                              {768, preproc_size}, {1, 0}));
+    pre = builder->Add(
+        "/attn_body/preproc/add", pre,
+        *GetWeghtsConverter(weights.ip_emb_preproc_b, {preproc_size}));
+
+    pre = builder->Reshape(
+        "/attn_body/preproc/reshape2", pre,
+        builder->AddInitializer("/const/att_body_preproc_shape2",
+                                Int64OnnxConst({-1, 64, 128}, {3})));
+
+    flow = builder->Concat("/attn_body/preproc/concat", {flow, pre}, 2);
   } else {
     flow = builder->Reshape(
         "/attn_body/reshape", flow,
@@ -526,10 +586,24 @@ std::string Converter::MakeAttentionBody(OnnxBuilder* builder,
       "/attn_body/matmul", flow,
       *GetWeghtsConverter(
           weights.ip_emb_w,
-          {NumResBlocks() > 0 ? NumFilters() : 176, embedding_size}, {1, 0}));
+          {static_cast<int>(weights.ip_emb_w.size()) / embedding_size,
+           embedding_size},
+          {1, 0}));
   flow = builder->Add("/attn_body/add", flow,
                       *GetWeghtsConverter(weights.ip_emb_b, {embedding_size}));
-  flow = MakeActivation(builder, flow, "/attn_body", default_activation_);
+
+  if (weights.ip_emb_preproc_w.size() > 0) {
+    flow = MakeActivation(builder, flow, "/attn_body", ACTIVATION_SWISH);
+    flow = builder->Reshape(
+        "/attn_body/reshape3", flow,
+        builder->AddInitializer("/const/att_body_shape3",
+                                Int64OnnxConst({-1, embedding_size}, {2})));
+    flow = MakeLayerNorm(builder, flow, "/attn_body/ln",
+                         weights.ip_emb_ln_gammas, weights.ip_emb_ln_betas,
+                         weights.ip_emb_ln_betas.size(), 1e-3);
+  } else {
+    flow = MakeActivation(builder, flow, "/attn_body", default_activation_);
+  }
 
   if (weights.ip_mult_gate.size() > 0 || weights.ip_add_gate.size() > 0) {
     flow = builder->Reshape(

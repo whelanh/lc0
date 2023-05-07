@@ -103,9 +103,17 @@ struct LegacyWeights {
   // Input convnet.
   ConvBlock input;
 
+  // Embedding preprocessing
+  Vec ip_emb_preproc_w;
+  Vec ip_emb_preproc_b;
+
   // Embedding layer
   Vec ip_emb_w;
   Vec ip_emb_b;
+
+  // Embedding Layer Normalization
+  Vec ip_emb_ln_gammas;
+  Vec ip_emb_ln_betas;
 
   // Input gating
   Vec ip_mult_gate;

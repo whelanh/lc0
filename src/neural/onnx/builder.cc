@@ -438,4 +438,16 @@ std::string OnnxBuilder::Mish(const std::string& name,
   return PopulateStdNodeFields(node, name, input, "Mish");
 }
 
+std::string OnnxBuilder::Sqrt(const std::string& name,
+                              const std::string& input) {
+  auto* node = model_.mutable_graph()->add_node();
+  return PopulateStdNodeFields(node, name, input, "Sqrt");
+}
+
+std::string OnnxBuilder::Reciprocal(const std::string& name,
+                                    const std::string& input) {
+  auto* node = model_.mutable_graph()->add_node();
+  return PopulateStdNodeFields(node, name, input, "Reciprocal");
+}
+
 }  // namespace lczero

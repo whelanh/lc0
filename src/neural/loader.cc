@@ -154,9 +154,9 @@ WeightsFile ParseWeightsProto(const std::string& buffer) {
       GetVersionStr(net.min_version().major(), net.min_version().minor(),
                     net.min_version().patch(), "", "");
   const auto lc0_ver = GetVersionInt();
-  const auto net_ver =
-      GetVersionInt(net.min_version().major(), net.min_version().minor(),
-                    net.min_version().patch());
+  const auto net_ver = GetVersionInt(net.min_version().major(),
+                                     net.min_version().minor() & 0xffff,
+                                     net.min_version().patch());
 
   FixOlderWeightsFile(&net);
 

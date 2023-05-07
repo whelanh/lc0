@@ -65,7 +65,7 @@ class OnnxBuilder {
   std::string Add(const std::string& name, const std::string& input1,
                   const std::string& input2);
   std::string Add(const std::string& name, const std::string& input1,
-                  const OnnxConst&);
+                  const OnnxConst& input2);
   std::string GlobalAveragePool(const std::string& name,
                                 const std::string& input);
   std::string Squeeze(const std::string& name, const std::string& input,
@@ -120,6 +120,8 @@ class OnnxBuilder {
   std::string Where(const std::string& name, const std::string& input1,
                     const std::string& input2, const std::string& input3);
   std::string Mish(const std::string& name, const std::string& input);
+  std::string Sqrt(const std::string& name, const std::string& input);
+  std::string Reciprocal(const std::string& name, const std::string& input);
   // Returns ONNX model as protobuf.
   const pblczero::ModelProto& as_proto() const { return model_; }
   // Returns serialized model.
