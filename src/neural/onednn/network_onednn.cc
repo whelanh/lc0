@@ -660,15 +660,6 @@ class OnednnNetwork : public Network {
                               sizeof(float));
       }
 
-      // Move input to the gpu.
-      if (eng_.get_kind() != dnnl::engine::kind::cpu) {
-        dnnl::memory tmp =
-            dnnl::memory(input_desc, eng_, io->scratch_mem.get_data_handle());
-        dnnl::reorder in_reorder = dnnl::reorder(input_mem, tmp);
-        in_reorder.execute(eng_stream_, input_mem, tmp);
-        input_mem = tmp;
-      }
-
       // Output descriptors.
       dnnl::memory::desc opPol_desc;
       if (attn_policy_) {
@@ -721,6 +712,16 @@ class OnednnNetwork : public Network {
 
       // A reference to be allocated and enlarged as needed.
       dnnl::memory& scratchpad_mem = io->scratchpad_mem;
+
+      lock_.lock();
+      // Move input to the gpu.
+      if (eng_.get_kind() != dnnl::engine::kind::cpu) {
+        dnnl::memory tmp =
+            dnnl::memory(input_desc, eng_, io->scratch_mem.get_data_handle());
+        dnnl::reorder in_reorder = dnnl::reorder(input_mem, tmp);
+        in_reorder.execute(eng_stream_, input_mem, tmp);
+        input_mem = tmp;
+      }
 
       int l = 0;
 
@@ -805,7 +806,6 @@ class OnednnNetwork : public Network {
         layers_[idx][l++]->Eval(batchSize, opMov_mem, tensor_mem[1],
                                 scratch_mem, eng_, eng_stream_, scratchpad_mem);
       }
-      eng_stream_.wait();
 
       // Convert output data to nchw and if on gpu move them to the cpu.
       dnnl::memory opPol_mem_cpu;
@@ -813,35 +813,31 @@ class OnednnNetwork : public Network {
 
       if (opPol_desc != opPol_mem.get_desc() ||
           eng_.get_kind() != dnnl::engine::kind::cpu) {
-        std::lock_guard<std::mutex> lock(lock_);
         opPol_mem_cpu = dnnl::memory(opPol_desc, cpu_eng_);
         dnnl::reorder pol_reorder = dnnl::reorder(opPol_mem, opPol_mem_cpu);
         pol_reorder.execute(eng_stream_, opPol_mem, opPol_mem_cpu);
-        eng_stream_.wait();
       } else {
         opPol_mem_cpu = opPol_mem;
       }
 
       if (opVal_desc != opVal_mem.get_desc() ||
           eng_.get_kind() != dnnl::engine::kind::cpu) {
-        std::lock_guard<std::mutex> lock(lock_);
         opVal_mem_cpu = dnnl::memory(opVal_desc, cpu_eng_);
         dnnl::reorder val_reorder_ = dnnl::reorder(opVal_mem, opVal_mem_cpu);
         val_reorder_.execute(eng_stream_, opVal_mem, opVal_mem_cpu);
-        eng_stream_.wait();
       } else {
         opVal_mem_cpu = opVal_mem;
       }
 
       if (moves_left_) {
         // MLH doesn't need post-processing so move directly to output buffer.
-        std::lock_guard<std::mutex> lock(lock_);
         dnnl::memory opMov_mem_cpu =
             dnnl::memory(opMov_desc, cpu_eng_, io->op_moves_left_mem_ + start);
         dnnl::reorder mov_reorder_ = dnnl::reorder(opMov_mem, opMov_mem_cpu);
         mov_reorder_.execute(eng_stream_, opMov_mem, opMov_mem_cpu);
-        eng_stream_.wait();
       }
+      eng_stream_.wait();
+      lock_.unlock();
 
       // Copy memory to output buffers and do final transformations.
       if (wdl_) {
