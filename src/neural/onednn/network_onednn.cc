@@ -809,10 +809,10 @@ class OnednnNetwork : public Network {
       // Convert output data to nchw and if on gpu move them to the cpu.
       dnnl::memory opPol_mem_cpu;
       dnnl::memory opVal_mem_cpu;
-
+{
+      std::lock_guard<std::mutex> lock(lock_);
       if (opPol_desc != opPol_mem.get_desc() ||
           eng_.get_kind() != dnnl::engine::kind::cpu) {
-        std::lock_guard<std::mutex> lock(lock_);
         opPol_mem_cpu = dnnl::memory(opPol_desc, cpu_eng_);
         dnnl::reorder pol_reorder = dnnl::reorder(opPol_mem, opPol_mem_cpu);
         pol_reorder.execute(eng_stream_, opPol_mem, opPol_mem_cpu);
@@ -822,7 +822,6 @@ class OnednnNetwork : public Network {
 
       if (opVal_desc != opVal_mem.get_desc() ||
           eng_.get_kind() != dnnl::engine::kind::cpu) {
-        std::lock_guard<std::mutex> lock(lock_);
         opVal_mem_cpu = dnnl::memory(opVal_desc, cpu_eng_);
         dnnl::reorder val_reorder_ = dnnl::reorder(opVal_mem, opVal_mem_cpu);
         val_reorder_.execute(eng_stream_, opVal_mem, opVal_mem_cpu);
@@ -832,14 +831,13 @@ class OnednnNetwork : public Network {
 
       if (moves_left_) {
         // MLH doesn't need post-processing so move directly to output buffer.
-        std::lock_guard<std::mutex> lock(lock_);
         dnnl::memory opMov_mem_cpu =
             dnnl::memory(opMov_desc, cpu_eng_, io->op_moves_left_mem_ + start);
         dnnl::reorder mov_reorder_ = dnnl::reorder(opMov_mem, opMov_mem_cpu);
         mov_reorder_.execute(eng_stream_, opMov_mem, opMov_mem_cpu);
       }
       eng_stream_.wait();
-
+}
       // Copy memory to output buffers and do final transformations.
       if (wdl_) {
         // Value softmax done cpu side.
