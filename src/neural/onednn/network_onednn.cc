@@ -809,7 +809,7 @@ class OnednnNetwork : public Network {
       // Convert output data to nchw and if on gpu move them to the cpu.
       dnnl::memory opPol_mem_cpu;
       dnnl::memory opVal_mem_cpu;
-
+      std::lock_guard<std::mutex> lock(lock_);
       if (opPol_desc != opPol_mem.get_desc() ||
           eng_.get_kind() != dnnl::engine::kind::cpu) {
         opPol_mem_cpu = dnnl::memory(opPol_desc, cpu_eng_);
