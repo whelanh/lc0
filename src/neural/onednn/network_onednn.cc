@@ -713,6 +713,7 @@ class OnednnNetwork : public Network {
       // A reference to be allocated and enlarged as needed.
       dnnl::memory& scratchpad_mem = io->scratchpad_mem;
 
+      lock_.lock();
       // Move input to the gpu.
       if (eng_.get_kind() != dnnl::engine::kind::cpu) {
         dnnl::memory tmp =
@@ -721,8 +722,6 @@ class OnednnNetwork : public Network {
         in_reorder.execute(eng_stream_, input_mem, tmp);
         input_mem = tmp;
       }
-
-      lock_.lock();
 
       int l = 0;
 
@@ -807,8 +806,6 @@ class OnednnNetwork : public Network {
         layers_[idx][l++]->Eval(batchSize, opMov_mem, tensor_mem[1],
                                 scratch_mem, eng_, eng_stream_, scratchpad_mem);
       }
-      eng_stream_.wait();
-      lock_.unlock();
 
       // Convert output data to nchw and if on gpu move them to the cpu.
       dnnl::memory opPol_mem_cpu;
@@ -840,6 +837,7 @@ class OnednnNetwork : public Network {
         mov_reorder_.execute(eng_stream_, opMov_mem, opMov_mem_cpu);
       }
       eng_stream_.wait();
+      lock_.unlock();
 
       // Copy memory to output buffers and do final transformations.
       if (wdl_) {
