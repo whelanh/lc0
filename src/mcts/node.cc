@@ -141,6 +141,7 @@ void Node::Trim(GCQueue* gc_queue) {
   vs_ = 0.0f;
   n_ = 0;
   n_in_flight_ = 0;
+  weight_ = 0.0;
 
   // edge_
 
@@ -243,31 +244,111 @@ void LowNode::MakeNotTerminal(const Node* node) {
   d_ = 0.0;
   m_ = 0.0;
   vs_ = 0.0;
+  weight_ = 0.0;
 
   // Include children too.
   if (node->GetNumEdges() > 0) {
     for (const auto& child : node->Edges()) {
+      const auto weight = child.GetWeight();
       const auto n = child.GetN();
       if (n > 0) {
+        weight_ += weight;
         n_ += n;
         // Flip Q for opponent.
         // Default values don't matter as n is > 0.
-        wl_ += child.GetWL(0.0f) * n;
-        d_ += child.GetD(0.0f) * n;
-        m_ += child.GetM(0.0f) * n;
-        vs_ += child.GetVS(0.0f) * n;
+        wl_ += child.GetWL(0.0) * weight;
+        d_ += child.GetD(0.0) * weight;
+        m_ += child.GetM(0.0) * weight;
+        vs_ += child.GetVS(0.0) * weight;
       }
     }
 
     // Recompute with current eval (instead of network's) and children's eval.
-    wl_ /= n_;
-    d_ /= n_;
-    m_ /= n_;
-    vs_ /= n_;
+    wl_ /= weight_;
+    d_ /= weight_;
+    m_ /= weight_;
+    vs_ /= weight_;
   }
 
   assert(WLDMInvariantsHold());
 }
+
+void LowNode::Update(float minimax_boost_scale, float minimax_boost_prior_weight) {
+  assert(edges_);
+  if (minimax_boost_scale == 1.0f) return; // Minimax boosting disabled.
+
+  wl_ = 0.0;
+  d_ = 0.0;
+  m_ = 0.0;
+  vs_ = 0.0;
+
+  float minimax_boost = 1.0f + (minimax_boost_scale - 1) * ( weight_ / (weight_ + minimax_boost_prior_weight));
+
+
+  float counted_weight = 0.0;
+
+  // Include children too.
+  for (Node* child : VisitedNodes()) {
+    const auto weight = child->GetWeight();
+    const auto n = child->GetN();
+    if (n > 0) {
+      // Flip Q for opponent.
+      // Default values don't matter as n is > 0.
+      wl_ += child->GetWL() * weight;
+      d_ += child->GetD() * weight;
+      m_ += child->GetM() * weight;
+      vs_ += child->GetVS() * weight;
+      counted_weight += weight;
+    }
+  }
+  float remaining_weight = weight_ - counted_weight;
+  wl_ += v_ * remaining_weight;
+  vs_ += v_ * v_ * remaining_weight;
+  d_ += init_d_ * remaining_weight;
+  m_ += init_m_ * remaining_weight;
+
+  // Recompute with current eval (instead of network's) and children's eval.
+  wl_ /= weight_;
+  d_ /= weight_;
+  m_ /= weight_;
+  vs_ /= weight_;
+
+
+  
+  Node* best_child = nullptr;
+  float best_increase = 0.0f;
+  for (Node* child : VisitedNodes()) {
+    const auto weight = child->GetWeight();
+    const auto n = child->GetN();
+    if (n > 0) {
+      // Flip Q for opponent.
+      // Default values don't matter as n is > 0.
+      float wl = child->GetWL();
+      float added_weight = weight * (minimax_boost - 1.0f);
+      float wl_increase = (wl - wl_) * added_weight / (weight_ + added_weight);
+      if (wl_increase > best_increase) {
+        best_increase = wl_increase;
+        best_child = child;
+      }
+    }
+  }
+    
+  if (best_child) {
+		wl_ += best_increase;
+    float weight = best_child->GetWeight();
+    float added_weight = weight * (minimax_boost - 1.0f);
+    float multiplier = added_weight / (weight_ + added_weight);
+
+    vs_ += (best_child->GetVS() - vs_) * multiplier;
+    d_ += (best_child->GetD() - d_) * multiplier;
+    m_ += (best_child->GetM() - m_) * multiplier;
+	}
+ 
+
+  assert(WLDMInvariantsHold());
+}
+
+
 
 void LowNode::SetBounds(GameResult lower, GameResult upper) {
   lower_bound_ = lower;
@@ -323,11 +404,12 @@ void Node::MakeNotTerminal(bool also_low_node) {
   } else {  // Real terminal.
     lower_bound_ = GameResult::BLACK_WON;
     upper_bound_ = GameResult::WHITE_WON;
-    n_ = 0.0f;
+    n_ = 0;
     wl_ = 0.0f;
     d_ = 0.0f;
     m_ = 0.0f;
     vs_ = 0.0f;
+    weight_ = 0.0f;
   }
 
   assert(WLDMInvariantsHold());

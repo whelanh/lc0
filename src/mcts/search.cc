@@ -524,7 +524,7 @@ std::vector<std::string> Search::GetVerboseStats(Node* node) const {
   auto print_stats = [&](auto* oss, const auto* n) {
     const auto sign = n == node ? -1 : 1;
     if (n) {
-      print(oss, "(WGT: ", n->GetWeight(), ") ", 10, 5);
+      print(oss, "(WGT: ", n->GetWeight(), ") ", 10, 2);
       print(oss, "(WL: ", sign * n->GetWL(), ") ", 8, 5);
       print(oss, "(D: ", n->GetD(), ") ", 5, 3);
       print(oss, "(M: ", n->GetM(), ") ", 4, 1);
@@ -2193,7 +2193,7 @@ bool SearchWorker::MaybeAdjustForTerminalOrTransposition(
   }
 
   // Use information from transposition or a new terminal.
-  if (nl->IsTransposition() || nl->IsTerminal()) {
+  if (true || nl->IsTransposition() || nl->IsTerminal()) { // lownode eval may change from boosting so always recalculate
     // Adapt information from low node to node by flipping Q sign, bounds,
     // result and incrementing m.
     v = -nl->GetWL();
@@ -2312,7 +2312,10 @@ void SearchWorker::DoBackupUpdateSingleNode(
       d = 1.0f;
       m = nm + 1;
     }
-    if (n->IsRepetition()) n_to_fix = 0;
+    if (n->IsRepetition()) {
+      n_to_fix = 0;
+      weight_to_fix = 0;
+    }
 
     // Nothing left to do without ancestors to update.
     if (++it == path.crend()) break;
@@ -2338,6 +2341,7 @@ void SearchWorker::DoBackupUpdateSingleNode(
     if (n_to_fix > 0) {
       pl->AdjustForTerminal(v_delta, d_delta, m_delta, vs_delta, n_to_fix, weight_to_fix);
     }
+    pl->Update(params_.GetMinimaxBoostScale(), params_.GetMinimaxBoostPriorWeight());
 
     bool old_update_parent_bounds = update_parent_bounds;
     // Try setting parent bounds except the root or those already terminal.

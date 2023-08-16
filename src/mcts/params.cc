@@ -459,6 +459,13 @@ const OptionId SearchParams::kCpuctUtilityStdevPriorWeightId{
 const OptionId SearchParams::kMoveRuleBucketingId{
 		"move-rule-bucketing", "MoveRuleBucketing",
     "Whether to use move rule bucketing.", 'm'};
+const OptionId SearchParams::kMinimaxBoostPriorWeightId{
+		"minimax-boost-prior-weight", "MinimaxBoostPriorWeight",
+		"How much to weigh the prior value (1) in the calculation of minimax boost."};
+const OptionId SearchParams::kMinimaxBoostScaleId{
+    "minimax-boost-scale", "MinimaxBoostScale",
+    "Scale value for the minimax boost."};
+
 
 void SearchParams::Populate(OptionsParser* options) {
   // Here the uci optimized defaults" are set.
@@ -561,6 +568,8 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<FloatOption>(kCpuctUtilityStdevPriorWeightId, 0.0f, 10000.0f) =
       10.0f;
   options->Add<BoolOption>(kMoveRuleBucketingId) = false;
+  options->Add<FloatOption>(kMinimaxBoostPriorWeightId, 0.0f, 10000.0f) = 10.0f;
+  options->Add<FloatOption>(kMinimaxBoostScaleId, 1.0f, 10000.0f) = 1.0f;
 
   options->HideOption(kNoiseEpsilonId);
   options->HideOption(kNoiseAlphaId);
@@ -680,7 +689,13 @@ SearchParams::SearchParams(const OptionsDict& options)
       kCpuctUtilityStdevPriorWeight(
           options.Get<float>(kCpuctUtilityStdevPriorWeightId)),
       kMoveRuleBucketing(
-        options.Get<bool>(kMoveRuleBucketingId)) {
+        options.Get<bool>(kMoveRuleBucketingId)),
+      kMinimaxBoostPriorWeight(
+        options.Get<float>(kMinimaxBoostPriorWeightId)),
+      kMinimaxBoostScale(
+        options.Get<float>(kMinimaxBoostScaleId))
+
+{
   if (std::max(std::abs(kDrawScoreSidetomove), std::abs(kDrawScoreOpponent)) +
           std::max(std::abs(kDrawScoreWhite), std::abs(kDrawScoreBlack)) >
       1.0f) {

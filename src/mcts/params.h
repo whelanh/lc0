@@ -158,6 +158,8 @@ class SearchParams {
     return kCpuctUtilityStdevPriorWeight;
   }
   bool GetMoveRuleBucketing() const { return kMoveRuleBucketing; }
+  float GetMinimaxBoostPriorWeight() const { return kMinimaxBoostPriorWeight; }
+  float GetMinimaxBoostScale() const { return kMinimaxBoostScale; }
 
   // Search parameter IDs.
   static const OptionId kMiniBatchSizeId;
@@ -234,6 +236,8 @@ class SearchParams {
   static const OptionId kCpuctUtilityStdevScaleId;
   static const OptionId kCpuctUtilityStdevPriorWeightId;
   static const OptionId kMoveRuleBucketingId;
+  static const OptionId kMinimaxBoostPriorWeightId;
+  static const OptionId kMinimaxBoostScaleId;
 
  private:
   const OptionsDict& options_;
@@ -297,6 +301,8 @@ class SearchParams {
   const float kCpuctUtilityStdevScale;
   const float kCpuctUtilityStdevPriorWeight;
   const bool kMoveRuleBucketing;
+  const float kMinimaxBoostPriorWeight;
+  const float kMinimaxBoostScale;
 };
 
 }  // namespace lczero

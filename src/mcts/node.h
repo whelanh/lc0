@@ -421,7 +421,6 @@ class Node {
   // Pointer to a next sibling. nullptr if there are no further siblings.
   atomic_unique_ptr<Node> sibling_;
 
-  // 4 byte fields.
 
   // Estimated remaining plies.
   float m_ = 0.0f;
@@ -531,6 +530,8 @@ class LowNode {
     d_ = eval->d;
     m_ = eval->m;
     vs_ = wl_ * wl_;
+    init_m_ = eval->m;
+    init_d_ = eval->d;
 
     assert(WLDMInvariantsHold());
 
@@ -554,6 +555,8 @@ class LowNode {
   float GetM() const { return m_; }
   float GetVS() const { return vs_; }
   float GetWeight() const { return weight_; }
+  float GetInitM() const { return init_m_; }
+  float GetInitD() const { return init_d_; }
 
   // Returns whether the node is known to be draw/loss/win.
   bool IsTerminal() const { return terminal_type_ != Terminal::NonTerminal; }
@@ -570,6 +573,12 @@ class LowNode {
   // Makes the low node not terminal and recomputes bounds, visits and values
   // using incoming @node.
   void MakeNotTerminal(const Node* node);
+
+  VisitedNode_Iterator<false> VisitedNodes();
+
+
+  void Update(float minimax_boost_scale, float minimax_boost_prior_weight);
+
   void SetBounds(GameResult lower, GameResult upper);
 
   // Decrements n-in-flight back.
@@ -665,6 +674,9 @@ class LowNode {
   float m_ = 0.0f;
   // original eval
   float v_ = 0.0f;
+  float init_m_ = 0.0f;
+  float init_d_ = 0.0f;
+
   // How many completed visits this node had.
   uint32_t n_ = 0;
 
@@ -972,6 +984,10 @@ inline VisitedNode_Iterator<true> Node::VisitedNodes() const {
 }
 inline VisitedNode_Iterator<false> Node::VisitedNodes() {
   return {this->GetLowNode()};
+}
+
+inline VisitedNode_Iterator<false> LowNode::VisitedNodes() {
+  return {this};
 }
 
 class NodeTree {
