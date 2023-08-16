@@ -160,6 +160,7 @@ class SearchParams {
   bool GetMoveRuleBucketing() const { return kMoveRuleBucketing; }
   float GetMinimaxBoostPriorWeight() const { return kMinimaxBoostPriorWeight; }
   float GetMinimaxBoostScale() const { return kMinimaxBoostScale; }
+  std::string GetReportedNodes() const { return options_.Get<std::string>(kReportedNodesId); }
 
   // Search parameter IDs.
   static const OptionId kMiniBatchSizeId;
@@ -238,6 +239,7 @@ class SearchParams {
   static const OptionId kMoveRuleBucketingId;
   static const OptionId kMinimaxBoostPriorWeightId;
   static const OptionId kMinimaxBoostScaleId;
+  static const OptionId kReportedNodesId;
 
  private:
   const OptionsDict& options_;

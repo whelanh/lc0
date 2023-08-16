@@ -465,6 +465,11 @@ const OptionId SearchParams::kMinimaxBoostPriorWeightId{
 const OptionId SearchParams::kMinimaxBoostScaleId{
     "minimax-boost-scale", "MinimaxBoostScale",
     "Scale value for the minimax boost."};
+const OptionId SearchParams::kReportedNodesId{
+    "reported-nodes", "ReportedNodes",
+    "What to report as nodes/nps count. Default is "
+    "'nodes' for LowNodes. The other options are 'queries' for neural network"
+    "queries and 'playouts' or 'legacy' for the old value."};
 
 
 void SearchParams::Populate(OptionsParser* options) {
@@ -570,6 +575,10 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<BoolOption>(kMoveRuleBucketingId) = false;
   options->Add<FloatOption>(kMinimaxBoostPriorWeightId, 0.0f, 10000.0f) = 10.0f;
   options->Add<FloatOption>(kMinimaxBoostScaleId, 1.0f, 10000.0f) = 1.0f;
+  std::vector<std::string> reported_nodes = {"nodes", "queries", "playouts",
+                                       "legacy"};
+  options->Add<ChoiceOption>(kReportedNodesId, reported_nodes) =
+      "nodes";
 
   options->HideOption(kNoiseEpsilonId);
   options->HideOption(kNoiseAlphaId);
