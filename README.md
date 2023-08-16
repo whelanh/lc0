@@ -15,7 +15,7 @@ Many of these features are taken from the Katago engine. A detailed description 
 The first 64 plies out of 100 are partitioned into 8 equally sized buckets. Before a position is queried for NN evaluation, the 50 move rule ply is checked. If the bucket containing the position already has nodes, the eval is copied from the one with the most visits.
 The speedup can be anywhere from 5% to 50% depending on how transposition-heavy the position is. The gain was measured at 20 elo on STC. The nodes per second statistic is now calculated by the number of true nodes (called LowNode in the code) rather than edges (technically playouts, called Node in the code) so the reported value may be lower than on previous dag versions.
 
-This feature is disabled by default but can be enabled by specifying `-m` or `--move-rule-bucketing=true` in the config.
+This feature is enabled by default but can be disabled by specifying `--move-rule-bucketing=false` in the config.
 
 
 ### CPUCT Utility Variance Scaling
@@ -40,6 +40,16 @@ WDLCalibrationElo 3400
 ```
 
 The gain  is around 10 elo on STC and LTC.
+
+### Minimax Boosting
+At each node, rather than using an average of the playouts, a "boost" is applied to the best moves which increases the weight. This may assist with the problem of evaluations changing slowly when a new line is found while retaining the stability of PUCT. The new parameters are
+
+```
+MinimaxBoostPriorWeight (default 10.0)
+MinimaxBoostScale (default 1.0)
+```
+
+The prior weight allows this effect to be smaller at nodes with fewer visits, i.e., lower confidence. The scale is the amount the best node's weight is scaled by in the average calculation.
 
 
 
