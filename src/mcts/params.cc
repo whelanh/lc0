@@ -458,7 +458,7 @@ const OptionId SearchParams::kCpuctUtilityStdevPriorWeightId{
     "How much to weigh the prior value in the calculation of stdev."};
 const OptionId SearchParams::kMoveRuleBucketingId{
 		"move-rule-bucketing", "MoveRuleBucketing",
-    "Whether to use move rule bucketing.", 'm'};
+    "Whether to use move rule bucketing."};
 const OptionId SearchParams::kMinimaxBoostPriorWeightId{
 		"minimax-boost-prior-weight", "MinimaxBoostPriorWeight",
 		"How much to weigh the prior value (1) in the calculation of minimax boost."};
@@ -572,7 +572,7 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<FloatOption>(kCpuctUtilityStdevScaleId, 0.0f, 1.0f) = 0.0f;
   options->Add<FloatOption>(kCpuctUtilityStdevPriorWeightId, 0.0f, 10000.0f) =
       10.0f;
-  options->Add<BoolOption>(kMoveRuleBucketingId) = false;
+  options->Add<BoolOption>(kMoveRuleBucketingId) = true;
   options->Add<FloatOption>(kMinimaxBoostPriorWeightId, 0.0f, 10000.0f) = 10.0f;
   options->Add<FloatOption>(kMinimaxBoostScaleId, 1.0f, 10000.0f) = 1.0f;
   std::vector<std::string> reported_nodes = {"nodes", "queries", "playouts",
