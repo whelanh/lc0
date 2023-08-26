@@ -276,16 +276,18 @@ void LowNode::MakeNotTerminal(const Node* node) {
 void LowNode::Update(float minimax_boost_scale, float minimax_boost_prior_weight) {
   assert(edges_);
   if (minimax_boost_scale == 1.0f) return; // Minimax boosting disabled.
+  if (weight_ < minimax_boost_prior_weight) return; // Not enough visits to boost. 
 
   wl_ = 0.0;
   d_ = 0.0;
   m_ = 0.0;
   vs_ = 0.0;
 
-  float minimax_boost = 1.0f + (minimax_boost_scale - 1) * ( weight_ / (weight_ + minimax_boost_prior_weight));
+  float minimax_boost = 1.0f + (minimax_boost_scale - 1) *
+                                   ((weight_ - minimax_boost_prior_weight) / weight_);
 
 
-  float counted_weight = 0.0;
+  float children_weight = 0.0;
 
   // Include children too.
   for (Node* child : VisitedNodes()) {
@@ -298,20 +300,16 @@ void LowNode::Update(float minimax_boost_scale, float minimax_boost_prior_weight
       d_ += child->GetD() * weight;
       m_ += child->GetM() * weight;
       vs_ += child->GetVS() * weight;
-      counted_weight += weight;
+      children_weight += weight;
     }
   }
-  float remaining_weight = weight_ - counted_weight;
-  wl_ += v_ * remaining_weight;
-  vs_ += v_ * v_ * remaining_weight;
-  d_ += init_d_ * remaining_weight;
-  m_ += init_m_ * remaining_weight;
+
 
   // Recompute with current eval (instead of network's) and children's eval.
-  wl_ /= weight_;
-  d_ /= weight_;
-  m_ /= weight_;
-  vs_ /= weight_;
+  wl_ /= children_weight;
+  d_ /= children_weight;
+  m_ /= children_weight;
+  vs_ /= children_weight;
 
 
   
@@ -325,7 +323,7 @@ void LowNode::Update(float minimax_boost_scale, float minimax_boost_prior_weight
       // Default values don't matter as n is > 0.
       float wl = child->GetWL();
       float added_weight = weight * (minimax_boost - 1.0f);
-      float wl_increase = (wl - wl_) * added_weight / (weight_ + added_weight);
+      float wl_increase = (wl - wl_) * added_weight / (children_weight + added_weight);
       if (wl_increase > best_increase) {
         best_increase = wl_increase;
         best_child = child;
@@ -334,10 +332,10 @@ void LowNode::Update(float minimax_boost_scale, float minimax_boost_prior_weight
   }
     
   if (best_child) {
-		wl_ += best_increase;
+		wl_ += best_increase; 
     float weight = best_child->GetWeight();
     float added_weight = weight * (minimax_boost - 1.0f);
-    float multiplier = added_weight / (weight_ + added_weight);
+    float multiplier = added_weight / (children_weight + added_weight);
 
     vs_ += (best_child->GetVS() - vs_) * multiplier;
     d_ += (best_child->GetD() - d_) * multiplier;
